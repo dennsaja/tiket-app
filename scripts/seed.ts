@@ -136,13 +136,31 @@ async function seed() {
 
   // ── Users ─────────────────────────────────────────────────────────────────────
   console.log("  Creating demo users...");
+  const nocHash = await bcrypt.hash("Noc@123456", 12);
+  const ownerHash = await bcrypt.hash("Owner@123456", 12);
   const adminHash = await bcrypt.hash("Admin@123456", 12);
   const agentHash = await bcrypt.hash("Agent@123456", 12);
   const userHash = await bcrypt.hash("User@123456", 12);
 
-  const [adminUser, agentUser, demoUser] = await db
+  const [nocUser, ownerUser, adminUser, agentUser, demoUser] = await db
     .insert(schema.users)
     .values([
+      {
+        name: "NOC Administrator",
+        email: "noc@helpdesk.local",
+        passwordHash: nocHash,
+        role: "noc",
+        emailVerified: new Date(),
+        isActive: true,
+      },
+      {
+        name: "Owner Helpdesk",
+        email: "owner@helpdesk.local",
+        passwordHash: ownerHash,
+        role: "owner",
+        emailVerified: new Date(),
+        isActive: true,
+      },
       {
         name: "Admin User",
         email: "admin@helpdesk.local",
@@ -264,9 +282,11 @@ async function seed() {
 
   console.log("✅ Database seeded successfully!");
   console.log("\n📋 Demo accounts:");
-  console.log("  Admin:  admin@helpdesk.local  /  Admin@123456");
-  console.log("  Agent:  agent@helpdesk.local  /  Agent@123456");
-  console.log("  User:   user@helpdesk.local   /  User@123456");
+  console.log("  NOC Admin: noc@helpdesk.local    /  Noc@123456");
+  console.log("  Owner:     owner@helpdesk.local  /  Owner@123456");
+  console.log("  Admin:     admin@helpdesk.local  /  Admin@123456");
+  console.log("  Agent:     agent@helpdesk.local  /  Agent@123456");
+  console.log("  User:      user@helpdesk.local   /  User@123456");
 
   await pool.end();
 }
