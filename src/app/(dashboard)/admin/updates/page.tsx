@@ -79,14 +79,14 @@ export default function AdminUpdatesPage() {
   const handleStartUpdate = async () => {
     setIsUpdating(true);
     setUpdateLogs([
-      "Memulai proses pembaruan aplikasi...",
-      "Menghubungkan ke GitHub repository...",
+      "[CLIENT] Memulai proses pembaruan aplikasi...",
+      "[CLIENT] Mengirim permintaan ke /api/admin/system/update...",
     ]);
     setUpdateResult(null);
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      const timeoutId = setTimeout(() => controller.abort(), 240000); // 4 minutes
 
       const res = await fetch("/api/admin/system/update", {
         method: "POST",
@@ -98,13 +98,20 @@ export default function AdminUpdatesPage() {
 
       const data = await res.json().catch(() => null);
 
-      if (!res.ok || !data?.success) {
-        throw new Error(
-          data?.error || `Pembaruan gagal dengan status ${res.status}`
-        );
+      if (data?.logs && Array.isArray(data.logs) && data.logs.length > 0) {
+        setUpdateLogs(data.logs);
       }
 
-      setUpdateLogs(data.logs || ["Pembaruan selesai."]);
+      if (!res.ok || !data?.success) {
+        const errText = data?.error || `Pembaruan gagal dengan status HTTP ${res.status}`;
+        setUpdateResult({
+          success: false,
+          message: errText,
+        });
+        toast.error(errText);
+        return;
+      }
+
       setUpdateResult({
         success: true,
         message: data.message || "Pembaruan berhasil diterapkan!",
@@ -115,10 +122,10 @@ export default function AdminUpdatesPage() {
     } catch (err: any) {
       const isAbort = err.name === "AbortError";
       const errorMsg = isAbort
-        ? "Waktu tunggu habis (timeout). Server mungkin sedang memproses di latar belakang."
+        ? "Waktu tunggu habis (timeout 4 menit). Proses build atau fetch mungkin masih berjalan di server."
         : err.message || "Terjadi kesalahan jaringan saat memperbarui";
 
-      setUpdateLogs((prev) => [...prev, `[ERROR] ${errorMsg}`]);
+      setUpdateLogs((prev) => [...prev, `[NETWORK_ERROR] ${errorMsg}`]);
       setUpdateResult({
         success: false,
         message: errorMsg,
@@ -126,6 +133,14 @@ export default function AdminUpdatesPage() {
       toast.error(errorMsg);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleCopyLogs = () => {
+    const text = updateLogs.join("\n");
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      toast.success("Log eksekusi berhasil disalin!");
     }
   };
 
@@ -207,7 +222,7 @@ export default function AdminUpdatesPage() {
       {/* Main Status Panel */}
       {info?.hasUpdate ? (
         /* Update Available Card */
-        <div className="rounded-xl border border-zinc-900 bg-zinc-950 p-6 text-white dark:border-zinc-700 dark:bg-zinc-900 shadow-sm">
+        <div className="rounded-xl border border-zinc-900 bg-zinc-950 p-5 sm:p-6 text-white dark:border-zinc-700 dark:bg-zinc-900 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-2">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-black dark:bg-white dark:text-black">
@@ -215,15 +230,15 @@ export default function AdminUpdatesPage() {
               </div>
 
               <h2 className="text-base font-bold text-white tracking-tight">
-                Versi Baru ({info.latestCommit}) Tersedia di GitHub
+                Versi Baru ({info.latestCommit || "Terbaru"}) Tersedia di GitHub
               </h2>
 
               <div className="rounded-lg border border-zinc-800 bg-black/60 p-3 text-xs text-zinc-300 space-y-1.5">
                 <p className="font-medium text-white">
-                  {info.commitMessage}
+                  {info.commitMessage || "Pembaruan kode sumber & skema"}
                 </p>
                 <div className="flex flex-wrap items-center gap-3 text-[11px] text-zinc-400">
-                  <span>Author: <strong className="text-zinc-200">{info.commitAuthor}</strong></span>
+                  <span>Author: <strong className="text-zinc-200">{info.commitAuthor || "Developer"}</strong></span>
                   {info.commitDate && (
                     <span>Tanggal: {formatDateTime(info.commitDate)}</span>
                   )}
@@ -248,7 +263,7 @@ export default function AdminUpdatesPage() {
                 handleStartUpdate();
               }}
               leftIcon={<ArrowUpCircle className="h-4 w-4" />}
-              className="bg-white text-black hover:bg-zinc-200 dark:bg-white dark:text-black dark:hover:bg-zinc-200 shrink-0 font-medium"
+              className="bg-white text-black hover:bg-zinc-200 dark:bg-white dark:text-black dark:hover:bg-zinc-200 shrink-0 font-medium w-full sm:w-auto"
             >
               Perbarui Sekarang
             </Button>
@@ -274,7 +289,7 @@ export default function AdminUpdatesPage() {
         <p className="font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
           <Terminal className="h-3.5 w-3.5 text-zinc-500" /> Alternatif Pembaruan Manual via Terminal Server:
         </p>
-        <div className="rounded-lg bg-black border border-zinc-800 p-3 font-mono text-[11px] text-zinc-200 select-all">
+        <div className="rounded-lg bg-black border border-zinc-800 p-3 font-mono text-[11px] text-zinc-200 select-all overflow-x-auto">
           cd /opt/helpdesk/app &amp;&amp; git pull origin main &amp;&amp; npm run build &amp;&amp; systemctl restart helpdesk
         </div>
       </div>
@@ -286,17 +301,17 @@ export default function AdminUpdatesPage() {
           if (!isUpdating) setUpdateModalOpen(open);
         }}
         title="Proses Pembaruan Sistem"
-        description="Aplikasi sedang mengunduh pembaruan dari GitHub dan menyinkronkan data."
+        description="Aplikasi sedang mengunduh pembaruan dari GitHub, sinkronisasi skema DB, dan mengompilasi file."
       >
         <div className="space-y-4 pt-2">
           {isUpdating ? (
             <div className="flex flex-col items-center justify-center py-6 space-y-3">
               <Spinner size="lg" />
               <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                Sedang memproses git pull &amp; sinkronisasi...
+                Sedang memproses git fetch, migrasi database &amp; build Next.js...
               </p>
               <p className="text-[11px] text-zinc-500 text-center max-w-xs">
-                Mohon tunggu beberapa detik hingga file terbaru berhasil disinkronkan.
+                Mohon tunggu beberapa saat. Seluruh tahapan eksekusi terminal tercatat secara langsung di bawah.
               </p>
             </div>
           ) : updateResult?.success ? (
@@ -325,13 +340,24 @@ export default function AdminUpdatesPage() {
 
           {/* Logs Output */}
           <div className="space-y-1.5">
-            <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
-              <Terminal className="h-3 w-3" /> Log Eksekusi:
-            </p>
-            <div className="max-h-48 overflow-y-auto rounded-lg bg-black border border-zinc-800 p-3 font-mono text-[11px] text-zinc-300 space-y-1">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+                <Terminal className="h-3 w-3" /> Log Eksekusi Server:
+              </p>
+              {updateLogs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleCopyLogs}
+                  className="text-[10px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 font-medium underline"
+                >
+                  Salin Log
+                </button>
+              )}
+            </div>
+            <div className="max-h-56 overflow-y-auto rounded-lg bg-black border border-zinc-800 p-3 font-mono text-[11px] text-zinc-300 space-y-1">
               {updateLogs.map((log, i) => (
-                <div key={i} className="leading-tight">
-                  <span className="text-zinc-500">&gt;</span> {log}
+                <div key={i} className="leading-tight break-all font-mono">
+                  <span className="text-zinc-500 select-none">&gt;</span> {log}
                 </div>
               ))}
             </div>

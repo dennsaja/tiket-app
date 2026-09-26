@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Search, Plus, X, Command } from "lucide-react";
+import { Bell, Search, Plus, X, Command, Menu } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -103,16 +103,26 @@ export function TopNav({ breadcrumbs, title }: TopNavProps) {
   }, [pathname, breadcrumbs]);
 
   return (
-    <header className="sticky top-0 z-30 flex h-13 items-center border-b border-zinc-200 bg-white/80 backdrop-blur-md px-4 sm:px-6 gap-3 dark:border-zinc-800 dark:bg-black/80">
+    <header className="sticky top-0 z-30 flex h-13 items-center border-b border-zinc-200 bg-white/80 backdrop-blur-md px-3 sm:px-6 gap-2 sm:gap-3 dark:border-zinc-800 dark:bg-black/80">
+      {/* Mobile Hamburger Menu Toggle */}
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new CustomEvent("toggle-mobile-sidebar"))}
+        className="flex lg:hidden h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100 shrink-0"
+        aria-label="Buka Menu"
+      >
+        <Menu className="h-4 w-4" />
+      </button>
+
       {/* Left: Breadcrumbs (Vercel Style) */}
-      <div className="flex items-center gap-1.5 min-w-0 flex-1">
-        <nav className="flex items-center gap-1.5 text-xs min-w-0">
-          <span className="font-semibold text-zinc-900 dark:text-zinc-100 shrink-0">
+      <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+        <nav className="flex items-center gap-1.5 text-xs min-w-0 truncate">
+          <span className="font-semibold text-zinc-900 dark:text-zinc-100 shrink-0 hidden xs:inline">
             HelpDesk
           </span>
           {autoBreadcrumbs.map((crumb, i) => (
             <React.Fragment key={i}>
-              <span className="text-zinc-300 dark:text-zinc-700 select-none">/</span>
+              <span className="text-zinc-300 dark:text-zinc-700 select-none shrink-0">/</span>
               {crumb.href ? (
                 <Link
                   href={crumb.href}

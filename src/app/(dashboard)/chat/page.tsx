@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Building2,
   User,
+  ArrowLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils";
@@ -65,6 +66,7 @@ export default function DepartmentChatPage() {
   const [isLoadingRooms, setIsLoadingRooms] = React.useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = React.useState(false);
   const [isSending, setIsSending] = React.useState(false);
+  const [mobileChatOpen, setMobileChatOpen] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const currentUser = session?.user;
@@ -174,21 +176,21 @@ export default function DepartmentChatPage() {
   });
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6.5rem)] rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-xs dark:border-zinc-800 dark:bg-black">
+    <div className="flex flex-col h-[calc(100vh-5.5rem)] sm:h-[calc(100vh-6.5rem)] rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-xs dark:border-zinc-800 dark:bg-black">
       {/* Chat Top Banner */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 bg-zinc-50/50 dark:border-zinc-800 dark:bg-zinc-950/50">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-black text-white dark:bg-white dark:text-black shadow-xs">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 border-b border-zinc-200 bg-zinc-50/50 dark:border-zinc-800 dark:bg-zinc-950/50">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-black text-white dark:bg-white dark:text-black shadow-xs shrink-0">
             <MessagesSquare className="h-3.5 w-3.5" />
           </div>
-          <div>
-            <h1 className="text-xs font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+          <div className="min-w-0">
+            <h1 className="text-xs font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5 truncate">
               Ruang Chat Tim Departemen
-              <span className="rounded-full bg-zinc-200/70 px-1.5 py-0.2 text-[10px] font-mono text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              <span className="rounded-full bg-zinc-200/70 px-1.5 py-0.2 text-[10px] font-mono text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 hidden sm:inline">
                 Internal
               </span>
             </h1>
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate hidden sm:block">
               Saluran koordinasi tertutup khusus admin dan teknisi per tiket
             </p>
           </div>
@@ -203,16 +205,20 @@ export default function DepartmentChatPage() {
           }}
           isLoading={isLoadingRooms}
           leftIcon={<RefreshCw className="h-3 w-3" />}
-          className="text-xs"
+          className="text-xs shrink-0"
         >
           Segarkan
         </Button>
       </div>
 
-      {/* 2-Column Chat Layout */}
+      {/* 2-Column Responsive Chat Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Column: Channels / Rooms List */}
-        <div className="w-80 border-r border-zinc-200 dark:border-zinc-800 flex flex-col bg-zinc-50/40 dark:bg-zinc-950/40">
+        <div
+          className={`w-full md:w-80 border-r border-zinc-200 dark:border-zinc-800 flex flex-col bg-zinc-50/40 dark:bg-zinc-950/40 shrink-0 ${
+            mobileChatOpen ? "hidden md:flex" : "flex"
+          }`}
+        >
           {/* Search Box */}
           <div className="p-3 border-b border-zinc-200 dark:border-zinc-800">
             <div className="relative flex items-center">
@@ -244,7 +250,10 @@ export default function DepartmentChatPage() {
                   <button
                     key={room.ticketId}
                     type="button"
-                    onClick={() => setSelectedRoomId(room.ticketId)}
+                    onClick={() => {
+                      setSelectedRoomId(room.ticketId);
+                      setMobileChatOpen(true);
+                    }}
                     className={`w-full p-3 text-left transition-colors flex flex-col gap-1 ${
                       isSelected
                         ? "bg-zinc-100/90 border-l-2 border-black dark:bg-zinc-900 dark:border-white"
@@ -292,49 +301,59 @@ export default function DepartmentChatPage() {
         </div>
 
         {/* Right Column: Active Room Messages */}
-        <div className="flex-1 flex flex-col bg-white dark:bg-black">
+        <div
+          className={`flex-1 flex flex-col bg-white dark:bg-black min-w-0 ${
+            !mobileChatOpen ? "hidden md:flex" : "flex"
+          }`}
+        >
           {selectedRoomId && activeTicket ? (
             <>
               {/* Room Header */}
-              <div className="flex items-center justify-between p-3.5 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                      #{activeTicket.ticketNumber}
-                    </span>
-                    <h2 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                      {activeTicket.title}
-                    </h2>
-                    <StatusBadge status={activeTicket.status} size="sm" />
-                    <PriorityBadge priority={activeTicket.priority} size="sm" />
-                  </div>
+              <div className="flex items-center justify-between p-3 sm:p-3.5 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {/* Mobile Back to List Button */}
+                  <button
+                    type="button"
+                    onClick={() => setMobileChatOpen(false)}
+                    className="flex md:hidden h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 shrink-0"
+                    aria-label="Kembali ke Daftar"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                  </button>
 
-                  <div className="flex items-center gap-3 text-[11px] text-zinc-500 dark:text-zinc-400">
-                    <span className="flex items-center gap-1">
-                      <Building2 className="h-3 w-3 text-zinc-400" />
-                      Departemen:{" "}
-                      <strong className="text-zinc-800 dark:text-zinc-200 font-medium">
-                        {activeTicket.department?.name || "Umum"}
-                      </strong>
-                    </span>
-                    {activeTicket.assignee && (
-                      <span className="flex items-center gap-1">
-                        <User className="h-3 w-3 text-zinc-400" />
-                        Teknisi:{" "}
-                        <strong className="text-zinc-800 dark:text-zinc-200 font-medium">
-                          {activeTicket.assignee.name}
-                        </strong>
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                      <span className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100 shrink-0">
+                        #{activeTicket.ticketNumber}
                       </span>
-                    )}
+                      <h2 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate max-w-[140px] sm:max-w-xs">
+                        {activeTicket.title}
+                      </h2>
+                      <StatusBadge status={activeTicket.status} size="sm" />
+                      <PriorityBadge priority={activeTicket.priority} size="sm" />
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                      <span className="flex items-center gap-1 truncate">
+                        <Building2 className="h-3 w-3 text-zinc-400 shrink-0" />
+                        {activeTicket.department?.name || "Umum"}
+                      </span>
+                      {activeTicket.assignee && (
+                        <span className="flex items-center gap-1 truncate hidden sm:flex">
+                          <User className="h-3 w-3 text-zinc-400 shrink-0" />
+                          {activeTicket.assignee.name}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 <Link
                   href={`/tickets/${selectedRoomId}`}
                   target="_blank"
-                  className="inline-flex items-center gap-1 text-xs font-medium text-black hover:underline dark:text-white"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-black hover:underline dark:text-white shrink-0"
                 >
-                  Detail Tiket <ExternalLink className="h-3 w-3" />
+                  <span className="hidden sm:inline">Detail Tiket</span> <ExternalLink className="h-3 w-3" />
                 </Link>
               </div>
 

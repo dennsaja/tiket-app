@@ -116,7 +116,7 @@ export default function AdminCategoriesPage() {
               key={cat.id}
               className="rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-800 dark:bg-black space-y-3"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-xs font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">{cat.name}</h3>
@@ -130,7 +130,7 @@ export default function AdminCategoriesPage() {
                 </div>
 
                 {cat.department && (
-                  <span className="text-[11px] font-medium text-zinc-600 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 rounded-md px-2 py-0.5 border border-zinc-200/60 dark:border-zinc-700">
+                  <span className="text-[11px] font-medium text-zinc-600 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 rounded-md px-2 py-0.5 border border-zinc-200/60 dark:border-zinc-700 self-start sm:self-auto">
                     Departemen: {cat.department.name}
                   </span>
                 )}

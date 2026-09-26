@@ -78,46 +78,48 @@ export default function AdminAuditPage() {
             Tidak ada riwayat log audit ditemukan.
           </div>
         ) : (
-          <Table>
-            <TableHeader className="bg-zinc-50/50 border-b border-zinc-200 dark:bg-zinc-950/50 dark:border-zinc-800">
-              <TableRow>
-                <TableHead className="w-40 text-[11px] font-medium text-zinc-500">Waktu</TableHead>
-                <TableHead className="w-48 text-[11px] font-medium text-zinc-500">Aktor</TableHead>
-                <TableHead className="w-44 text-[11px] font-medium text-zinc-500">Aksi</TableHead>
-                <TableHead className="w-32 text-[11px] font-medium text-zinc-500">Target</TableHead>
-                <TableHead className="text-[11px] font-medium text-zinc-500">Metadata</TableHead>
-                <TableHead className="w-28 text-[11px] font-medium text-zinc-500">Alamat IP</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {logs.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell className="font-mono text-[11px] text-zinc-400">
-                    {formatDateTime(log.createdAt)}
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium text-xs text-zinc-900 dark:text-zinc-100 truncate block max-w-[160px]">
-                      {log.actorEmail || "Sistem"}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="indigo" className="font-mono text-[10px]">
-                      {log.action}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-zinc-600 dark:text-zinc-400 font-mono">
-                    {log.targetType ? `${log.targetType}` : "—"}
-                  </TableCell>
-                  <TableCell className="text-xs font-mono text-zinc-500 dark:text-zinc-400 truncate max-w-xs">
-                    {log.metadata ? JSON.stringify(log.metadata) : "—"}
-                  </TableCell>
-                  <TableCell className="font-mono text-[11px] text-zinc-400">
-                    {log.ipAddress || "—"}
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-zinc-50/50 border-b border-zinc-200 dark:bg-zinc-950/50 dark:border-zinc-800">
+                <TableRow>
+                  <TableHead className="w-40 text-[11px] font-medium text-zinc-500">Waktu</TableHead>
+                  <TableHead className="w-48 text-[11px] font-medium text-zinc-500">Aktor</TableHead>
+                  <TableHead className="w-44 text-[11px] font-medium text-zinc-500">Aksi</TableHead>
+                  <TableHead className="w-32 text-[11px] font-medium text-zinc-500">Target</TableHead>
+                  <TableHead className="text-[11px] font-medium text-zinc-500">Metadata</TableHead>
+                  <TableHead className="w-28 text-[11px] font-medium text-zinc-500">Alamat IP</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {logs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="font-mono text-[11px] text-zinc-400">
+                      {formatDateTime(log.createdAt)}
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium text-xs text-zinc-900 dark:text-zinc-100 truncate block max-w-[160px]">
+                        {log.actorEmail || "Sistem"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="indigo" className="font-mono text-[10px]">
+                        {log.action}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-zinc-600 dark:text-zinc-400 font-mono">
+                      {log.targetType ? `${log.targetType}` : "—"}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono text-zinc-500 dark:text-zinc-400 truncate max-w-xs">
+                      {log.metadata ? JSON.stringify(log.metadata) : "—"}
+                    </TableCell>
+                    <TableCell className="font-mono text-[11px] text-zinc-400">
+                      {log.ipAddress || "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
 
         {total > 25 && (

@@ -129,55 +129,57 @@ export default function AdminSlaPage() {
             Belum ada kebijakan SLA yang dikonfigurasi.
           </div>
         ) : (
-          <Table>
-            <TableHeader className="bg-zinc-50/50 border-b border-zinc-200 dark:bg-zinc-950/50 dark:border-zinc-800">
-              <TableRow>
-                <TableHead className="w-48 text-[11px] font-medium text-zinc-500">Nama Kebijakan</TableHead>
-                <TableHead className="w-28 text-[11px] font-medium text-zinc-500">Prioritas</TableHead>
-                <TableHead className="w-36 text-[11px] font-medium text-zinc-500">Departemen</TableHead>
-                <TableHead className="w-36 text-[11px] font-medium text-zinc-500">Target Respons</TableHead>
-                <TableHead className="w-36 text-[11px] font-medium text-zinc-500">Target Resolusi</TableHead>
-                <TableHead className="w-28 text-[11px] font-medium text-zinc-500">Jam Kerja</TableHead>
-                <TableHead className="w-24 text-[11px] font-medium text-zinc-500">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {policies.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
-                    <div>
-                      <p>{p.name}</p>
-                      {p.description && (
-                        <p className="text-[11px] text-zinc-400 font-normal mt-0.5">{p.description}</p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {p.priority ? <PriorityBadge priority={p.priority} /> : <span className="text-zinc-400 text-xs">Semua</span>}
-                  </TableCell>
-                  <TableCell className="text-xs text-zinc-600 dark:text-zinc-400">
-                    {p.department?.name || "Semua"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-zinc-900 dark:text-zinc-100">
-                    {formatDuration(p.firstResponseMinutes)}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-zinc-900 dark:text-zinc-100">
-                    {formatDuration(p.resolutionMinutes)}
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-xs text-zinc-500">
-                      {p.useBusinessHours ? "9-17 WIB" : "24/7"}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={p.isActive ? "success" : "default"} dot className="text-[10px]">
-                      {p.isActive ? "Aktif" : "Nonaktif"}
-                    </Badge>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-zinc-50/50 border-b border-zinc-200 dark:bg-zinc-950/50 dark:border-zinc-800">
+                <TableRow>
+                  <TableHead className="w-48 text-[11px] font-medium text-zinc-500">Nama Kebijakan</TableHead>
+                  <TableHead className="w-28 text-[11px] font-medium text-zinc-500">Prioritas</TableHead>
+                  <TableHead className="w-36 text-[11px] font-medium text-zinc-500">Departemen</TableHead>
+                  <TableHead className="w-36 text-[11px] font-medium text-zinc-500">Target Respons</TableHead>
+                  <TableHead className="w-36 text-[11px] font-medium text-zinc-500">Target Resolusi</TableHead>
+                  <TableHead className="w-28 text-[11px] font-medium text-zinc-500">Jam Kerja</TableHead>
+                  <TableHead className="w-24 text-[11px] font-medium text-zinc-500">Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {policies.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
+                      <div>
+                        <p>{p.name}</p>
+                        {p.description && (
+                          <p className="text-[11px] text-zinc-400 font-normal mt-0.5">{p.description}</p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {p.priority ? <PriorityBadge priority={p.priority} /> : <span className="text-zinc-400 text-xs">Semua</span>}
+                    </TableCell>
+                    <TableCell className="text-xs text-zinc-600 dark:text-zinc-400">
+                      {p.department?.name || "Semua"}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-zinc-900 dark:text-zinc-100">
+                      {formatDuration(p.firstResponseMinutes)}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-zinc-900 dark:text-zinc-100">
+                      {formatDuration(p.resolutionMinutes)}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs text-zinc-500">
+                        {p.useBusinessHours ? "9-17 WIB" : "24/7"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={p.isActive ? "success" : "default"} dot className="text-[10px]">
+                        {p.isActive ? "Aktif" : "Nonaktif"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
 

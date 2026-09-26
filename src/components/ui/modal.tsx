@@ -52,7 +52,7 @@ const ModalContent = React.forwardRef<
       ref={ref}
       className={cn(
         "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
-        "w-full rounded-xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-black",
+        "w-[calc(100%-2rem)] rounded-xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-black",
         "focus:outline-none",
         "data-[state=open]:animate-fade-in",
         {

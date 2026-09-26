@@ -188,7 +188,8 @@ export default function AdminUsersPage() {
             Tidak ada pengguna ditemukan.
           </div>
         ) : (
-          <Table>
+          <div className="overflow-x-auto">
+            <Table>
             <TableHeader className="bg-zinc-50/50 border-b border-zinc-200 dark:bg-zinc-950/50 dark:border-zinc-800">
               <TableRow>
                 <TableHead className="w-56 text-[11px] font-medium text-zinc-500">Nama</TableHead>
@@ -254,6 +255,7 @@ export default function AdminUsersPage() {
               ))}
             </TableBody>
           </Table>
+          </div>
         )}
 
         {total > 20 && (

@@ -87,9 +87,11 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
     (searchParams.get("categoryId") && searchParams.get("categoryId") !== "all")
   );
 
+  const [mobileFilterOpen, setMobileFilterOpen] = React.useState(false);
+
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-3.5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-3">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+    <div className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400" />
@@ -103,6 +105,18 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
         </form>
 
         <div className="flex items-center gap-2">
+          {/* Mobile Filter Toggle Button */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setMobileFilterOpen((prev) => !prev)}
+            leftIcon={<Filter className="h-3 w-3" />}
+            className="sm:hidden text-xs"
+          >
+            {mobileFilterOpen ? "Sembunyikan Filter" : "Filter"}
+          </Button>
+
           {hasActiveFilters && (
             <Button
               variant="ghost"
@@ -118,7 +132,9 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
       </div>
 
       {/* Filter Row */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 pt-1">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 pt-1 ${
+        mobileFilterOpen ? "block" : "hidden sm:grid"
+      }`}>
         {/* Status */}
         <Select
           value={status}

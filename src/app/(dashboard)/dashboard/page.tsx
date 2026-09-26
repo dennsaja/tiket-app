@@ -220,20 +220,20 @@ export default async function DashboardPage() {
             {recentTickets.map((t) => (
               <div
                 key={t.id}
-                className="flex items-center justify-between px-4 py-3 hover:bg-zinc-50/80 dark:hover:bg-zinc-900/50 transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 hover:bg-zinc-50/80 dark:hover:bg-zinc-900/50 transition-colors"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="font-mono text-xs font-medium text-zinc-400">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  <span className="font-mono text-xs font-medium text-zinc-400 shrink-0">
                     #{t.ticketNumber}
                   </span>
                   <div className="min-w-0">
                     <Link
                       href={`/tickets/${t.id}`}
-                      className="text-xs font-medium text-zinc-900 hover:text-black dark:text-zinc-100 dark:hover:text-white truncate block max-w-md"
+                      className="text-xs font-medium text-zinc-900 hover:text-black dark:text-zinc-100 dark:hover:text-white truncate block max-w-xs sm:max-w-md"
                     >
                       {t.title}
                     </Link>
-                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-zinc-400">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 text-[11px] text-zinc-400 flex-wrap">
                       <span>{t.requester?.name || "Pelapor"}</span>
                       {t.department && (
                         <>
@@ -247,9 +247,9 @@ export default async function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <PriorityBadge priority={t.priority} />
-                  <StatusBadge status={t.status} />
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 self-start sm:self-auto pl-7 sm:pl-0">
+                  <PriorityBadge priority={t.priority} size="sm" />
+                  <StatusBadge status={t.status} size="sm" />
                 </div>
               </div>
             ))}

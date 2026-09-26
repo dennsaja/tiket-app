@@ -216,19 +216,14 @@ export function Sidebar() {
     </div>
   );
 
+  React.useEffect(() => {
+    const handleToggle = () => setMobileOpen((prev) => !prev);
+    window.addEventListener("toggle-mobile-sidebar", handleToggle);
+    return () => window.removeEventListener("toggle-mobile-sidebar", handleToggle);
+  }, []);
+
   return (
     <>
-      {/* Mobile toggle button */}
-      <div className="fixed bottom-4 right-4 z-40 lg:hidden">
-        <button
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-black text-white shadow-lg dark:bg-white dark:text-black"
-          aria-label="Menu"
-        >
-          {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-        </button>
-      </div>
-
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex w-56 shrink-0 flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
         <SidebarContent />
@@ -238,10 +233,10 @@ export function Sidebar() {
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="relative flex w-64 flex-col bg-white dark:bg-black z-10 border-r border-zinc-200 dark:border-zinc-800">
+          <div className="relative flex w-64 max-w-[80vw] flex-col bg-white dark:bg-black z-10 border-r border-zinc-200 dark:border-zinc-800 shadow-2xl">
             <SidebarContent onLinkClick={() => setMobileOpen(false)} />
           </div>
         </div>

@@ -53,7 +53,7 @@ export function Conversation({ ticket, messages }: ConversationProps) {
     <div className="space-y-4">
       {/* Original Ticket Description Card (Vercel Style) */}
       <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-black">
-        <div className="flex items-start justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3 gap-2">
           <div className="flex items-center gap-3">
             <Avatar
               name={ticket.requester?.name || "Requester"}
@@ -62,7 +62,7 @@ export function Conversation({ ticket, messages }: ConversationProps) {
               className="border border-zinc-200 dark:border-zinc-800"
             />
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-xs">
                   {ticket.requester?.name}
                 </span>
@@ -75,7 +75,7 @@ export function Conversation({ ticket, messages }: ConversationProps) {
               </p>
             </div>
           </div>
-          <Badge variant="indigo" className="text-[10px] font-mono">
+          <Badge variant="indigo" className="text-[10px] font-mono self-start sm:self-auto">
             Laporan Awal
           </Badge>
         </div>

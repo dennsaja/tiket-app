@@ -96,48 +96,50 @@ export default function AdminDepartmentsPage() {
             Belum ada departemen yang dikonfigurasi.
           </div>
         ) : (
-          <Table>
-            <TableHeader className="bg-zinc-50/50 border-b border-zinc-200 dark:bg-zinc-950/50 dark:border-zinc-800">
-              <TableRow>
-                <TableHead className="w-64 text-[11px] font-medium text-zinc-500">Nama Departemen</TableHead>
-                <TableHead className="text-[11px] font-medium text-zinc-500">Deskripsi</TableHead>
-                <TableHead className="w-32 text-[11px] font-medium text-zinc-500">Warna Aksen</TableHead>
-                <TableHead className="w-28 text-[11px] font-medium text-zinc-500">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {departments.map((dept) => (
-                <TableRow key={dept.id}>
-                  <TableCell className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full border border-zinc-200/50"
-                        style={{ backgroundColor: dept.color || "#000000" }}
-                      />
-                      <span>{dept.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {dept.description || "—"}
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                      {dept.color || "#000000"}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={dept.isActive ? "success" : "error"}
-                      dot
-                      className="text-[10px]"
-                    >
-                      {dept.isActive ? "Aktif" : "Nonaktif"}
-                    </Badge>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-zinc-50/50 border-b border-zinc-200 dark:bg-zinc-950/50 dark:border-zinc-800">
+                <TableRow>
+                  <TableHead className="w-64 text-[11px] font-medium text-zinc-500">Nama Departemen</TableHead>
+                  <TableHead className="text-[11px] font-medium text-zinc-500">Deskripsi</TableHead>
+                  <TableHead className="w-32 text-[11px] font-medium text-zinc-500">Warna Aksen</TableHead>
+                  <TableHead className="w-28 text-[11px] font-medium text-zinc-500">Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {departments.map((dept) => (
+                  <TableRow key={dept.id}>
+                    <TableCell className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full border border-zinc-200/50"
+                          style={{ backgroundColor: dept.color || "#000000" }}
+                        />
+                        <span>{dept.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {dept.description || "—"}
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-mono text-xs text-zinc-600 dark:text-zinc-400">
+                        {dept.color || "#000000"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={dept.isActive ? "success" : "error"}
+                        dot
+                        className="text-[10px]"
+                      >
+                        {dept.isActive ? "Aktif" : "Nonaktif"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
 
