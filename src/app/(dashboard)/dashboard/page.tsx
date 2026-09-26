@@ -84,8 +84,8 @@ export default async function DashboardPage() {
       );
     overdueCount = Number(overdueRes[0]?.overdueCount || 0);
 
-    // Assigned to me (agent/admin)
-    if (userRole === "agent" || userRole === "admin") {
+    // Assigned to me (agent/admin/noc/owner)
+    if (["noc", "owner", "admin", "agent"].includes(userRole)) {
       const myRes = await db
         .select({ myCount: count() })
         .from(tickets)
@@ -123,8 +123,12 @@ export default async function DashboardPage() {
             Selamat datang kembali, {user?.name || "User"}
           </h1>
           <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-            {userRole === "admin"
-              ? "Ringkasan Sistem & Operasional Helpdesk"
+            {userRole === "noc"
+              ? "Ringkasan Sistem & NOC Administrator Helpdesk"
+              : userRole === "owner"
+              ? "Ringkasan Manajemen & Operasional Helpdesk"
+              : userRole === "admin"
+              ? "Ringkasan Pemantauan & Operasional Helpdesk"
               : userRole === "agent"
               ? "Antrean Teknisi & Tiket Ditugaskan"
               : "Daftar Permintaan Bantuan & Tiket Anda"}
@@ -172,7 +176,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Quick Agent Banner */}
-      {(userRole === "agent" || userRole === "admin") && (
+      {(userRole === "agent" || userRole === "admin" || userRole === "noc" || userRole === "owner") && assignedToMeCount > 0 && (
         <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-black text-white dark:bg-white dark:text-black shadow-xs shrink-0">

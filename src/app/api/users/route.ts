@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       or(ilike(users.email, `%${search}%`), ilike(users.name, `%${search}%`))
     );
   }
-  if (role && ["admin", "agent", "user"].includes(role)) {
+  if (role && ["noc", "owner", "admin", "agent", "user"].includes(role)) {
     conditions.push(eq(users.role, role as any));
   }
   if (isActive !== null && isActive !== undefined) {
@@ -60,13 +60,15 @@ export async function GET(req: NextRequest) {
   return paginatedResponse(userList, Number(total), page, perPage);
 }
 
-// POST /api/users — create user (admin only)
+// POST /api/users — create user (noc & owner only)
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
   const userRole = (session.user as any).role;
-  if (userRole !== "admin") return errorResponse("Forbidden", 403);
+  if (userRole !== "noc" && userRole !== "owner") {
+    return errorResponse("Forbidden: Akses khusus NOC dan Owner", 403);
+  }
 
   let body: any;
   try { body = await req.json(); }

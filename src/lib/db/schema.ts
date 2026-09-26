@@ -27,7 +27,7 @@ function generateUuid(): string {
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
-export const userRoleEnum = pgEnum("user_role", ["admin", "agent", "user"]);
+export const userRoleEnum = pgEnum("user_role", ["noc", "owner", "admin", "agent", "user"]);
 
 export const ticketStatusEnum = pgEnum("ticket_status", [
   "open",

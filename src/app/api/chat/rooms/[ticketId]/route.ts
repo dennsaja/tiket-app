@@ -12,7 +12,7 @@ async function canUserAccessDepartmentChat(
   userRole: string,
   ticket: any
 ): Promise<boolean> {
-  if (userRole === "admin") return true;
+  if (userRole === "noc" || userRole === "owner" || userRole === "admin") return true;
   if (userRole !== "agent") return false;
 
   const currentUser = await db.query.users.findFirst({
@@ -40,7 +40,7 @@ export async function GET(
   const userRole = (session.user as any).role;
   const userId = session.user.id!;
 
-  if (userRole !== "admin" && userRole !== "agent") {
+  if (!["noc", "owner", "admin", "agent"].includes(userRole)) {
     return errorResponse("Forbidden: Only support staff can access department chats", 403);
   }
 
@@ -105,7 +105,7 @@ export async function POST(
   const userRole = (session.user as any).role;
   const userId = session.user.id!;
 
-  if (userRole !== "admin" && userRole !== "agent") {
+  if (!["noc", "owner", "admin", "agent"].includes(userRole)) {
     return errorResponse("Forbidden: Only support staff can post in department chats", 403);
   }
 

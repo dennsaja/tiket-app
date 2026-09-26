@@ -25,12 +25,20 @@ export default function AdminUsersPage() {
 
   // New user modal
   const [modalOpen, setModalOpen] = React.useState(false);
+  const [editModalOpen, setEditModalOpen] = React.useState(false);
+  const [selectedUser, setSelectedUser] = React.useState<any>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [formData, setFormData] = React.useState({
     name: "",
     email: "",
     password: "",
-    role: "agent" as "admin" | "agent" | "user",
+    role: "agent" as "noc" | "owner" | "admin" | "agent" | "user",
+    departmentId: "",
+  });
+
+  const [editFormData, setEditFormData] = React.useState({
+    name: "",
+    role: "agent" as "noc" | "owner" | "admin" | "agent" | "user",
     departmentId: "",
   });
 
@@ -106,6 +114,52 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleOpenEdit = (user: any) => {
+    setSelectedUser(user);
+    setEditFormData({
+      name: user.name,
+      role: user.role,
+      departmentId: user.departmentId || "none",
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    setIsSaving(true);
+    try {
+      const payload: any = {
+        name: editFormData.name,
+        role: editFormData.role,
+      };
+      if (editFormData.departmentId && editFormData.departmentId !== "none") {
+        payload.departmentId = editFormData.departmentId;
+      } else {
+        payload.departmentId = null;
+      }
+
+      const res = await fetch(`/api/users/${selectedUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Gagal memperbarui pengguna");
+      }
+
+      toast.success("Data pengguna berhasil diperbarui");
+      setEditModalOpen(false);
+      fetchUsers();
+    } catch (err: any) {
+      toast.error(err.message || "Terjadi kesalahan");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleToggleActive = async (userId: string, currentActive: boolean) => {
     try {
       const res = await fetch(`/api/users/${userId}`, {
@@ -124,6 +178,21 @@ export default function AdminUsersPage() {
     }
   };
 
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case "noc":
+        return <Badge variant="purple" className="text-[10px]">NOC Admin</Badge>;
+      case "owner":
+        return <Badge variant="indigo" className="text-[10px]">Owner</Badge>;
+      case "admin":
+        return <Badge variant="info" className="text-[10px]">Administrator</Badge>;
+      case "agent":
+        return <Badge variant="assigned" className="text-[10px]">Teknisi</Badge>;
+      default:
+        return <Badge variant="default" className="text-[10px]">Pelapor</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header (Vercel Style) */}
@@ -133,7 +202,7 @@ export default function AdminUsersPage() {
             <UsersIcon className="h-5 w-5 text-zinc-900 dark:text-zinc-100" /> Manajemen Pengguna
           </h1>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Kelola akun administrator, teknisi support, dan pengguna helpdesk
+            Kelola akun administrator NOC, owner, admin, teknisi support, dan pengguna helpdesk
           </p>
         </div>
         <Button
@@ -160,7 +229,7 @@ export default function AdminUsersPage() {
           />
         </div>
 
-        <div className="w-44">
+        <div className="w-48">
           <Select
             value={roleFilter}
             onValueChange={(val) => {
@@ -169,6 +238,8 @@ export default function AdminUsersPage() {
             }}
             options={[
               { value: "all", label: "Semua Peran" },
+              { value: "noc", label: "NOC Administrator" },
+              { value: "owner", label: "Owner" },
               { value: "admin", label: "Administrator" },
               { value: "agent", label: "Teknisi" },
               { value: "user", label: "Pelapor" },
@@ -192,13 +263,13 @@ export default function AdminUsersPage() {
             <Table>
             <TableHeader className="bg-zinc-50/50 border-b border-zinc-200 dark:bg-zinc-950/50 dark:border-zinc-800">
               <TableRow>
-                <TableHead className="w-56 text-[11px] font-medium text-zinc-500">Nama</TableHead>
-                <TableHead className="w-56 text-[11px] font-medium text-zinc-500">Email</TableHead>
+                <TableHead className="w-52 text-[11px] font-medium text-zinc-500">Nama</TableHead>
+                <TableHead className="w-52 text-[11px] font-medium text-zinc-500">Email</TableHead>
                 <TableHead className="w-32 text-[11px] font-medium text-zinc-500">Peran</TableHead>
-                <TableHead className="w-40 text-[11px] font-medium text-zinc-500">Departemen</TableHead>
-                <TableHead className="w-28 text-[11px] font-medium text-zinc-500">Status</TableHead>
+                <TableHead className="w-36 text-[11px] font-medium text-zinc-500">Departemen</TableHead>
+                <TableHead className="w-24 text-[11px] font-medium text-zinc-500">Status</TableHead>
                 <TableHead className="w-32 text-[11px] font-medium text-zinc-500">Terdaftar</TableHead>
-                <TableHead className="w-24 text-right text-[11px] font-medium text-zinc-500">Aksi</TableHead>
+                <TableHead className="w-36 text-right text-[11px] font-medium text-zinc-500">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -217,12 +288,7 @@ export default function AdminUsersPage() {
                   </TableCell>
                   <TableCell className="font-mono text-xs text-zinc-500">{u.email}</TableCell>
                   <TableCell>
-                    <Badge
-                      variant={u.role === "admin" ? "purple" : u.role === "agent" ? "indigo" : "default"}
-                      className="capitalize text-[10px]"
-                    >
-                      {u.role === "admin" ? "Administrator" : u.role === "agent" ? "Teknisi" : "Pelapor"}
-                    </Badge>
+                    {getRoleBadge(u.role)}
                   </TableCell>
                   <TableCell className="text-xs text-zinc-600 dark:text-zinc-400">
                     {u.department?.name || "—"}
@@ -240,16 +306,26 @@ export default function AdminUsersPage() {
                     {formatRelativeTime(u.createdAt)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleToggleActive(u.id, u.isActive)}
-                      className={`text-xs h-7 px-2 ${
-                        u.isActive ? "text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30" : "text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                      }`}
-                    >
-                      {u.isActive ? "Nonaktifkan" : "Aktifkan"}
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenEdit(u)}
+                        className="text-xs h-7 px-2 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleActive(u.id, u.isActive)}
+                        className={`text-xs h-7 px-2 ${
+                          u.isActive ? "text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30" : "text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                        }`}
+                      >
+                        {u.isActive ? "Nonaktifkan" : "Aktifkan"}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -276,7 +352,7 @@ export default function AdminUsersPage() {
         open={modalOpen}
         onOpenChange={setModalOpen}
         title="Tambah Pengguna Baru"
-        description="Buat akun untuk administrator, teknisi support, atau pelapor"
+        description="Buat akun untuk NOC administrator, owner, admin, teknisi support, atau pelapor"
       >
         <form onSubmit={handleCreateUser} className="space-y-3 pt-2">
           <Input
@@ -310,9 +386,11 @@ export default function AdminUsersPage() {
             value={formData.role}
             onValueChange={(val: any) => setFormData({ ...formData, role: val })}
             options={[
-              { value: "user", label: "Pelapor (Pengguna)" },
+              { value: "noc", label: "NOC Administrator (Akses Penuh & System Update)" },
+              { value: "owner", label: "Owner (Akses Manajemen Tanpa Update)" },
+              { value: "admin", label: "Administrator (Pantau Tiket & Chat)" },
               { value: "agent", label: "Teknisi (Support Staff)" },
-              { value: "admin", label: "Administrator (Akses Penuh)" },
+              { value: "user", label: "Pelapor (Pengguna)" },
             ]}
           />
 
@@ -344,6 +422,65 @@ export default function AdminUsersPage() {
               leftIcon={<Plus className="h-3.5 w-3.5" />}
             >
               Buat Akun
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        title="Edit Data Pengguna"
+        description="Perbarui informasi peran atau departemen akun"
+      >
+        <form onSubmit={handleUpdateUser} className="space-y-3 pt-2">
+          <Input
+            label="Nama Lengkap"
+            value={editFormData.name}
+            onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+            placeholder="Budi Santoso"
+            required
+          />
+
+          <Select
+            label="Peran / Role"
+            value={editFormData.role}
+            onValueChange={(val: any) => setEditFormData({ ...editFormData, role: val })}
+            options={[
+              { value: "noc", label: "NOC Administrator (Akses Penuh & System Update)" },
+              { value: "owner", label: "Owner (Akses Manajemen Tanpa Update)" },
+              { value: "admin", label: "Administrator (Pantau Tiket & Chat)" },
+              { value: "agent", label: "Teknisi (Support Staff)" },
+              { value: "user", label: "Pelapor (Pengguna)" },
+            ]}
+          />
+
+          <Select
+            label="Departemen"
+            value={editFormData.departmentId || "none"}
+            onValueChange={(val) => setEditFormData({ ...editFormData, departmentId: val === "none" ? "" : val })}
+            options={[
+              { value: "none", label: "Tidak Ada" },
+              ...departments.map((d) => ({ value: d.id, label: d.name })),
+            ]}
+          />
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditModalOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              isLoading={isSaving}
+            >
+              Simpan Perubahan
             </Button>
           </div>
         </form>

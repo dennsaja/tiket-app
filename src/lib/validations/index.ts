@@ -197,11 +197,13 @@ export const ticketFiltersSchema = z.object({
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
+export const userRoles = ["noc", "owner", "admin", "agent", "user"] as const;
+
 export const createUserSchema = z.object({
-  name: z.string().min(2).max(255),
-  email: z.string().email(),
-  password: z.string().min(8).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/),
-  role: z.enum(["admin", "agent", "user"]).default("user"),
+  name: z.string().min(2, "Nama minimal 2 karakter").max(255),
+  email: z.string().email("Format email tidak valid"),
+  password: z.string().min(8, "Password minimal 8 karakter").regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password harus mengandung huruf besar, kecil, dan angka"),
+  role: z.enum(["noc", "owner", "admin", "agent", "user"]).default("user"),
   departmentId: z.string().optional(),
   phone: z.string().max(50).optional(),
 });
@@ -209,7 +211,7 @@ export const createUserSchema = z.object({
 export const updateUserSchema = z.object({
   name: z.string().min(2).max(255).optional(),
   email: z.string().email().optional(),
-  role: z.enum(["admin", "agent", "user"]).optional(),
+  role: z.enum(["noc", "owner", "admin", "agent", "user"]).optional(),
   departmentId: z.string().nullable().optional(),
   phone: z.string().max(50).nullable().optional(),
   isActive: z.boolean().optional(),
@@ -229,11 +231,11 @@ export const changePasswordSchema = z
 // ─── Departments ──────────────────────────────────────────────────────────────
 
 export const createDepartmentSchema = z.object({
-  name: z.string().min(2).max(255),
+  name: z.string().min(2, "Nama departemen minimal 2 karakter").max(255),
   description: z.string().max(1000).optional(),
   color: z
     .string()
-    .regex(/^#[0-9a-fA-F]{6}$/, "Invalid color")
+    .regex(/^#[0-9a-fA-F]{6}$/, "Format kode warna heksadesimal tidak valid (contoh: #000000)")
     .optional(),
 });
 
@@ -258,15 +260,19 @@ export const createSubcategorySchema = z.object({
 // ─── SLA ──────────────────────────────────────────────────────────────────────
 
 export const createSlaPolicySchema = z.object({
-  name: z.string().min(2).max(255),
+  name: z.string().min(2, "Nama kebijakan minimal 2 karakter").max(255),
   description: z.string().max(1000).optional(),
   priority: z.enum(["critical", "high", "medium", "low"]),
-  departmentId: z.string().optional(),
-  firstResponseMinutes: z.number().int().min(1).max(43200),
-  resolutionMinutes: z.number().int().min(1).max(259200),
+  departmentId: z.string().optional().nullable(),
+  firstResponseMinutes: z.number().int().min(1, "Target respons minimal 1 menit").max(43200),
+  resolutionMinutes: z.number().int().min(1, "Target resolusi minimal 1 menit").max(259200),
   warningThresholdPercent: z.number().int().min(1).max(99).default(80),
   useBusinessHours: z.boolean().default(false),
 });
+
+export const updateSlaPolicySchema = createSlaPolicySchema
+  .partial()
+  .extend({ isActive: z.boolean().optional() });
 
 // ─── Tags ─────────────────────────────────────────────────────────────────────
 

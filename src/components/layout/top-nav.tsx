@@ -182,9 +182,10 @@ export function TopNav({ breadcrumbs, title }: TopNavProps) {
           size="sm"
           onClick={() => router.push("/tickets/new")}
           leftIcon={<Plus className="h-3.5 w-3.5" />}
-          className="hidden sm:inline-flex text-xs"
+          className="text-xs shrink-0"
         >
-          Buat Tiket
+          <span className="hidden sm:inline">Buat Tiket</span>
+          <span className="sm:hidden">Tiket</span>
         </Button>
 
         {/* Theme Toggle */}

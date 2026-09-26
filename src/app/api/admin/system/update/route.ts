@@ -65,7 +65,9 @@ export async function GET(req: NextRequest) {
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
   const userRole = (session.user as any).role;
-  if (userRole !== "admin") return errorResponse("Forbidden: Admin access required", 403);
+  if (userRole !== "noc") {
+    return errorResponse("Forbidden: Hanya NOC Administrator yang dapat mengakses pembaruan sistem", 403);
+  }
 
   const git = getGitCommand();
   const cwd = process.cwd();
@@ -161,7 +163,9 @@ export async function POST(req: NextRequest) {
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
   const userRole = (session.user as any).role;
-  if (userRole !== "admin") return errorResponse("Forbidden: Admin access required", 403);
+  if (userRole !== "noc") {
+    return errorResponse("Forbidden: Hanya NOC Administrator yang dapat melakukan pembaruan sistem", 403);
+  }
 
   const git = getGitCommand();
   const cwd = process.cwd();

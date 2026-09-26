@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
-export type UserRole = "admin" | "agent" | "user";
+export type UserRole = "noc" | "owner" | "admin" | "agent" | "user";
 
 export async function getSession() {
   const session = await auth();
@@ -26,19 +26,31 @@ export async function requireRole(roles: UserRole[]) {
 }
 
 export async function requireAdmin() {
-  return requireRole(["admin"]);
+  return requireRole(["noc", "owner", "admin"]);
+}
+
+export async function requireNocOrOwner() {
+  return requireRole(["noc", "owner"]);
 }
 
 export async function requireAgentOrAdmin() {
-  return requireRole(["admin", "agent"]);
+  return requireRole(["noc", "owner", "admin", "agent"]);
+}
+
+export function isSuperAdmin(role: string): boolean {
+  return role === "noc";
+}
+
+export function isOwner(role: string): boolean {
+  return role === "owner";
 }
 
 export function isAdmin(role: string): boolean {
-  return role === "admin";
+  return role === "noc" || role === "owner" || role === "admin";
 }
 
 export function isAgent(role: string): boolean {
-  return role === "agent" || role === "admin";
+  return role === "noc" || role === "owner" || role === "admin" || role === "agent";
 }
 
 export function isUser(role: string): boolean {
@@ -63,7 +75,7 @@ export function canReplyToTicket(
   ticketRequesterId: string,
   ticketAssigneeId: string | null
 ): boolean {
-  if (userRole === "admin" || userRole === "agent") return true;
+  if (["noc", "owner", "admin", "agent"].includes(userRole)) return true;
   return userId === ticketRequesterId;
 }
 
@@ -74,12 +86,12 @@ export function canModifyTicket(
   ticketRequesterId: string,
   ticketAssigneeId: string | null
 ): boolean {
-  if (userRole === "admin") return true;
-  if (userRole === "agent") return true;
+  if (["noc", "owner", "admin", "agent"].includes(userRole)) return true;
   return false;
 }
 
 // Check if user can write internal notes
 export function canWriteInternalNotes(userRole: string): boolean {
-  return userRole === "admin" || userRole === "agent";
+  return ["noc", "owner", "admin", "agent"].includes(userRole);
 }
+

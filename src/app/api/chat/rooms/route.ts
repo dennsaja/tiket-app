@@ -13,8 +13,8 @@ export async function GET(req: NextRequest) {
   const userRole = (session.user as any).role;
   const userId = session.user.id!;
 
-  // Only Admin and Agents can access department chats
-  if (userRole !== "admin" && userRole !== "agent") {
+  // Only NOC, Owner, Admin and Agents can access department chats
+  if (!["noc", "owner", "admin", "agent"].includes(userRole)) {
     return errorResponse("Forbidden: Only support staff can access department chats", 403);
   }
 

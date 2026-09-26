@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
 
   // Agent-specific stats
   let agentStats = null;
-  if (userRole === "agent" || userRole === "admin") {
+  if (["noc", "owner", "admin", "agent"].includes(userRole)) {
     const assignedToMe = await db
       .select({ count: count() })
       .from(tickets)
@@ -97,9 +97,9 @@ export async function GET(req: NextRequest) {
     agentStats = { assignedToMe: Number(assignedToMe[0].count) };
   }
 
-  // Department stats (admin only)
+  // Department stats (admin / noc / owner)
   let departmentStats = null;
-  if (userRole === "admin") {
+  if (["noc", "owner", "admin"].includes(userRole)) {
     departmentStats = await db
       .select({
         departmentId: tickets.departmentId,

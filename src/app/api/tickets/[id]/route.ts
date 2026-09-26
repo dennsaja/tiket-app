@@ -277,7 +277,9 @@ export async function DELETE(
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
   const userRole = (session.user as any).role;
-  if (userRole !== "admin") return errorResponse("Forbidden", 403);
+  if (userRole !== "noc" && userRole !== "owner" && userRole !== "admin") {
+    return errorResponse("Forbidden", 403);
+  }
 
   const { id } = await params;
 

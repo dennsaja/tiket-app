@@ -11,7 +11,7 @@ import { PriorityBadge } from "@/components/tickets/priority-badge";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDuration } from "@/lib/utils";
-import { Plus, Timer } from "lucide-react";
+import { Plus, Timer, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function AdminSlaPage() {
@@ -19,6 +19,8 @@ export default function AdminSlaPage() {
   const [departments, setDepartments] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [modalOpen, setModalOpen] = React.useState(false);
+  const [editModalOpen, setEditModalOpen] = React.useState(false);
+  const [selectedPolicy, setSelectedPolicy] = React.useState<any>(null);
   const [isSaving, setIsSaving] = React.useState(false);
 
   const [formData, setFormData] = React.useState({
@@ -29,6 +31,17 @@ export default function AdminSlaPage() {
     firstResponseMinutes: 120,
     resolutionMinutes: 480,
     useBusinessHours: false,
+  });
+
+  const [editFormData, setEditFormData] = React.useState({
+    name: "",
+    description: "",
+    priority: "high" as any,
+    departmentId: "",
+    firstResponseMinutes: 120,
+    resolutionMinutes: 480,
+    useBusinessHours: false,
+    isActive: true,
   });
 
   const fetchPolicies = React.useCallback(async () => {
@@ -99,6 +112,62 @@ export default function AdminSlaPage() {
     }
   };
 
+  const handleOpenEdit = (policy: any) => {
+    setSelectedPolicy(policy);
+    setEditFormData({
+      name: policy.name,
+      description: policy.description || "",
+      priority: policy.priority || "high",
+      departmentId: policy.departmentId || "none",
+      firstResponseMinutes: policy.firstResponseMinutes || 120,
+      resolutionMinutes: policy.resolutionMinutes || 480,
+      useBusinessHours: policy.useBusinessHours ?? false,
+      isActive: policy.isActive ?? true,
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleUpdatePolicy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPolicy) return;
+    setIsSaving(true);
+    try {
+      const payload: any = {
+        name: editFormData.name,
+        description: editFormData.description,
+        priority: editFormData.priority,
+        firstResponseMinutes: Number(editFormData.firstResponseMinutes),
+        resolutionMinutes: Number(editFormData.resolutionMinutes),
+        useBusinessHours: editFormData.useBusinessHours,
+        isActive: editFormData.isActive,
+      };
+      if (editFormData.departmentId && editFormData.departmentId !== "none") {
+        payload.departmentId = editFormData.departmentId;
+      } else {
+        payload.departmentId = null;
+      }
+
+      const res = await fetch(`/api/sla-policies/${selectedPolicy.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Gagal memperbarui kebijakan SLA");
+      }
+
+      toast.success("Kebijakan SLA berhasil diperbarui");
+      setEditModalOpen(false);
+      fetchPolicies();
+    } catch (err: any) {
+      toast.error(err.message || "Terjadi kesalahan");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-200 pb-4 dark:border-zinc-800">
@@ -140,6 +209,7 @@ export default function AdminSlaPage() {
                   <TableHead className="w-36 text-[11px] font-medium text-zinc-500">Target Resolusi</TableHead>
                   <TableHead className="w-28 text-[11px] font-medium text-zinc-500">Jam Kerja</TableHead>
                   <TableHead className="w-24 text-[11px] font-medium text-zinc-500">Status</TableHead>
+                  <TableHead className="w-20 text-right text-[11px] font-medium text-zinc-500">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -174,6 +244,16 @@ export default function AdminSlaPage() {
                       <Badge variant={p.isActive ? "success" : "default"} dot className="text-[10px]">
                         {p.isActive ? "Aktif" : "Nonaktif"}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenEdit(p)}
+                        className="h-7 px-2 text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                      >
+                        <Pencil className="h-3 w-3 mr-1" /> Edit
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -271,6 +351,118 @@ export default function AdminSlaPage() {
               leftIcon={<Plus className="h-3.5 w-3.5" />}
             >
               Simpan Kebijakan
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Policy Modal */}
+      <Modal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        title="Edit Kebijakan SLA"
+        description="Perbarui parameter target durasi respon dan resolusi tiket"
+      >
+        <form onSubmit={handleUpdatePolicy} className="space-y-3 pt-2">
+          <Input
+            label="Nama Kebijakan"
+            value={editFormData.name}
+            onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+            placeholder="Contoh: SLA Server Down (Prioritas Kritis)"
+            required
+          />
+
+          <Textarea
+            label="Deskripsi"
+            value={editFormData.description}
+            onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+            placeholder="Keterangan kebijakan target waktu..."
+            rows={2}
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Tingkat Prioritas"
+              value={editFormData.priority}
+              onValueChange={(val: any) => setEditFormData({ ...editFormData, priority: val })}
+              options={[
+                { value: "critical", label: "Kritis" },
+                { value: "high", label: "Tinggi" },
+                { value: "medium", label: "Sedang" },
+                { value: "low", label: "Rendah" },
+              ]}
+            />
+
+            <Select
+              label="Departemen"
+              value={editFormData.departmentId || "none"}
+              onValueChange={(val) => setEditFormData({ ...editFormData, departmentId: val === "none" ? "" : val })}
+              options={[
+                { value: "none", label: "Semua Departemen" },
+                ...departments.map((d) => ({ value: d.id, label: d.name })),
+              ]}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Batas Respons Awal (Menit)"
+              type="number"
+              min={1}
+              value={editFormData.firstResponseMinutes}
+              onChange={(e) => setEditFormData({ ...editFormData, firstResponseMinutes: Number(e.target.value) })}
+              helperText={`Setara dengan ${formatDuration(editFormData.firstResponseMinutes)}`}
+              required
+            />
+
+            <Input
+              label="Batas Resolusi (Menit)"
+              type="number"
+              min={1}
+              value={editFormData.resolutionMinutes}
+              onChange={(e) => setEditFormData({ ...editFormData, resolutionMinutes: Number(e.target.value) })}
+              helperText={`Setara dengan ${formatDuration(editFormData.resolutionMinutes)}`}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Jam Kerja Berlaku"
+              value={editFormData.useBusinessHours ? "business" : "247"}
+              onValueChange={(val) => setEditFormData({ ...editFormData, useBusinessHours: val === "business" })}
+              options={[
+                { value: "247", label: "24/7 (Non-stop)" },
+                { value: "business", label: "Jam Kerja (09:00 - 17:00 WIB)" },
+              ]}
+            />
+
+            <Select
+              label="Status Kebijakan"
+              value={editFormData.isActive ? "active" : "inactive"}
+              onValueChange={(val) => setEditFormData({ ...editFormData, isActive: val === "active" })}
+              options={[
+                { value: "active", label: "Aktif" },
+                { value: "inactive", label: "Nonaktif" },
+              ]}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditModalOpen(false)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              isLoading={isSaving}
+            >
+              Simpan Perubahan
             </Button>
           </div>
         </form>

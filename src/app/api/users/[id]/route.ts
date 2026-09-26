@@ -51,18 +51,19 @@ export async function PATCH(
   const userRole = (session.user as any).role;
   const currentUserId = session.user.id!;
 
-  // Only admins can update other users; users can update own basic info
+  // Only NOC and Owner can update other users; users can update own basic info
   const isOwnProfile = id === currentUserId;
-  if (!isOwnProfile && userRole !== "admin") {
-    return errorResponse("Forbidden", 403);
+  const isManager = userRole === "noc" || userRole === "owner";
+  if (!isOwnProfile && !isManager) {
+    return errorResponse("Forbidden: Akses ditolak", 403);
   }
 
   let body: any;
   try { body = await req.json(); }
   catch { return errorResponse("Invalid JSON body", 400); }
 
-  // Non-admins cannot change role
-  if (userRole !== "admin") {
+  // Non-managers cannot change role or active status
+  if (!isManager) {
     delete body.role;
     delete body.isActive;
   }
@@ -111,7 +112,7 @@ export async function DELETE(
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
   const userRole = (session.user as any).role;
-  if (userRole !== "admin") return errorResponse("Forbidden", 403);
+  if (userRole !== "noc" && userRole !== "owner") return errorResponse("Forbidden", 403);
 
   const { id } = await params;
   

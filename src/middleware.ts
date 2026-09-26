@@ -43,18 +43,26 @@ export default auth((req) => {
 
   // Role-based route protection
   const userRole = (session.user as any).role;
+  const isNoc = userRole === "noc";
+  const isOwner = userRole === "owner";
+  const canAccessAdmin = isNoc || isOwner;
 
-  // Admin-only routes
-  if (pathname.startsWith("/admin") && userRole !== "admin") {
+  // System updates route protection (ONLY NOC allowed)
+  if (pathname.startsWith("/admin/updates") && !isNoc) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+  if (pathname.startsWith("/api/admin/system/update") && !isNoc) {
+    return NextResponse.json({ error: "Forbidden: Hanya NOC Administrator yang dapat melakukan pembaruan sistem" }, { status: 403 });
+  }
+
+  // Admin panel routes (NOC and Owner allowed)
+  if (pathname.startsWith("/admin") && !canAccessAdmin) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
-  // Admin API routes
-  if (
-    pathname.startsWith("/api/admin") &&
-    userRole !== "admin"
-  ) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Admin API routes (NOC and Owner allowed)
+  if (pathname.startsWith("/api/admin") && !canAccessAdmin) {
+    return NextResponse.json({ error: "Forbidden: Akses ditolak" }, { status: 403 });
   }
 
   return NextResponse.next();

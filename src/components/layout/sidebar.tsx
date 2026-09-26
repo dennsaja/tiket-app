@@ -113,14 +113,32 @@ function VercelLogo({ className }: { className?: string }) {
 export function Sidebar() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role as string | undefined;
+  const isNoc = role === "noc";
+  const isOwner = role === "owner";
   const isAdmin = role === "admin";
-  const isAgent = role === "agent" || role === "admin";
+  const isAgent = role === "agent";
+  const isStaff = isNoc || isOwner || isAdmin || isAgent;
+  const canAccessAdmin = isNoc || isOwner;
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
-  const roleLabel = role === "admin" ? "Administrator" : role === "agent" ? "Teknisi" : "Pelapor";
+  const roleLabel =
+    role === "noc"
+      ? "NOC Administrator"
+      : role === "owner"
+      ? "Owner"
+      : role === "admin"
+      ? "Administrator"
+      : role === "agent"
+      ? "Teknisi"
+      : "Pelapor";
 
   const filteredMain = mainNavItems.filter((item) => {
-    if (item.agentOnly && !isAgent) return false;
+    if (item.agentOnly && !isStaff) return false;
+    return true;
+  });
+
+  const filteredAdmin = adminNavItems.filter((item) => {
+    if (item.href === "/admin/updates" && !isNoc) return false;
     return true;
   });
 
@@ -139,6 +157,17 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Quick Create Ticket Action */}
+      <div className="p-2.5 pb-0">
+        <Link
+          href="/tickets/new"
+          onClick={onLinkClick}
+          className="flex items-center justify-center gap-1.5 w-full rounded-md bg-black text-white py-1.5 px-3 text-xs font-medium hover:bg-zinc-800 transition-colors shadow-xs dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+        >
+          <span>+ Buat Tiket Baru</span>
+        </Link>
+      </div>
+
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-2.5 space-y-0.5">
         <div className="space-y-0.5">
@@ -147,13 +176,13 @@ export function Sidebar() {
           ))}
         </div>
 
-        {isAdmin && (
-          <div className="pt-5">
+        {canAccessAdmin && (
+          <div className="pt-4">
             <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-              Admin
+              {isNoc ? "NOC Admin" : "Owner Panel"}
             </p>
             <div className="space-y-0.5">
-              {adminNavItems.map((item) => (
+              {filteredAdmin.map((item) => (
                 <NavLink key={item.href} item={item} onClick={onLinkClick} />
               ))}
             </div>
@@ -194,11 +223,11 @@ export function Sidebar() {
                 Profil Saya
               </Link>
             </DropdownMenuItem>
-            {isAdmin && (
+            {canAccessAdmin && (
               <DropdownMenuItem asChild>
                 <Link href="/admin/users" className="flex items-center gap-2">
                   <Shield className="h-3.5 w-3.5" />
-                  Panel Admin
+                  Panel Manajemen
                 </Link>
               </DropdownMenuItem>
             )}
