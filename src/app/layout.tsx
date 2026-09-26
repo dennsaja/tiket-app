@@ -33,7 +33,23 @@ export default function RootLayout({
       <body>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('helpdesk-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('helpdesk-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();
+            (function(){
+              if(typeof window !== 'undefined'){
+                window.addEventListener('error', function(e){
+                  var msg = (e && e.message) ? e.message : '';
+                  if(msg.indexOf('Loading chunk') !== -1 || msg.indexOf('ChunkLoadError') !== -1 || msg.indexOf('Failed to fetch dynamically imported module') !== -1){
+                    var key = 'chunk_reload_' + window.location.pathname;
+                    var last = sessionStorage.getItem(key);
+                    var now = Date.now();
+                    if(!last || (now - parseInt(last, 10) > 10000)){
+                      sessionStorage.setItem(key, String(now));
+                      window.location.reload();
+                    }
+                  }
+                }, true);
+              }
+            })();`,
           }}
         />
         <SessionProvider>
