@@ -71,10 +71,10 @@ export default function AdminDepartmentsPage() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-indigo-600" /> Departments
+            <Building2 className="h-5 w-5 text-indigo-600" /> Manajemen Departemen
           </h1>
           <p className="text-xs text-gray-500">
-            Organize support queues and routing by organizational departments
+            Kelola departemen kerja dan antrean pembagian tiket teknisi
           </p>
         </div>
         <Button
@@ -82,7 +82,7 @@ export default function AdminDepartmentsPage() {
           onClick={() => setModalOpen(true)}
           leftIcon={<Plus className="h-4 w-4" />}
         >
-          Add Department
+          Tambah Departemen
         </Button>
       </div>
 
@@ -93,14 +93,14 @@ export default function AdminDepartmentsPage() {
           </div>
         ) : departments.length === 0 ? (
           <div className="py-12 text-center text-xs text-gray-400">
-            No departments configured.
+            Belum ada departemen yang dikonfigurasi.
           </div>
         ) : (
           <Table>
             <TableHeader className="bg-gray-50/75 border-b border-gray-200">
               <TableRow>
-                <TableHead className="text-xs font-semibold text-gray-600">Department</TableHead>
-                <TableHead className="text-xs font-semibold text-gray-600">Description</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-600">Departemen</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-600">Deskripsi</TableHead>
                 <TableHead className="w-24 text-xs font-semibold text-gray-600">Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -121,7 +121,7 @@ export default function AdminDepartmentsPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={d.isActive ? "success" : "error"} className="text-[10px]">
-                      {d.isActive ? "Active" : "Inactive"}
+                      {d.isActive ? "Aktif" : "Nonaktif"}
                     </Badge>
                   </TableCell>
                 </TableRow>
@@ -135,28 +135,28 @@ export default function AdminDepartmentsPage() {
       <Modal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title="Add Department"
-        description="Create a new support routing department"
+        title="Tambah Departemen"
+        description="Buat departemen support baru untuk penugasan tiket"
       >
         <form onSubmit={handleCreateDepartment} className="space-y-3 pt-2">
           <Input
-            label="Department Name"
+            label="Nama Departemen"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="e.g. Network Operations"
+            placeholder="Contoh: Technical Support / Network"
             required
           />
 
           <Textarea
-            label="Description"
+            label="Deskripsi"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Area of responsibility..."
+            placeholder="Cakupan penanganan kendala..."
             rows={3}
           />
 
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-700">Badge Color</label>
+            <label className="text-xs font-medium text-gray-700">Warna Label</label>
             <div className="flex items-center gap-3">
               <input
                 type="color"
@@ -175,7 +175,7 @@ export default function AdminDepartmentsPage() {
               size="sm"
               onClick={() => setModalOpen(false)}
             >
-              Cancel
+              Batal
             </Button>
             <Button
               type="submit"
@@ -183,7 +183,7 @@ export default function AdminDepartmentsPage() {
               isLoading={isSaving}
               leftIcon={<Plus className="h-3.5 w-3.5" />}
             >
-              Save Department
+              Simpan Departemen
             </Button>
           </div>
         </form>

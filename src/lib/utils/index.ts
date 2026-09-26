@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { formatDistanceToNow, format, parseISO, differenceInMinutes } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -9,19 +10,19 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "—";
   const d = typeof date === "string" ? parseISO(date) : date;
-  return format(d, "MMM d, yyyy");
+  return format(d, "d MMM yyyy", { locale: idLocale });
 }
 
 export function formatDateTime(date: Date | string | null | undefined): string {
   if (!date) return "—";
   const d = typeof date === "string" ? parseISO(date) : date;
-  return format(d, "MMM d, yyyy HH:mm");
+  return format(d, "d MMM yyyy HH:mm", { locale: idLocale });
 }
 
 export function formatRelativeTime(date: Date | string | null | undefined): string {
   if (!date) return "—";
   const d = typeof date === "string" ? parseISO(date) : date;
-  return formatDistanceToNow(d, { addSuffix: true });
+  return formatDistanceToNow(d, { addSuffix: true, locale: idLocale });
 }
 
 export function formatDuration(minutes: number): string {
@@ -29,35 +30,35 @@ export function formatDuration(minutes: number): string {
   if (minutes < 1440) {
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
-    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+    return m > 0 ? `${h}j ${m}m` : `${h}j`;
   }
   const d = Math.floor(minutes / 1440);
   const h = Math.floor((minutes % 1440) / 60);
-  return h > 0 ? `${d}d ${h}h` : `${d}d`;
+  return h > 0 ? `${d}h ${h}j` : `${d}h`;
 }
 
 export function getTicketStatusLabel(status: string): string {
   const labels: Record<string, string> = {
-    open: "Open",
-    assigned: "Assigned",
-    in_progress: "In Progress",
-    pending: "Pending",
-    waiting_for_user: "Waiting for User",
-    waiting_for_third_party: "Waiting for 3rd Party",
-    resolved: "Resolved",
-    closed: "Closed",
-    reopened: "Reopened",
-    cancelled: "Cancelled",
+    open: "Baru",
+    assigned: "Ditugaskan",
+    in_progress: "Sedang Dikerjakan",
+    pending: "Tertunda",
+    waiting_for_user: "Menunggu Respons User",
+    waiting_for_third_party: "Menunggu Pihak Ketiga",
+    resolved: "Selesai",
+    closed: "Ditutup",
+    reopened: "Dibuka Kembali",
+    cancelled: "Dibatalkan",
   };
   return labels[status] || status;
 }
 
 export function getTicketPriorityLabel(priority: string): string {
   const labels: Record<string, string> = {
-    critical: "Critical",
-    high: "High",
-    medium: "Medium",
-    low: "Low",
+    critical: "Kritis",
+    high: "Tinggi",
+    medium: "Sedang",
+    low: "Rendah",
   };
   return labels[priority] || priority;
 }

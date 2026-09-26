@@ -25,7 +25,7 @@ export function SlaPanel({
   if (!firstResponseDue && !resolutionDue) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-4 text-xs text-gray-500 text-center">
-        No active SLA policy configured for this ticket.
+        Tidak ada kebijakan SLA aktif untuk tiket ini.
       </div>
     );
   }
@@ -35,7 +35,7 @@ export function SlaPanel({
       <div className="flex items-center justify-between border-b border-gray-100 pb-2">
         <h3 className="text-xs font-semibold text-gray-900 flex items-center gap-1.5">
           <Timer className="h-4 w-4 text-indigo-600" />
-          SLA Targets
+          Target Waktu SLA
         </h3>
         {policyName && (
           <span className="text-[10px] text-gray-400 font-mono">
@@ -49,10 +49,10 @@ export function SlaPanel({
         {firstResponseDue && (
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-600 font-medium">First Response</span>
+              <span className="text-gray-600 font-medium">Respons Pertama</span>
               {firstResponseAt ? (
                 <span className="text-green-700 flex items-center gap-1 text-[11px] font-medium">
-                  <CheckCircle2 className="h-3 w-3" /> Responded
+                  <CheckCircle2 className="h-3 w-3" /> Sudah Direspons
                 </span>
               ) : null}
             </div>
@@ -67,10 +67,10 @@ export function SlaPanel({
         {resolutionDue && (
           <div className="space-y-1 pt-2 border-t border-gray-100">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-600 font-medium">Resolution</span>
+              <span className="text-gray-600 font-medium">Waktu Resolusi</span>
               {resolvedAt ? (
                 <span className="text-green-700 flex items-center gap-1 text-[11px] font-medium">
-                  <CheckCircle2 className="h-3 w-3" /> Resolved
+                  <CheckCircle2 className="h-3 w-3" /> Selesai
                 </span>
               ) : null}
             </div>

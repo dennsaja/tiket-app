@@ -120,20 +120,20 @@ export default async function DashboardPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-4">
         <div>
           <h1 className="text-xl font-bold text-gray-900">
-            Welcome back, {user?.name || "User"}
+            Selamat datang kembali, {user?.name || "User"}
           </h1>
           <p className="text-xs text-gray-500">
             {userRole === "admin"
-              ? "System Overview & HelpDesk Operations"
+              ? "Ringkasan Sistem & Operasional Helpdesk"
               : userRole === "agent"
-              ? "Agent Queue & Assigned Tickets"
-              : "Your Support Requests & Tickets"}
+              ? "Antrean Teknisi & Tiket Ditugaskan"
+              : "Daftar Permintaan Bantuan & Tiket Anda"}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/tickets/new">
             <Button size="sm" leftIcon={<Plus className="h-4 w-4" />}>
-              Create Ticket
+              Buat Tiket Baru
             </Button>
           </Link>
         </div>
@@ -142,28 +142,28 @@ export default async function DashboardPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Total Tickets"
+          title="Total Tiket"
           value={total}
           icon={<Ticket className="h-4 w-4 text-indigo-600" />}
-          description="All time requests"
+          description="Seluruh tiket masuk"
         />
         <StatCard
-          title="Open / In Progress"
+          title="Baru / Dikerjakan"
           value={openCount + inProgressCount}
           icon={<Clock className="h-4 w-4 text-amber-600" />}
-          description={`${openCount} open, ${inProgressCount} in progress`}
+          description={`${openCount} baru, ${inProgressCount} proses`}
         />
         <StatCard
-          title="SLA Overdue"
+          title="SLA Terlewat"
           value={Number(overdueCount)}
           icon={<AlertTriangle className="h-4 w-4 text-red-600" />}
-          description="Action required"
+          description="Perlu penanganan"
         />
         <StatCard
-          title="Resolved & Closed"
+          title="Selesai & Ditutup"
           value={resolvedCount}
           icon={<CheckCircle2 className="h-4 w-4 text-green-600" />}
-          description="Successfully completed"
+          description="Berhasil diselesaikan"
         />
       </div>
 
@@ -176,16 +176,16 @@ export default async function DashboardPage() {
             </div>
             <div>
               <h3 className="text-sm font-semibold text-indigo-950">
-                You have {assignedToMeCount} active ticket(s) assigned to you
+                Anda memiliki {assignedToMeCount} tiket aktif yang ditugaskan kepada Anda
               </h3>
               <p className="text-xs text-indigo-700">
-                Review your assigned queue to maintain response SLAs
+                Periksa antrean tiket untuk memenuhi target SLA respons &amp; resolusi
               </p>
             </div>
           </div>
           <Link href={`/tickets?assigneeId=${userId}`}>
             <Button size="sm" variant="outline" className="bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50">
-              View My Queue
+              Lihat Antrean Saya
             </Button>
           </Link>
         </div>
@@ -195,21 +195,21 @@ export default async function DashboardPage() {
       <div className="rounded-lg border border-gray-200 bg-white shadow-xs">
         <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">Recent Tickets</h2>
-            <p className="text-xs text-gray-500">Latest support tickets and updates</p>
+            <h2 className="text-sm font-semibold text-gray-900">Tiket Terbaru</h2>
+            <p className="text-xs text-gray-500">Daftar tiket bantuan dan aktivitas terkini</p>
           </div>
           <Link
             href="/tickets"
             className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
           >
-            <span>View all</span>
+            <span>Lihat semua</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
         {recentTickets.length === 0 ? (
           <div className="py-12 text-center text-xs text-gray-400">
-            No tickets found. Create your first ticket to get started.
+            Belum ada tiket ditemukan. Buat tiket pertama Anda untuk memulai.
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
@@ -230,7 +230,7 @@ export default async function DashboardPage() {
                       {t.title}
                     </Link>
                     <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-400">
-                      <span>{t.requester?.name || "Requester"}</span>
+                      <span>{t.requester?.name || "Pelapor"}</span>
                       {t.department && (
                         <>
                           <span>•</span>

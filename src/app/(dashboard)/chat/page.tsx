@@ -223,7 +223,7 @@ export default function DepartmentChatPage() {
           </div>
           <div>
             <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
-              Department Team Chat
+              Chat Tim Departemen
               <span className="inline-flex items-center gap-1 rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700 border border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800">
                 <Lock className="h-2.5 w-2.5" /> Khusus Admin &amp; Anggota Dept
               </span>
@@ -244,7 +244,7 @@ export default function DepartmentChatPage() {
           leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
           className="text-xs text-gray-500"
         >
-          Refresh
+          Segarkan
         </Button>
       </div>
 

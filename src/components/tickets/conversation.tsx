@@ -70,12 +70,12 @@ export function Conversation({ ticket, messages }: ConversationProps) {
                 </Badge>
               </div>
               <p className="text-xs text-gray-500">
-                Created {formatRelativeTime(ticket.createdAt)} ({formatDateTime(ticket.createdAt)})
+                Dibuat {formatRelativeTime(ticket.createdAt)} ({formatDateTime(ticket.createdAt)})
               </p>
             </div>
           </div>
           <Badge variant="indigo" className="text-xs font-mono">
-            Original Post
+            Laporan Awal
           </Badge>
         </div>
 
@@ -86,7 +86,7 @@ export function Conversation({ ticket, messages }: ConversationProps) {
         {ticket.attachments && ticket.attachments.length > 0 && (
           <div className="mt-4 border-t border-gray-100 pt-3">
             <p className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
-              <Paperclip className="h-3.5 w-3.5" /> Attachments ({ticket.attachments.length})
+              <Paperclip className="h-3.5 w-3.5" /> Lampiran Berkas ({ticket.attachments.length})
             </p>
             <div className="flex flex-wrap gap-2">
               {ticket.attachments.map((att) => (
@@ -141,11 +141,11 @@ export function Conversation({ ticket, messages }: ConversationProps) {
                       }
                       className="text-[10px] px-1 py-0 capitalize"
                     >
-                      {msg.author.role}
+                      {msg.author.role === "admin" ? "Administrator" : msg.author.role === "agent" ? "Teknisi" : "Pelapor"}
                     </Badge>
                     {msg.isFirstResponse && (
                       <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-green-700 bg-green-50 border border-green-200 rounded px-1">
-                        <CheckCircle2 className="h-2.5 w-2.5" /> 1st Response
+                        <CheckCircle2 className="h-2.5 w-2.5" /> Respons Pertama
                       </span>
                     )}
                   </div>
@@ -158,10 +158,10 @@ export function Conversation({ ticket, messages }: ConversationProps) {
               {isInternal ? (
                 <div className="flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 border border-amber-300 rounded px-2 py-0.5">
                   <Lock className="h-3 w-3" />
-                  <span>Internal Note</span>
+                  <span>Catatan Internal</span>
                 </div>
               ) : (
-                <span className="text-[11px] text-gray-400">Public Reply</span>
+                <span className="text-[11px] text-gray-400">Balasan Publik</span>
               )}
             </div>
 

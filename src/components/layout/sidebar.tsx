@@ -49,24 +49,24 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   {
     href: "/dashboard",
-    label: "Dashboard",
+    label: "Beranda",
     icon: LayoutDashboard,
     exact: true,
   },
-  { href: "/tickets", label: "All Tickets", icon: Ticket },
-  { href: "/tickets?mine=true", label: "My Tickets", icon: ClipboardList, agentOnly: true },
-  { href: "/chat", label: "Department Chat", icon: MessagesSquare, agentOnly: true },
-  { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
+  { href: "/tickets", label: "Semua Tiket", icon: Ticket },
+  { href: "/tickets?mine=true", label: "Tiket Saya", icon: ClipboardList, agentOnly: true },
+  { href: "/chat", label: "Chat Tim", icon: MessagesSquare, agentOnly: true },
+  { href: "/knowledge-base", label: "Pusat Bantuan", icon: BookOpen },
 ];
 
 const adminNavItems: NavItem[] = [
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/departments", label: "Departments", icon: Building2 },
-  { href: "/admin/categories", label: "Categories", icon: FolderOpen },
-  { href: "/admin/sla", label: "SLA Policies", icon: Timer },
-  { href: "/admin/audit", label: "Audit Log", icon: ScrollText },
-  { href: "/admin/updates", label: "System Updates", icon: ArrowUpCircle },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/admin/users", label: "Pengguna", icon: Users },
+  { href: "/admin/departments", label: "Departemen", icon: Building2 },
+  { href: "/admin/categories", label: "Kategori", icon: FolderOpen },
+  { href: "/admin/sla", label: "Kebijakan SLA", icon: Timer },
+  { href: "/admin/audit", label: "Log Aktivitas", icon: ScrollText },
+  { href: "/admin/updates", label: "Pembaruan Sistem", icon: ArrowUpCircle },
+  { href: "/admin/settings", label: "Pengaturan", icon: Settings },
 ];
 
 function NavLink({
@@ -105,6 +105,8 @@ export function Sidebar() {
   const isAdmin = role === "admin";
   const isAgent = role === "agent" || role === "admin";
   const [mobileOpen, setMobileOpen] = React.useState(false);
+
+  const roleLabel = role === "admin" ? "Administrator" : role === "agent" ? "Teknisi" : "Pelapor";
 
   const filteredMain = mainNavItems.filter((item) => {
     if (item.agentOnly && !isAgent) return false;
@@ -158,7 +160,7 @@ export function Sidebar() {
                   {session?.user?.name}
                 </p>
                 <p className="truncate text-[10px] text-gray-500 capitalize">
-                  {role}
+                  {roleLabel}
                 </p>
               </div>
               <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
@@ -172,14 +174,14 @@ export function Sidebar() {
             <DropdownMenuItem asChild>
               <Link href="/profile" className="flex items-center gap-2">
                 <User className="h-3.5 w-3.5" />
-                Profile
+                Profil Saya
               </Link>
             </DropdownMenuItem>
             {isAdmin && (
               <DropdownMenuItem asChild>
                 <Link href="/admin" className="flex items-center gap-2">
                   <Shield className="h-3.5 w-3.5" />
-                  Admin Panel
+                  Panel Admin
                 </Link>
               </DropdownMenuItem>
             )}
@@ -189,7 +191,7 @@ export function Sidebar() {
               onClick={() => signOut({ callbackUrl: "/login" })}
             >
               <LogOut className="h-3.5 w-3.5" />
-              Sign out
+              Keluar
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

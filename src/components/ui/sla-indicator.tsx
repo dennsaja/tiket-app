@@ -26,7 +26,7 @@ function getSlaStatus(
     const wasOnTime = new Date(completedAt) <= due;
     return {
       status: wasOnTime ? "completed" : "breached",
-      remaining: wasOnTime ? "Completed on time" : "Completed late",
+      remaining: wasOnTime ? "Selesai tepat waktu" : "Selesai terlambat",
       percent: 100,
     };
   }
@@ -37,14 +37,14 @@ function getSlaStatus(
     const m = overdue % 60;
     return {
       status: "breached",
-      remaining: h > 0 ? `${h}h ${m}m overdue` : `${m}m overdue`,
+      remaining: h > 0 ? `Terlewat ${h}j ${m}m` : `Terlewat ${m}m`,
       percent: 100,
     };
   }
 
   const h = Math.floor(remainingMinutes / 60);
   const m = remainingMinutes % 60;
-  const remaining = h > 0 ? `${h}h ${m}m` : `${m}m`;
+  const remaining = h > 0 ? `${h}j ${m}m` : `${m}m`;
 
   // Use 24h as baseline for percentage if total unknown
   const baseMinutes = 24 * 60;
@@ -66,7 +66,7 @@ function SlaIndicator({
     return (
       <div className={cn("flex items-center gap-1 text-xs text-gray-400", className)}>
         <Clock className="h-3.5 w-3.5" />
-        <span>No SLA</span>
+        <span>Tanpa SLA</span>
       </div>
     );
   }
@@ -154,7 +154,7 @@ function SlaIndicator({
           <span>{remaining}</span>
           {dueAt && (
             <span className="ml-auto text-gray-400">
-              Due {format(due, "MMM d, HH:mm")}
+              Batas {format(due, "d MMM, HH:mm")}
             </span>
           )}
         </div>

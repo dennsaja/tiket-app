@@ -165,10 +165,10 @@ export default function NewTicketPage() {
         }
       }
 
-      toast.success("Ticket submitted successfully!");
+      toast.success("Tiket berhasil dibuat!");
       router.push(`/tickets/${newTicket.id}`);
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      toast.error(err.message || "Terjadi kesalahan");
       setIsSubmitting(false);
     }
   };
@@ -178,14 +178,14 @@ export default function NewTicketPage() {
       <div className="flex items-center gap-2 border-b border-gray-200 pb-3">
         <Link href="/tickets">
           <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-            Back
+            Kembali
           </Button>
         </Link>
         <div className="h-4 w-px bg-gray-300" />
         <div>
-          <h1 className="text-lg font-bold text-gray-900">Create Support Ticket</h1>
+          <h1 className="text-lg font-bold text-gray-900">Buat Tiket Bantuan</h1>
           <p className="text-xs text-gray-500">
-            Submit an inquiry or report an incident to our technical support team
+            Kirimkan pertanyaan, keluhan, atau kendala teknis kepada tim support
           </p>
         </div>
       </div>
@@ -193,13 +193,13 @@ export default function NewTicketPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2">
-            Ticket Details
+            Detail Tiket
           </h2>
 
           {/* Title */}
           <Input
-            label="Subject"
-            placeholder="Brief summary of the issue..."
+            label="Subjek / Judul Kendala"
+            placeholder="Ringkasan singkat kendala yang dialami..."
             {...register("title")}
             error={errors.title?.message}
             required
@@ -207,8 +207,8 @@ export default function NewTicketPage() {
 
           {/* Description */}
           <Textarea
-            label="Description"
-            placeholder="Please provide detailed information, error messages, steps to reproduce, or relevant background..."
+            label="Deskripsi Lengkap"
+            placeholder="Jelaskan kendala secara detail, pesan error yang muncul, langkah kejadian, atau informasi penting lainnya..."
             rows={6}
             {...register("description")}
             error={errors.description?.message}
@@ -218,7 +218,7 @@ export default function NewTicketPage() {
           {/* Priority selector */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-700">
-              Priority <span className="text-red-500">*</span>
+              Tingkat Prioritas <span className="text-red-500">*</span>
             </label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {(["low", "medium", "high", "critical"] as const).map((p) => (
@@ -251,7 +251,7 @@ export default function NewTicketPage() {
         {/* Categorization & Department */}
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2">
-            Routing & Categorization
+            Departemen &amp; Kategori
           </h2>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -261,11 +261,11 @@ export default function NewTicketPage() {
                 name="departmentId"
                 render={({ field }) => (
                   <Select
-                    label="Department"
+                    label="Departemen"
                     value={field.value || "none"}
                     onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
                     options={[
-                      { value: "none", label: "Select Department (Optional)" },
+                      { value: "none", label: "Pilih Departemen (Opsional)" },
                       ...departments.map((d) => ({ value: d.id, label: d.name })),
                     ]}
                   />
@@ -279,14 +279,14 @@ export default function NewTicketPage() {
                 name="categoryId"
                 render={({ field }) => (
                   <Select
-                    label="Category"
+                    label="Kategori"
                     value={field.value || "none"}
                     onValueChange={(val) => {
                       field.onChange(val === "none" ? "" : val);
                       setValue("subcategoryId", "");
                     }}
                     options={[
-                      { value: "none", label: "Select Category (Optional)" },
+                      { value: "none", label: "Pilih Kategori (Opsional)" },
                       ...filteredCategories.map((c) => ({ value: c.id, label: c.name })),
                     ]}
                   />
@@ -301,11 +301,11 @@ export default function NewTicketPage() {
               name="subcategoryId"
               render={({ field }) => (
                 <Select
-                  label="Subcategory"
+                  label="Subkategori"
                   value={field.value || "none"}
                   onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
                   options={[
-                    { value: "none", label: "Select Subcategory (Optional)" },
+                    { value: "none", label: "Pilih Subkategori (Opsional)" },
                     ...subcategories.map((s: any) => ({ value: s.id, label: s.name })),
                   ]}
                 />
@@ -362,9 +362,9 @@ export default function NewTicketPage() {
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-3">
           <div className="flex items-center justify-between border-b border-gray-100 pb-2">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Attachments (Optional)
+              Lampiran Berkas (Opsional)
             </h2>
-            <span className="text-[11px] text-gray-400">Max 10MB per file</span>
+            <span className="text-[11px] text-gray-400">Maks 10MB per berkas</span>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -406,7 +406,7 @@ export default function NewTicketPage() {
               leftIcon={<Paperclip className="h-3.5 w-3.5" />}
               className="text-xs"
             >
-              Choose Files
+              Pilih Berkas
             </Button>
           </div>
         </div>
@@ -415,7 +415,7 @@ export default function NewTicketPage() {
         <div className="flex items-center justify-end gap-3 pt-2">
           <Link href="/tickets">
             <Button type="button" variant="outline" size="md">
-              Cancel
+              Batal
             </Button>
           </Link>
           <Button
@@ -424,7 +424,7 @@ export default function NewTicketPage() {
             isLoading={isSubmitting}
             leftIcon={<Send className="h-4 w-4" />}
           >
-            Submit Ticket
+            Kirim Tiket
           </Button>
         </div>
       </form>

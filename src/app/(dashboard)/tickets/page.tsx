@@ -155,15 +155,15 @@ export default async function TicketsPage({ searchParams }: TicketsPageProps) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">
-            {params.mine === "true" ? "My Assigned Tickets" : "All Tickets"}
+            {params.mine === "true" ? "Tiket Ditugaskan ke Saya" : "Semua Tiket"}
           </h1>
           <p className="text-xs text-gray-500">
-            Showing {ticketList.length} of {totalCount} total tickets
+            Menampilkan {ticketList.length} dari {totalCount} total tiket
           </p>
         </div>
         <Link href="/tickets/new">
           <Button size="sm" leftIcon={<Plus className="h-4 w-4" />}>
-            New Ticket
+            Buat Tiket Baru
           </Button>
         </Link>
       </div>
@@ -182,14 +182,14 @@ export default async function TicketsPage({ searchParams }: TicketsPageProps) {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400 mb-3">
               <TicketIcon className="h-6 w-6" />
             </div>
-            <h3 className="text-sm font-semibold text-gray-900">No tickets found</h3>
+            <h3 className="text-sm font-semibold text-gray-900">Tidak ada tiket ditemukan</h3>
             <p className="mt-1 text-xs text-gray-500 max-w-sm">
-              No tickets matched your current filter criteria or search query.
+              Tidak ada tiket yang sesuai dengan kriteria filter atau kata kunci pencarian Anda.
             </p>
             <div className="mt-4">
               <Link href="/tickets/new">
                 <Button size="sm" leftIcon={<Plus className="h-4 w-4" />}>
-                  Create New Ticket
+                  Buat Tiket Baru
                 </Button>
               </Link>
             </div>
@@ -200,13 +200,13 @@ export default async function TicketsPage({ searchParams }: TicketsPageProps) {
               <TableHeader className="bg-gray-50/75 border-b border-gray-200">
                 <TableRow>
                   <TableHead className="w-20 text-xs font-semibold text-gray-600">ID</TableHead>
-                  <TableHead className="min-w-[240px] text-xs font-semibold text-gray-600">Subject</TableHead>
+                  <TableHead className="min-w-[240px] text-xs font-semibold text-gray-600">Subjek / Judul</TableHead>
                   <TableHead className="w-28 text-xs font-semibold text-gray-600">Status</TableHead>
-                  <TableHead className="w-24 text-xs font-semibold text-gray-600">Priority</TableHead>
-                  <TableHead className="w-36 text-xs font-semibold text-gray-600">Requester</TableHead>
-                  <TableHead className="w-36 text-xs font-semibold text-gray-600">Assignee</TableHead>
-                  <TableHead className="w-32 text-xs font-semibold text-gray-600">SLA Due</TableHead>
-                  <TableHead className="w-28 text-xs font-semibold text-gray-600">Created</TableHead>
+                  <TableHead className="w-24 text-xs font-semibold text-gray-600">Prioritas</TableHead>
+                  <TableHead className="w-36 text-xs font-semibold text-gray-600">Pelapor</TableHead>
+                  <TableHead className="w-36 text-xs font-semibold text-gray-600">Teknisi</TableHead>
+                  <TableHead className="w-32 text-xs font-semibold text-gray-600">Batas SLA</TableHead>
+                  <TableHead className="w-28 text-xs font-semibold text-gray-600">Dibuat</TableHead>
                   <TableHead className="w-8"></TableHead>
                 </TableRow>
               </TableHeader>

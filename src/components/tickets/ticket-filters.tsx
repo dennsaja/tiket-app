@@ -96,7 +96,7 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by ID, title, description..."
+              placeholder="Cari berdasarkan ID tiket, judul, atau deskripsi..."
               className="pl-8 h-9 text-xs"
             />
           </div>
@@ -120,7 +120,7 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
             leftIcon={<Filter className="h-3.5 w-3.5" />}
             className="h-9 text-xs"
           >
-            Apply Filters
+            Terapkan Filter
           </Button>
         </div>
       </div>
@@ -134,45 +134,45 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
             applyFilters({ status: val });
           }}
           options={[
-            { value: "all", label: "All Statuses" },
-            { value: "open", label: "Open" },
-            { value: "assigned", label: "Assigned" },
-            { value: "in_progress", label: "In Progress" },
-            { value: "pending", label: "Pending" },
-            { value: "waiting_for_user", label: "Waiting for User" },
-            { value: "resolved", label: "Resolved" },
-            { value: "closed", label: "Closed" },
-            { value: "reopened", label: "Reopened" },
+            { value: "all", label: "Semua Status" },
+            { value: "open", label: "Baru" },
+            { value: "assigned", label: "Ditugaskan" },
+            { value: "in_progress", label: "Sedang Dikerjakan" },
+            { value: "pending", label: "Tertunda" },
+            { value: "waiting_for_user", label: "Menunggu Respons User" },
+            { value: "resolved", label: "Selesai" },
+            { value: "closed", label: "Ditutup" },
+            { value: "reopened", label: "Dibuka Kembali" },
           ]}
         />
 
         <Select
-          label="Priority"
+          label="Prioritas"
           value={priority}
           onValueChange={(val) => {
             setPriority(val);
             applyFilters({ priority: val });
           }}
           options={[
-            { value: "all", label: "All Priorities" },
-            { value: "critical", label: "Critical" },
-            { value: "high", label: "High" },
-            { value: "medium", label: "Medium" },
-            { value: "low", label: "Low" },
+            { value: "all", label: "Semua Prioritas" },
+            { value: "critical", label: "Kritis" },
+            { value: "high", label: "Tinggi" },
+            { value: "medium", label: "Sedang" },
+            { value: "low", label: "Rendah" },
           ]}
         />
 
         {agents.length > 0 && (
           <Select
-            label="Assignee"
+            label="Teknisi / Assignee"
             value={assigneeId}
             onValueChange={(val) => {
               setAssigneeId(val);
               applyFilters({ assigneeId: val });
             }}
             options={[
-              { value: "all", label: "All Assignees" },
-              { value: "unassigned", label: "Unassigned" },
+              { value: "all", label: "Semua Teknisi" },
+              { value: "unassigned", label: "Belum Ditugaskan" },
               ...agents.map((a) => ({ value: a.id, label: a.name })),
             ]}
           />
@@ -180,14 +180,14 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
 
         {departments.length > 0 && (
           <Select
-            label="Department"
+            label="Departemen"
             value={departmentId}
             onValueChange={(val) => {
               setDepartmentId(val);
               applyFilters({ departmentId: val });
             }}
             options={[
-              { value: "all", label: "All Departments" },
+              { value: "all", label: "Semua Departemen" },
               ...departments.map((d) => ({ value: d.id, label: d.name })),
             ]}
           />
@@ -195,14 +195,14 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
 
         {categories.length > 0 && (
           <Select
-            label="Category"
+            label="Kategori"
             value={categoryId}
             onValueChange={(val) => {
               setCategoryId(val);
               applyFilters({ categoryId: val });
             }}
             options={[
-              { value: "all", label: "All Categories" },
+              { value: "all", label: "Semua Kategori" },
               ...categories.map((c) => ({ value: c.id, label: c.name })),
             ]}
           />

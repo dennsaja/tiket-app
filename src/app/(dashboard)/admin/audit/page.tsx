@@ -46,10 +46,10 @@ export default function AdminAuditPage() {
     <div className="space-y-4">
       <div className="border-b border-gray-200 pb-3">
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <ScrollText className="h-5 w-5 text-indigo-600" /> Security Audit Log
+          <ScrollText className="h-5 w-5 text-indigo-600" /> Log Audit Keamanan
         </h1>
         <p className="text-xs text-gray-500">
-          Immutable log of user authentication events, ticket modifications, and administrative operations
+          Catatan riwayat aktivitas autentikasi pengguna, modifikasi tiket, dan operasi administratif
         </p>
       </div>
 
@@ -62,7 +62,7 @@ export default function AdminAuditPage() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Search by actor email..."
+            placeholder="Cari berdasarkan email aktor..."
             className="pl-8 h-8 text-xs"
           />
         </div>
@@ -75,18 +75,18 @@ export default function AdminAuditPage() {
           </div>
         ) : logs.length === 0 ? (
           <div className="py-12 text-center text-xs text-gray-400">
-            No audit log records found.
+            Tidak ada riwayat log audit ditemukan.
           </div>
         ) : (
           <Table>
             <TableHeader className="bg-gray-50/75 border-b border-gray-200">
               <TableRow>
-                <TableHead className="w-40 text-xs font-semibold text-gray-600">Timestamp</TableHead>
-                <TableHead className="w-48 text-xs font-semibold text-gray-600">Actor</TableHead>
-                <TableHead className="w-44 text-xs font-semibold text-gray-600">Action</TableHead>
+                <TableHead className="w-40 text-xs font-semibold text-gray-600">Waktu</TableHead>
+                <TableHead className="w-48 text-xs font-semibold text-gray-600">Aktor</TableHead>
+                <TableHead className="w-44 text-xs font-semibold text-gray-600">Aksi</TableHead>
                 <TableHead className="w-32 text-xs font-semibold text-gray-600">Target</TableHead>
                 <TableHead className="text-xs font-semibold text-gray-600">Metadata</TableHead>
-                <TableHead className="w-28 text-xs font-semibold text-gray-600">IP Address</TableHead>
+                <TableHead className="w-28 text-xs font-semibold text-gray-600">Alamat IP</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -97,7 +97,7 @@ export default function AdminAuditPage() {
                   </TableCell>
                   <TableCell>
                     <span className="font-medium text-xs text-gray-900 truncate block max-w-[160px]">
-                      {log.actorEmail || "System"}
+                      {log.actorEmail || "Sistem"}
                     </span>
                   </TableCell>
                   <TableCell>

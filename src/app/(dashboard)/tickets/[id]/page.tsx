@@ -151,7 +151,7 @@ export default function TicketDetailPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <Link href="/tickets">
             <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-              Back
+              Kembali
             </Button>
           </Link>
           <div className="h-4 w-px bg-gray-300" />
@@ -162,7 +162,7 @@ export default function TicketDetailPage() {
           <PriorityBadge priority={ticket.priority} size="md" />
           {isSharedViewer && (
             <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
-              <Info className="h-3 w-3" /> Shared Link Viewer
+              <Info className="h-3 w-3" /> Penampil Link Bersama
             </span>
           )}
         </div>
@@ -176,7 +176,7 @@ export default function TicketDetailPage() {
                 leftIcon={<MessagesSquare className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
                 className="text-xs text-indigo-700 bg-indigo-50/50 border-indigo-200 hover:bg-indigo-100 dark:bg-slate-800 dark:text-indigo-300 dark:border-slate-700"
               >
-                Department Chat
+                Chat Tim
               </Button>
             </Link>
           )}
@@ -195,7 +195,7 @@ export default function TicketDetailPage() {
             }
             className="text-xs"
           >
-            {copied ? "Link Disalin!" : "Share Ticket"}
+            {copied ? "Link Disalin!" : "Bagikan Tiket"}
           </Button>
 
           <Button
@@ -209,7 +209,7 @@ export default function TicketDetailPage() {
             leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
             className="text-xs text-gray-500"
           >
-            Refresh
+            Segarkan
           </Button>
         </div>
       </div>
@@ -222,7 +222,7 @@ export default function TicketDetailPage() {
         <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-500 border-t border-gray-100 pt-2">
           <span className="flex items-center gap-1.5">
             <User className="h-3.5 w-3.5 text-gray-400" />
-            Reported by <strong className="text-gray-700">{ticket.requester?.name}</strong>
+            Dilaporkan oleh <strong className="text-gray-700">{ticket.requester?.name}</strong>
           </span>
           <span className="flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5 text-gray-400" />
@@ -288,12 +288,12 @@ export default function TicketDetailPage() {
           {/* Ticket Metadata Card */}
           <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-xs space-y-3">
             <h3 className="text-xs font-semibold text-gray-900 border-b border-gray-100 pb-2">
-              Ticket Information
+              Informasi Tiket
             </h3>
 
             <dl className="space-y-2 text-xs">
               <div className="flex justify-between py-1 border-b border-gray-50">
-                <dt className="text-gray-500">Requester</dt>
+                <dt className="text-gray-500">Pelapor</dt>
                 <dd className="font-medium text-gray-900 flex items-center gap-1.5">
                   <Avatar
                     name={ticket.requester?.name || "User"}
@@ -314,13 +314,13 @@ export default function TicketDetailPage() {
 
               {ticket.requester?.phone && (
                 <div className="flex justify-between py-1 border-b border-gray-50">
-                  <dt className="text-gray-500">Phone</dt>
+                  <dt className="text-gray-500">Telepon</dt>
                   <dd className="text-gray-700">{ticket.requester.phone}</dd>
                 </div>
               )}
 
               <div className="flex justify-between py-1 border-b border-gray-50">
-                <dt className="text-gray-500">Assignee</dt>
+                <dt className="text-gray-500">Teknisi</dt>
                 <dd className="font-medium text-gray-900 flex items-center gap-1.5">
                   {ticket.assignee ? (
                     <>
@@ -333,29 +333,29 @@ export default function TicketDetailPage() {
                       <span>{ticket.assignee.name}</span>
                     </>
                   ) : (
-                    <span className="text-gray-400 italic">Unassigned</span>
+                    <span className="text-gray-400 italic">Belum Ditugaskan</span>
                   )}
                 </dd>
               </div>
 
               <div className="flex justify-between py-1 border-b border-gray-50">
-                <dt className="text-gray-500">Department</dt>
+                <dt className="text-gray-500">Departemen</dt>
                 <dd className="text-gray-900">
-                  {ticket.department?.name || "General"}
+                  {ticket.department?.name || "Umum"}
                 </dd>
               </div>
 
               <div className="flex justify-between py-1 border-b border-gray-50">
-                <dt className="text-gray-500">Category</dt>
+                <dt className="text-gray-500">Kategori</dt>
                 <dd className="text-gray-900">
-                  {ticket.category?.name || "None"}
+                  {ticket.category?.name || "Tidak Ada"}
                 </dd>
               </div>
 
               {ticket.resolution && (
                 <div className="pt-2 border-t border-green-100 bg-green-50/50 p-2.5 rounded">
                   <dt className="font-semibold text-green-900 text-xs mb-1">
-                    Resolution Summary:
+                    Ringkasan Solusi:
                   </dt>
                   <dd className="text-green-800 text-xs whitespace-pre-wrap">
                     {ticket.resolution}

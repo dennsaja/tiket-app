@@ -43,7 +43,7 @@ export function ReplyComposer({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) {
-      toast.error("Please enter a message");
+      toast.error("Silakan masukkan pesan balasan");
       return;
     }
 
@@ -61,7 +61,7 @@ export function ReplyComposer({
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to post message");
+        throw new Error(err.error || "Gagal mengirim pesan");
       }
 
       const newMsg = await res.json();
@@ -81,14 +81,14 @@ export function ReplyComposer({
       }
 
       toast.success(
-        isInternalNote ? "Internal note added" : "Reply sent successfully"
+        isInternalNote ? "Catatan internal berhasil ditambahkan" : "Balasan berhasil dikirim"
       );
       setContent("");
       setFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
       onMessageSent();
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      toast.error(err.message || "Terjadi kesalahan");
     } finally {
       setIsSubmitting(false);
     }
@@ -97,7 +97,7 @@ export function ReplyComposer({
   if (disabled) {
     return (
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center text-xs text-gray-500">
-        This ticket is closed or cancelled. Replies cannot be submitted.
+        Tiket ini sudah ditutup atau dibatalkan. Tidak dapat mengirim balasan baru.
       </div>
     );
   }
@@ -120,7 +120,7 @@ export function ReplyComposer({
                 : "text-gray-500 hover:text-gray-900"
             }`}
           >
-            Public Reply
+            Balasan Publik
           </button>
           {isAgentOrAdmin && (
             <button
@@ -133,14 +133,14 @@ export function ReplyComposer({
               }`}
             >
               <Lock className="h-3 w-3" />
-              Internal Note
+              Catatan Internal
             </button>
           )}
         </div>
 
         {isInternalNote && (
           <span className="text-[11px] text-amber-700 flex items-center gap-1 font-medium">
-            <Lock className="h-3 w-3" /> Visible to agents only
+            <Lock className="h-3 w-3" /> Hanya teknisi &amp; admin
           </span>
         )}
       </div>
@@ -151,8 +151,8 @@ export function ReplyComposer({
           onChange={(e) => setContent(e.target.value)}
           placeholder={
             isInternalNote
-              ? "Add internal notes, diagnosis details, or thoughts visible only to support staff..."
-              : "Type your reply to the requester..."
+              ? "Tambahkan catatan internal, langkah perbaikan teknis, atau memo khusus tim teknisi..."
+              : "Ketik balasan pesan Anda kepada pelapor..."
           }
           rows={4}
           className="text-xs sm:text-sm border-gray-200 resize-y"
@@ -198,7 +198,7 @@ export function ReplyComposer({
             leftIcon={<Paperclip className="h-3.5 w-3.5" />}
             className="text-xs text-gray-600"
           >
-            Attach Files
+            Lampirkan Berkas
           </Button>
         </div>
 
@@ -209,7 +209,7 @@ export function ReplyComposer({
           leftIcon={<Send className="h-3.5 w-3.5" />}
           className={isInternalNote ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}
         >
-          {isInternalNote ? "Add Note" : "Send Reply"}
+          {isInternalNote ? "Simpan Catatan" : "Kirim Balasan"}
         </Button>
       </div>
     </form>

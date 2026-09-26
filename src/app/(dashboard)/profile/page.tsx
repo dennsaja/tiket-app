@@ -135,9 +135,9 @@ export default function ProfilePage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="border-b border-gray-200 pb-3">
-        <h1 className="text-xl font-bold text-gray-900">User Profile</h1>
+        <h1 className="text-xl font-bold text-gray-900">Profil Pengguna</h1>
         <p className="text-xs text-gray-500">
-          Manage your account settings, personal information, and credentials
+          Kelola pengaturan akun, informasi kontak, dan kata sandi Anda
         </p>
       </div>
 
@@ -156,7 +156,7 @@ export default function ProfilePage() {
               variant={userRole === "admin" ? "purple" : userRole === "agent" ? "indigo" : "default"}
               className="capitalize"
             >
-              {userRole}
+              {userRole === "admin" ? "Administrator" : userRole === "agent" ? "Teknisi" : "Pelapor"}
             </Badge>
           </div>
           <p className="text-xs text-gray-500">{user?.email}</p>
@@ -167,18 +167,18 @@ export default function ProfilePage() {
       <form onSubmit={handleSubmitProfile(onProfileSubmit)}>
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2 flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5" /> Personal Details
+            <User className="h-3.5 w-3.5" /> Data Pribadi
           </h2>
 
           <Input
-            label="Full Name"
+            label="Nama Lengkap"
             {...registerProfile("name")}
             error={profileErrors.name?.message}
             required
           />
 
           <Input
-            label="Email Address"
+            label="Alamat Email"
             type="email"
             {...registerProfile("email")}
             error={profileErrors.email?.message}
@@ -186,7 +186,7 @@ export default function ProfilePage() {
           />
 
           <Input
-            label="Phone Number"
+            label="Nomor Telepon / WhatsApp"
             placeholder="+62 812 3456 7890"
             {...registerProfile("phone")}
             error={profileErrors.phone?.message}
@@ -199,7 +199,7 @@ export default function ProfilePage() {
               isLoading={isUpdatingProfile}
               leftIcon={<Save className="h-3.5 w-3.5" />}
             >
-              Save Profile
+              Simpan Perubahan
             </Button>
           </div>
         </div>
@@ -209,11 +209,11 @@ export default function ProfilePage() {
       <form onSubmit={handleSubmitPassword(onPasswordSubmit)}>
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2 flex items-center gap-1.5">
-            <Lock className="h-3.5 w-3.5" /> Security & Password
+            <Lock className="h-3.5 w-3.5" /> Keamanan &amp; Kata Sandi
           </h2>
 
           <Input
-            label="Current Password"
+            label="Kata Sandi Saat Ini"
             type="password"
             {...registerPassword("currentPassword")}
             error={passwordErrors.currentPassword?.message}
@@ -221,16 +221,16 @@ export default function ProfilePage() {
           />
 
           <Input
-            label="New Password"
+            label="Kata Sandi Baru"
             type="password"
-            placeholder="Min 8 characters with upper, lower, and digit"
+            placeholder="Minimal 8 karakter dengan huruf besar, kecil, & angka"
             {...registerPassword("newPassword")}
             error={passwordErrors.newPassword?.message}
             required
           />
 
           <Input
-            label="Confirm New Password"
+            label="Konfirmasi Kata Sandi Baru"
             type="password"
             {...registerPassword("confirmPassword")}
             error={passwordErrors.confirmPassword?.message}
@@ -245,7 +245,7 @@ export default function ProfilePage() {
               isLoading={isUpdatingPassword}
               leftIcon={<Lock className="h-3.5 w-3.5" />}
             >
-              Update Password
+              Perbarui Kata Sandi
             </Button>
           </div>
         </div>

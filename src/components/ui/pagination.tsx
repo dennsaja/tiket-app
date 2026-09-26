@@ -63,10 +63,10 @@ function Pagination({
   const range = getPaginationRange(page, calculatedTotalPages);
 
   const perPageOptions = [
-    { value: "10", label: "10 / page" },
-    { value: "25", label: "25 / page" },
-    { value: "50", label: "50 / page" },
-    { value: "100", label: "100 / page" },
+    { value: "10", label: "10 / hal" },
+    { value: "25", label: "25 / hal" },
+    { value: "50", label: "50 / hal" },
+    { value: "100", label: "100 / hal" },
   ];
 
   return (
@@ -77,11 +77,11 @@ function Pagination({
       )}
     >
       <p className="text-xs text-gray-500">
-        Showing{" "}
+        Menampilkan{" "}
         <span className="font-medium text-gray-700">
           {start}–{end}
         </span>{" "}
-        of <span className="font-medium text-gray-700">{total}</span> results
+        dari <span className="font-medium text-gray-700">{total}</span> data
       </p>
 
       <div className="flex items-center gap-2">
@@ -100,7 +100,7 @@ function Pagination({
             size="icon-sm"
             onClick={() => onPageChange?.(page - 1)}
             disabled={page <= 1 || !onPageChange}
-            aria-label="Previous page"
+            aria-label="Halaman sebelumnya"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </Button>
@@ -134,7 +134,7 @@ function Pagination({
             size="icon-sm"
             onClick={() => onPageChange?.(page + 1)}
             disabled={page >= calculatedTotalPages || !onPageChange}
-            aria-label="Next page"
+            aria-label="Halaman selanjutnya"
           >
             <ChevronRight className="h-3.5 w-3.5" />
           </Button>

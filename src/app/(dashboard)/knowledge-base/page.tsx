@@ -39,9 +39,9 @@ export default async function KnowledgeBasePage() {
         <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 mb-3">
           <BookOpen className="h-6 w-6" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Knowledge Base & FAQ</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Pusat Bantuan &amp; FAQ</h1>
         <p className="mt-1 text-xs text-gray-500 max-w-md mx-auto">
-          Find self-service guides, troubleshooting articles, and answers to common technical questions
+          Temukan panduan mandiri, artikel pemecahan masalah teknis, dan jawaban pertanyaan umum seputar sistem.
         </p>
       </div>
 
@@ -49,7 +49,7 @@ export default async function KnowledgeBasePage() {
       {categoriesList.length > 0 && (
         <div className="space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-            Browse by Category
+            Jelajahi Berdasarkan Kategori
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {categoriesList.map((cat) => (
@@ -59,7 +59,7 @@ export default async function KnowledgeBasePage() {
               >
                 <p className="text-xs font-semibold text-gray-900">{cat.name}</p>
                 <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-1">
-                  {cat.description || "Articles and guides"}
+                  {cat.description || "Artikel dan panduan"}
                 </p>
               </div>
             ))}
@@ -71,13 +71,13 @@ export default async function KnowledgeBasePage() {
       <div className="rounded-lg border border-gray-200 bg-white shadow-xs overflow-hidden">
         <div className="border-b border-gray-200 px-4 py-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-            Featured & Popular Articles
+            Artikel Populer &amp; Panduan Pilihan
           </h2>
         </div>
 
         {articles.length === 0 ? (
           <div className="py-12 text-center text-xs text-gray-400">
-            No published articles available at this time. Check back soon.
+            Belum ada artikel yang dipublikasikan saat ini.
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
@@ -96,7 +96,7 @@ export default async function KnowledgeBasePage() {
                     <div className="flex items-center gap-3 mt-1 text-[10px] text-gray-400">
                       {art.category && <span>{art.category.name}</span>}
                       <span className="flex items-center gap-1">
-                        <Eye className="h-3 w-3" /> {art.views} views
+                        <Eye className="h-3 w-3" /> {art.views} dilihat
                       </span>
                       <span className="flex items-center gap-1">
                         <ThumbsUp className="h-3 w-3" /> {art.helpfulCount}

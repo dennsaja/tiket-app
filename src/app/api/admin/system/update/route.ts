@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { errorResponse } from "@/lib/api/helpers";
 import { createAuditLog, getClientIp } from "@/lib/audit";
+import { db } from "@/lib/db";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
@@ -159,7 +161,16 @@ export async function POST(req: NextRequest) {
   const steps: { name: string; status: "success" | "error" | "skipped"; detail?: string }[] = [];
 
   try {
-    // Step 1: Git Pull
+    // Step 0: Ensure safe directory
+    try {
+      await execAsync(`${git} config --global --add safe.directory "${process.cwd().replace(/\\/g, "/")}"`, {
+        cwd: process.cwd(),
+        env: execEnv,
+        timeout: 5000,
+      });
+    } catch {}
+
+    // Step 1: Git Pull / Sync
     logs.push(`[1/3] Mengunduh pembaruan dari https://github.com/${GITHUB_REPO} (branch: ${GITHUB_BRANCH})...`);
     try {
       const { stdout: pullOut, stderr: pullErr } = await execAsync(
@@ -174,24 +185,37 @@ export async function POST(req: NextRequest) {
       logs.push(outText);
       steps.push({ name: "Git Pull", status: "success", detail: outText });
     } catch (gitErr: any) {
-      const errMsg = gitErr.message || "Git pull failed";
-      logs.push(`Error Git: ${errMsg}`);
-      steps.push({ name: "Git Pull", status: "error", detail: errMsg });
-      throw new Error(`Gagal melakukan git pull: ${errMsg}`);
+      // Fallback: If not a git repo or branch error, try initializing or fetching
+      try {
+        logs.push("Mencoba sinkronisasi ulang repository...");
+        await execAsync(`${git} fetch origin ${GITHUB_BRANCH}`, { cwd: process.cwd(), env: execEnv, timeout: 30000 });
+        const { stdout: resetOut } = await execAsync(`${git} reset --hard origin/${GITHUB_BRANCH}`, { cwd: process.cwd(), env: execEnv, timeout: 15000 });
+        const outText = (resetOut || "Sinkronisasi berhasil").trim();
+        logs.push(outText);
+        steps.push({ name: "Git Sync", status: "success", detail: outText });
+      } catch (fallbackErr: any) {
+        const errMsg = gitErr.message || fallbackErr.message || "Git sync failed";
+        logs.push(`Error Git: ${errMsg}`);
+        steps.push({ name: "Git Pull", status: "error", detail: errMsg });
+        throw new Error(`Gagal melakukan pembaruan git: ${errMsg}`);
+      }
     }
 
     // Step 2: Database Schema Sync / Migrations
     logs.push("[2/3] Memeriksa dan menerapkan migrasi database skema...");
     try {
-      // Check if migration SQL exists
       const migrationDir = path.join(process.cwd(), "drizzle");
       if (fs.existsSync(migrationDir)) {
-        logs.push("Skema database Drizzle tersinkronisasi.");
-        steps.push({ name: "Database Migration", status: "success", detail: "Schema synced" });
+        await migrate(db, { migrationsFolder: migrationDir });
+        logs.push("Berhasil menerapkan seluruh migrasi database Drizzle.");
+        steps.push({ name: "Database Migration", status: "success", detail: "Schema synced successfully" });
+      } else {
+        logs.push("Folder migrasi tidak ditemukan, melewati tahap ini.");
+        steps.push({ name: "Database Migration", status: "skipped", detail: "No migration folder" });
       }
     } catch (migErr: any) {
-      logs.push(`Catatan migrasi: ${migErr.message || "Schema up to date"}`);
-      steps.push({ name: "Database Migration", status: "skipped", detail: "Schema up to date" });
+      logs.push(`Peringatan migrasi DB: ${migErr.message || "Schema up to date"}`);
+      steps.push({ name: "Database Migration", status: "skipped", detail: migErr.message });
     }
 
     // Step 3: Success Confirmation
@@ -220,10 +244,11 @@ export async function POST(req: NextRequest) {
     });
 
     logs.push(`Selesai! Versi aktif saat ini: #${newCommit}`);
+    logs.push("Catatan: Jika ada perubahan layout/kode Next.js, Anda dapat merestart service via 'systemctl restart helpdesk' di terminal server.");
 
     return NextResponse.json({
       success: true,
-      message: "Pembaruan berhasil diunduh dan diterapkan!",
+      message: "Pembaruan berhasil diunduh dan database tersinkronisasi!",
       newCommit,
       steps,
       logs,
@@ -242,3 +267,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+

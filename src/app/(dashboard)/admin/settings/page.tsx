@@ -20,7 +20,7 @@ export default function AdminSettingsPage() {
     setIsSaving(true);
     setTimeout(() => {
       setIsSaving(false);
-      toast.success("System settings updated successfully");
+      toast.success("Pengaturan sistem berhasil disimpan");
     }, 400);
   };
 
@@ -28,10 +28,10 @@ export default function AdminSettingsPage() {
     <div className="max-w-3xl space-y-6">
       <div className="border-b border-gray-200 pb-3">
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Settings className="h-5 w-5 text-indigo-600" /> System Settings
+          <Settings className="h-5 w-5 text-indigo-600" /> Pengaturan Sistem
         </h1>
         <p className="text-xs text-gray-500">
-          Configure global application parameters, defaults, and security policies
+          Konfigurasi parameter global aplikasi, default sistem, dan kebijakan akses
         </p>
       </div>
 
@@ -39,25 +39,25 @@ export default function AdminSettingsPage() {
         {/* General Settings */}
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2">
-            General Configuration
+            Konfigurasi Umum
           </h2>
 
           <Input
-            label="Application Name"
+            label="Nama Aplikasi"
             value={appName}
             onChange={(e) => setAppName(e.target.value)}
             required
           />
 
           <Select
-            label="System Timezone"
+            label="Zona Waktu Sistem"
             value={timezone}
             onValueChange={setTimezone}
             options={[
-              { value: "Asia/Jakarta", label: "Asia/Jakarta (UTC+7)" },
-              { value: "Asia/Singapore", label: "Asia/Singapore (UTC+8)" },
+              { value: "Asia/Jakarta", label: "Asia/Jakarta (WIB - UTC+7)" },
+              { value: "Asia/Makassar", label: "Asia/Makassar (WITA - UTC+8)" },
+              { value: "Asia/Jayapura", label: "Asia/Jayapura (WIT - UTC+9)" },
               { value: "UTC", label: "UTC (Coordinated Universal Time)" },
-              { value: "America/New_York", label: "America/New_York (EST/EDT)" },
             ]}
           />
         </div>
@@ -65,14 +65,14 @@ export default function AdminSettingsPage() {
         {/* Security & Access */}
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2">
-            Access Control
+            Kontrol Akses
           </h2>
 
           <div className="flex items-center justify-between py-1">
             <div>
-              <p className="text-xs font-semibold text-gray-900">Allow Public Registration</p>
+              <p className="text-xs font-semibold text-gray-900">Izinkan Pendaftaran Publik</p>
               <p className="text-[11px] text-gray-500">
-                Allow new customers to create support accounts self-service
+                Izinkan pengguna baru mendaftarkan akun support secara mandiri
               </p>
             </div>
             <input
@@ -85,9 +85,9 @@ export default function AdminSettingsPage() {
 
           <div className="flex items-center justify-between py-1 border-t border-gray-100 pt-3">
             <div>
-              <p className="text-xs font-semibold text-gray-900">Automated Agent Load-Balancing</p>
+              <p className="text-xs font-semibold text-gray-900">Penugasan Agen Otomatis (Load-Balancing)</p>
               <p className="text-[11px] text-gray-500">
-                Automatically assign newly created tickets to agents with lowest active workload
+                Otomatis menugaskan tiket baru ke teknisi/agen dengan beban kerja aktif terendah
               </p>
             </div>
             <input
@@ -102,36 +102,36 @@ export default function AdminSettingsPage() {
         {/* Environment Status */}
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-3 dark:border-slate-800 dark:bg-slate-900">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2 dark:border-slate-800">
-            Environment & Infrastructure Status
+            Status Lingkungan &amp; Infrastruktur
           </h2>
 
           <dl className="grid grid-cols-2 gap-3 text-xs">
             <div className="rounded border border-gray-100 bg-gray-50 p-2.5 dark:border-slate-800 dark:bg-slate-800/50">
               <dt className="text-gray-500 flex items-center gap-1.5 font-medium dark:text-gray-400">
-                <Server className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Operating System
+                <Server className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Sistem Operasi
               </dt>
               <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">Ubuntu 24.04 LTS (LXC)</dd>
             </div>
 
             <div className="rounded border border-gray-100 bg-gray-50 p-2.5 dark:border-slate-800 dark:bg-slate-800/50">
               <dt className="text-gray-500 flex items-center gap-1.5 font-medium dark:text-gray-400">
-                <Database className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Database Engine
+                <Database className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Mesin Database
               </dt>
-              <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">PostgreSQL 16 (Local)</dd>
+              <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">PostgreSQL 16 (Lokal)</dd>
             </div>
 
             <div className="rounded border border-gray-100 bg-gray-50 p-2.5 dark:border-slate-800 dark:bg-slate-800/50">
               <dt className="text-gray-500 flex items-center gap-1.5 font-medium dark:text-gray-400">
-                <Shield className="h-3.5 w-3.5 text-green-600 dark:text-green-400" /> Authentication
+                <Shield className="h-3.5 w-3.5 text-green-600 dark:text-green-400" /> Autentikasi
               </dt>
               <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">NextAuth v5 (Bcrypt + JWT)</dd>
             </div>
 
             <div className="rounded border border-gray-100 bg-gray-50 p-2.5 dark:border-slate-800 dark:bg-slate-800/50">
               <dt className="text-gray-500 flex items-center gap-1.5 font-medium dark:text-gray-400">
-                <HardDrive className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> File Storage
+                <HardDrive className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Penyimpanan Berkas
               </dt>
-              <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">Local Filesystem (/var/helpdesk)</dd>
+              <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">Filesystem Lokal (/var/helpdesk)</dd>
             </div>
           </dl>
         </div>
@@ -163,7 +163,7 @@ export default function AdminSettingsPage() {
             isLoading={isSaving}
             leftIcon={<Save className="h-4 w-4" />}
           >
-            Save Changes
+            Simpan Pengaturan
           </Button>
         </div>
       </form>

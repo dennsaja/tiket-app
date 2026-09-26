@@ -14,19 +14,19 @@ import { cn } from "@/lib/utils";
 
 const registerSchema = z
   .object({
-    name: z.string().min(2, "Name must be at least 2 characters"),
-    email: z.string().email("Invalid email address"),
+    name: z.string().min(2, "Nama minimal 2 karakter"),
+    email: z.string().email("Format email tidak valid"),
     password: z
       .string()
-      .min(8, "Password must be at least 8 characters")
+      .min(8, "Kata sandi minimal 8 karakter")
       .regex(
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-        "Must contain uppercase, lowercase, and a number"
+        "Harus mengandung huruf besar, huruf kecil, dan angka"
       ),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
+    message: "Konfirmasi kata sandi tidak cocok",
     path: ["confirmPassword"],
   });
 
@@ -34,14 +34,13 @@ type RegisterForm = z.infer<typeof registerSchema>;
 
 function PasswordStrengthBar({ password }: { password: string }) {
   const checks = [
-    { label: "8+ characters", ok: password.length >= 8 },
-    { label: "Uppercase", ok: /[A-Z]/.test(password) },
-    { label: "Lowercase", ok: /[a-z]/.test(password) },
-    { label: "Number", ok: /\d/.test(password) },
+    { label: "8+ karakter", ok: password.length >= 8 },
+    { label: "Huruf besar", ok: /[A-Z]/.test(password) },
+    { label: "Huruf kecil", ok: /[a-z]/.test(password) },
+    { label: "Angka", ok: /\d/.test(password) },
   ];
   const strength = checks.filter((c) => c.ok).length;
   const strengthColors = ["", "bg-red-400", "bg-orange-400", "bg-yellow-400", "bg-green-500"];
-  const strengthLabel = ["", "Weak", "Fair", "Good", "Strong"];
 
   return (
     <div className="mt-2 space-y-2">
@@ -110,14 +109,14 @@ export default function RegisterPage() {
       const json = await res.json();
 
       if (!res.ok) {
-        setServerError(json.error || "Registration failed. Please try again.");
+        setServerError(json.error || "Pendaftaran gagal. Silakan coba lagi.");
         return;
       }
 
       setSuccess(true);
       setTimeout(() => router.push("/login"), 2000);
     } catch {
-      setServerError("Network error. Please try again.");
+      setServerError("Kesalahan jaringan. Silakan coba lagi.");
     }
   };
 
@@ -130,9 +129,9 @@ export default function RegisterPage() {
               <CheckCircle className="h-6 w-6 text-green-600" />
             </div>
           </div>
-          <h2 className="text-lg font-bold text-gray-900">Account created!</h2>
+          <h2 className="text-lg font-bold text-gray-900">Akun berhasil dibuat!</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Redirecting you to the login page...
+            Mengalihkan Anda ke halaman login...
           </p>
         </div>
       </div>
@@ -148,8 +147,8 @@ export default function RegisterPage() {
             <HeadphonesIcon className="h-5 w-5 text-white" />
           </div>
           <div className="text-center">
-            <h1 className="text-xl font-bold text-gray-900">Create account</h1>
-            <p className="mt-0.5 text-sm text-gray-500">Join HelpDesk today</p>
+            <h1 className="text-xl font-bold text-gray-900">Buat Akun Baru</h1>
+            <p className="mt-0.5 text-sm text-gray-500">Daftar untuk mengakses layanan HelpDesk</p>
           </div>
         </div>
 
@@ -162,9 +161,9 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input
-              label="Full name"
+              label="Nama Lengkap"
               type="text"
-              placeholder="John Smith"
+              placeholder="Budi Santoso"
               autoComplete="name"
               error={errors.name?.message}
               required
@@ -172,9 +171,9 @@ export default function RegisterPage() {
             />
 
             <Input
-              label="Email address"
+              label="Alamat Email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="nama@perusahaan.com"
               autoComplete="email"
               error={errors.email?.message}
               required
@@ -183,9 +182,9 @@ export default function RegisterPage() {
 
             <div>
               <Input
-                label="Password"
+                label="Kata Sandi"
                 type={showPassword ? "text" : "password"}
-                placeholder="Min. 8 characters"
+                placeholder="Min. 8 karakter"
                 autoComplete="new-password"
                 error={errors.password?.message}
                 required
@@ -209,9 +208,9 @@ export default function RegisterPage() {
             </div>
 
             <Input
-              label="Confirm password"
+              label="Konfirmasi Kata Sandi"
               type={showConfirm ? "text" : "password"}
-              placeholder="Repeat your password"
+              placeholder="Ketik ulang kata sandi"
               autoComplete="new-password"
               error={errors.confirmPassword?.message}
               required
@@ -238,15 +237,15 @@ export default function RegisterPage() {
               loading={isSubmitting}
               size="lg"
             >
-              {isSubmitting ? "Creating account..." : "Create account"}
+              {isSubmitting ? "Mendaftarkan akun..." : "Daftar Sekarang"}
             </Button>
           </form>
         </div>
 
         <p className="mt-4 text-center text-xs text-gray-500">
-          Already have an account?{" "}
+          Sudah memiliki akun?{" "}
           <Link href="/login" className="text-indigo-600 hover:underline font-medium">
-            Sign in
+            Masuk di sini
           </Link>
         </p>
       </div>

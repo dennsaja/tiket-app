@@ -126,7 +126,7 @@ export function TicketRow({
             </span>
           </div>
         ) : (
-          <span className="text-xs text-gray-400 italic">Unassigned</span>
+          <span className="text-xs text-gray-400 italic">Belum Ditugaskan</span>
         )}
       </TableCell>
 

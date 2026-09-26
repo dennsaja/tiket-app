@@ -13,8 +13,8 @@ import { HeadphonesIcon, Eye, EyeOff, Lock } from "lucide-react";
 import Link from "next/link";
 
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().email("Format alamat email tidak valid"),
+  password: z.string().min(1, "Kata sandi wajib diisi"),
   rememberMe: z.boolean().optional(),
 });
 
@@ -22,11 +22,11 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 const errorMessages: Record<string, string> = {
   CredentialsSignin:
-    "Invalid email or password. Please check your credentials.",
+    "Email atau kata sandi salah. Silakan periksa kembali data login Anda.",
   AccountLocked:
-    "Your account has been locked due to too many failed attempts. Please try again later.",
-  AccountInactive: "Your account has been deactivated. Contact an administrator.",
-  default: "An error occurred. Please try again.",
+    "Akun Anda terkunci sementara karena terlalu banyak percobaan gagal. Coba lagi nanti.",
+  AccountInactive: "Akun Anda telah dinonaktifkan. Hubungi administrator.",
+  default: "Terjadi kesalahan saat masuk. Silakan coba lagi.",
 };
 
 export default function LoginPage() {
@@ -82,7 +82,7 @@ export default function LoginPage() {
           <div className="text-center">
             <h1 className="text-xl font-bold text-gray-900">HelpDesk</h1>
             <p className="mt-0.5 text-sm text-gray-500">
-              Sign in to your account
+              Masuk ke akun HelpDesk Anda
             </p>
           </div>
         </div>
@@ -97,9 +97,9 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input
-              label="Email address"
+              label="Alamat Email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="nama@perusahaan.com"
               autoComplete="email"
               error={errors.email?.message}
               required
@@ -108,7 +108,7 @@ export default function LoginPage() {
 
             <div>
               <Input
-                label="Password"
+                label="Kata Sandi"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 autoComplete="current-password"
@@ -135,7 +135,7 @@ export default function LoginPage() {
                   href="/forgot-password"
                   className="text-xs text-indigo-600 hover:underline"
                 >
-                  Forgot password?
+                  Lupa kata sandi?
                 </Link>
               </div>
             </div>
@@ -148,7 +148,7 @@ export default function LoginPage() {
                 {...register("rememberMe")}
               />
               <label htmlFor="rememberMe" className="text-xs text-gray-600">
-                Remember me for 30 days
+                Ingat saya selama 30 hari
               </label>
             </div>
 
@@ -158,16 +158,16 @@ export default function LoginPage() {
               loading={isSubmitting}
               size="lg"
             >
-              {isSubmitting ? "Signing in..." : "Sign in"}
+              {isSubmitting ? "Memproses..." : "Masuk"}
             </Button>
           </form>
         </div>
 
         {/* Register link */}
         <p className="mt-4 text-center text-xs text-gray-500">
-          Don&apos;t have an account?{" "}
+          Belum memiliki akun?{" "}
           <Link href="/register" className="text-indigo-600 hover:underline font-medium">
-            Create one
+            Daftar sekarang
           </Link>
         </p>
       </div>

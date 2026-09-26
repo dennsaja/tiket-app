@@ -104,10 +104,10 @@ export default function AdminSlaPage() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Timer className="h-5 w-5 text-indigo-600" /> Service Level Agreements (SLA)
+            <Timer className="h-5 w-5 text-indigo-600" /> Kebijakan SLA (Service Level Agreement)
           </h1>
           <p className="text-xs text-gray-500">
-            Define first response and resolution time targets for customer requests
+            Atur target waktu respons pertama dan batas waktu penyelesaian tiket berdasarkan prioritas
           </p>
         </div>
         <Button
@@ -115,7 +115,7 @@ export default function AdminSlaPage() {
           onClick={() => setModalOpen(true)}
           leftIcon={<Plus className="h-4 w-4" />}
         >
-          Add SLA Policy
+          Tambah Kebijakan SLA
         </Button>
       </div>
 
@@ -126,17 +126,17 @@ export default function AdminSlaPage() {
           </div>
         ) : policies.length === 0 ? (
           <div className="py-12 text-center text-xs text-gray-400">
-            No SLA policies configured.
+            Belum ada kebijakan SLA yang dikonfigurasi.
           </div>
         ) : (
           <Table>
             <TableHeader className="bg-gray-50/75 border-b border-gray-200">
               <TableRow>
-                <TableHead className="text-xs font-semibold text-gray-600">Policy Name</TableHead>
-                <TableHead className="w-28 text-xs font-semibold text-gray-600">Priority</TableHead>
-                <TableHead className="w-36 text-xs font-semibold text-gray-600">1st Response</TableHead>
-                <TableHead className="w-36 text-xs font-semibold text-gray-600">Resolution</TableHead>
-                <TableHead className="w-32 text-xs font-semibold text-gray-600">Business Hours</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-600">Nama Kebijakan</TableHead>
+                <TableHead className="w-28 text-xs font-semibold text-gray-600">Prioritas</TableHead>
+                <TableHead className="w-36 text-xs font-semibold text-gray-600">Respons Pertama</TableHead>
+                <TableHead className="w-36 text-xs font-semibold text-gray-600">Resolusi</TableHead>
+                <TableHead className="w-32 text-xs font-semibold text-gray-600">Jam Operasional</TableHead>
                 <TableHead className="w-24 text-xs font-semibold text-gray-600">Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -160,12 +160,12 @@ export default function AdminSlaPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={p.useBusinessHours ? "indigo" : "default"} className="text-[10px]">
-                      {p.useBusinessHours ? "Business Hours" : "24/7 Calendar"}
+                      {p.useBusinessHours ? "Jam Kerja (Sen-Jum)" : "24/7 Non-Stop"}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={p.isActive ? "success" : "error"} className="text-[10px]">
-                      {p.isActive ? "Active" : "Inactive"}
+                      {p.isActive ? "Aktif" : "Nonaktif"}
                     </Badge>
                   </TableCell>
                 </TableRow>
@@ -179,40 +179,40 @@ export default function AdminSlaPage() {
       <Modal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title="Add SLA Policy"
-        description="Configure target turnaround times by priority tier"
+        title="Tambah Kebijakan SLA"
+        description="Konfigurasi target waktu penanganan tiket"
       >
         <form onSubmit={handleCreatePolicy} className="space-y-3 pt-2">
           <Input
-            label="Policy Name"
+            label="Nama Kebijakan"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="e.g. Critical 4-Hour Response"
+            placeholder="Contoh: SLA Kritis 4 Jam"
             required
           />
 
           <Select
-            label="Target Priority"
+            label="Target Prioritas"
             value={formData.priority}
             onValueChange={(val: any) => setFormData({ ...formData, priority: val })}
             options={[
-              { value: "critical", label: "Critical" },
-              { value: "high", label: "High" },
-              { value: "medium", label: "Medium" },
-              { value: "low", label: "Low" },
+              { value: "critical", label: "Kritis" },
+              { value: "high", label: "Tinggi" },
+              { value: "medium", label: "Sedang" },
+              { value: "low", label: "Rendah" },
             ]}
           />
 
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="1st Response (mins)"
+              label="Respons Pertama (menit)"
               type="number"
               value={formData.firstResponseMinutes}
               onChange={(e) => setFormData({ ...formData, firstResponseMinutes: parseInt(e.target.value) || 0 })}
               required
             />
             <Input
-              label="Resolution (mins)"
+              label="Resolusi Selesai (menit)"
               type="number"
               value={formData.resolutionMinutes}
               onChange={(e) => setFormData({ ...formData, resolutionMinutes: parseInt(e.target.value) || 0 })}
@@ -221,10 +221,10 @@ export default function AdminSlaPage() {
           </div>
 
           <Textarea
-            label="Description"
+            label="Deskripsi"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Policy conditions..."
+            placeholder="Keterangan kebijakan SLA..."
             rows={2}
           />
 
@@ -237,7 +237,7 @@ export default function AdminSlaPage() {
               className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
             />
             <label htmlFor="use-business-hours" className="text-xs text-gray-700 cursor-pointer">
-              Count time only during business hours (9:00 - 17:00 Mon-Fri)
+              Hitung durasi hanya pada jam kerja operasional (09:00 - 17:00 Senin - Jumat)
             </label>
           </div>
 
@@ -248,7 +248,7 @@ export default function AdminSlaPage() {
               size="sm"
               onClick={() => setModalOpen(false)}
             >
-              Cancel
+              Batal
             </Button>
             <Button
               type="submit"
@@ -256,7 +256,7 @@ export default function AdminSlaPage() {
               isLoading={isSaving}
               leftIcon={<Plus className="h-3.5 w-3.5" />}
             >
-              Save Policy
+              Simpan Kebijakan
             </Button>
           </div>
         </form>

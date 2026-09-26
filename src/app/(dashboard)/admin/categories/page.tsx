@@ -86,10 +86,10 @@ export default function AdminCategoriesPage() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <FolderOpen className="h-5 w-5 text-indigo-600" /> Categories & Subcategories
+            <FolderOpen className="h-5 w-5 text-indigo-600" /> Kategori &amp; Subkategori
           </h1>
           <p className="text-xs text-gray-500">
-            Configure ticket classification taxonomies for automated routing
+            Kelola taksonomi klasifikasi tiket untuk pengelompokan kendala
           </p>
         </div>
         <Button
@@ -97,7 +97,7 @@ export default function AdminCategoriesPage() {
           onClick={() => setCatModalOpen(true)}
           leftIcon={<Plus className="h-4 w-4" />}
         >
-          Add Category
+          Tambah Kategori
         </Button>
       </div>
 
@@ -107,7 +107,7 @@ export default function AdminCategoriesPage() {
         </div>
       ) : categories.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center text-xs text-gray-400">
-          No categories configured.
+          Belum ada kategori yang dikonfigurasi.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -119,17 +119,17 @@ export default function AdminCategoriesPage() {
               <div className="flex items-start justify-between border-b border-gray-100 pb-2.5">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900">{cat.name}</h3>
-                  <p className="text-xs text-gray-500">{cat.description || "No description"}</p>
+                  <p className="text-xs text-gray-500">{cat.description || "Tanpa deskripsi"}</p>
                 </div>
                 <Badge variant={cat.isActive ? "success" : "error"} className="text-[10px]">
-                  {cat.isActive ? "Active" : "Inactive"}
+                  {cat.isActive ? "Aktif" : "Nonaktif"}
                 </Badge>
               </div>
 
               {/* Subcategories list */}
               <div className="space-y-1.5 pt-1">
                 <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                  Subcategories ({cat.subcategories?.length || 0})
+                  Subkategori ({cat.subcategories?.length || 0})
                 </span>
                 {cat.subcategories && cat.subcategories.length > 0 ? (
                   <div className="space-y-1">
@@ -144,7 +144,7 @@ export default function AdminCategoriesPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-400 italic">No subcategories</p>
+                  <p className="text-xs text-gray-400 italic">Belum ada subkategori</p>
                 )}
               </div>
             </div>
@@ -156,33 +156,33 @@ export default function AdminCategoriesPage() {
       <Modal
         open={catModalOpen}
         onOpenChange={setCatModalOpen}
-        title="Add Category"
-        description="Create a primary ticket classification category"
+        title="Tambah Kategori"
+        description="Buat kategori klasifikasi tiket baru"
       >
         <form onSubmit={handleCreateCategory} className="space-y-3 pt-2">
           <Input
-            label="Category Name"
+            label="Nama Kategori"
             value={catForm.name}
             onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
-            placeholder="e.g. Network Connectivity"
+            placeholder="Contoh: Hardware / Software / Jaringan"
             required
           />
 
           <Textarea
-            label="Description"
+            label="Deskripsi"
             value={catForm.description}
             onChange={(e) => setCatForm({ ...catForm, description: e.target.value })}
-            placeholder="Types of issues covered..."
+            placeholder="Cakupan masalah yang masuk kategori ini..."
             rows={3}
           />
 
           {departments.length > 0 && (
             <Select
-              label="Assigned Department"
+              label="Departemen Terkait"
               value={catForm.departmentId || "none"}
               onValueChange={(val) => setCatForm({ ...catForm, departmentId: val === "none" ? "" : val })}
               options={[
-                { value: "none", label: "None (General)" },
+                { value: "none", label: "Tidak Ada (Umum)" },
                 ...departments.map((d) => ({ value: d.id, label: d.name })),
               ]}
             />
@@ -195,7 +195,7 @@ export default function AdminCategoriesPage() {
               size="sm"
               onClick={() => setCatModalOpen(false)}
             >
-              Cancel
+              Batal
             </Button>
             <Button
               type="submit"
@@ -203,7 +203,7 @@ export default function AdminCategoriesPage() {
               isLoading={isSavingCat}
               leftIcon={<Plus className="h-3.5 w-3.5" />}
             >
-              Save Category
+              Simpan Kategori
             </Button>
           </div>
         </form>

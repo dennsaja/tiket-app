@@ -131,10 +131,10 @@ export default function AdminUsersPage() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <UsersIcon className="h-5 w-5 text-indigo-600" /> User Management
+            <UsersIcon className="h-5 w-5 text-indigo-600" /> Manajemen Pengguna
           </h1>
           <p className="text-xs text-gray-500">
-            Create and manage administrators, support agents, and end users
+            Kelola akun administrator, teknisi support, dan pengguna/pelapor
           </p>
         </div>
         <Button
@@ -142,7 +142,7 @@ export default function AdminUsersPage() {
           onClick={() => setModalOpen(true)}
           leftIcon={<Plus className="h-4 w-4" />}
         >
-          Add User
+          Tambah Pengguna
         </Button>
       </div>
 
@@ -156,7 +156,7 @@ export default function AdminUsersPage() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Search by name or email..."
+            placeholder="Cari berdasarkan nama atau email..."
             className="pl-8 h-8 text-xs"
           />
         </div>
@@ -168,10 +168,10 @@ export default function AdminUsersPage() {
               setPage(1);
             }}
             options={[
-              { value: "all", label: "All Roles" },
-              { value: "admin", label: "Admins" },
-              { value: "agent", label: "Agents" },
-              { value: "user", label: "Users" },
+              { value: "all", label: "Semua Peran" },
+              { value: "admin", label: "Administrator" },
+              { value: "agent", label: "Teknisi" },
+              { value: "user", label: "Pelapor" },
             ]}
           />
         </div>
@@ -185,18 +185,18 @@ export default function AdminUsersPage() {
           </div>
         ) : users.length === 0 ? (
           <div className="py-12 text-center text-xs text-gray-400">
-            No users found matching your criteria.
+            Tidak ada pengguna yang cocok dengan kriteria pencarian.
           </div>
         ) : (
           <Table>
             <TableHeader className="bg-gray-50/75 border-b border-gray-200">
               <TableRow>
-                <TableHead className="text-xs font-semibold text-gray-600">User</TableHead>
-                <TableHead className="w-28 text-xs font-semibold text-gray-600">Role</TableHead>
-                <TableHead className="w-40 text-xs font-semibold text-gray-600">Department</TableHead>
+                <TableHead className="text-xs font-semibold text-gray-600">Pengguna</TableHead>
+                <TableHead className="w-28 text-xs font-semibold text-gray-600">Peran</TableHead>
+                <TableHead className="w-40 text-xs font-semibold text-gray-600">Departemen</TableHead>
                 <TableHead className="w-24 text-xs font-semibold text-gray-600">Status</TableHead>
-                <TableHead className="w-36 text-xs font-semibold text-gray-600">Last Login</TableHead>
-                <TableHead className="w-28 text-right text-xs font-semibold text-gray-600">Actions</TableHead>
+                <TableHead className="w-36 text-xs font-semibold text-gray-600">Login Terakhir</TableHead>
+                <TableHead className="w-28 text-right text-xs font-semibold text-gray-600">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -227,7 +227,7 @@ export default function AdminUsersPage() {
                       }
                       className="capitalize text-[10px]"
                     >
-                      {u.role}
+                      {u.role === "admin" ? "Administrator" : u.role === "agent" ? "Teknisi" : "Pelapor"}
                     </Badge>
                   </TableCell>
 
@@ -240,12 +240,12 @@ export default function AdminUsersPage() {
                       variant={u.isActive ? "success" : "error"}
                       className="text-[10px]"
                     >
-                      {u.isActive ? "Active" : "Inactive"}
+                      {u.isActive ? "Aktif" : "Nonaktif"}
                     </Badge>
                   </TableCell>
 
                   <TableCell className="text-xs text-gray-400">
-                    {u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : "Never"}
+                    {u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : "Belum pernah"}
                   </TableCell>
 
                   <TableCell className="text-right">
@@ -257,7 +257,7 @@ export default function AdminUsersPage() {
                         u.isActive ? "text-red-600 hover:bg-red-50" : "text-green-600 hover:bg-green-50"
                       }`}
                     >
-                      {u.isActive ? "Deactivate" : "Activate"}
+                      {u.isActive ? "Nonaktifkan" : "Aktifkan"}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -283,54 +283,54 @@ export default function AdminUsersPage() {
       <Modal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title="Add New User"
-        description="Create an account for an administrator, support agent, or customer"
+        title="Tambah Pengguna Baru"
+        description="Buat akun untuk administrator, teknisi support, atau pelapor"
       >
         <form onSubmit={handleCreateUser} className="space-y-3 pt-2">
           <Input
-            label="Full Name"
+            label="Nama Lengkap"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="John Doe"
+            placeholder="Budi Santoso"
             required
           />
 
           <Input
-            label="Email Address"
+            label="Alamat Email"
             type="email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            placeholder="john@example.com"
+            placeholder="nama@perusahaan.com"
             required
           />
 
           <Input
-            label="Initial Password"
+            label="Kata Sandi Awal"
             type="password"
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            placeholder="Min 8 characters with upper, lower, digit"
+            placeholder="Minimal 8 karakter dengan huruf & angka"
             required
           />
 
           <Select
-            label="Role"
+            label="Peran / Role"
             value={formData.role}
             onValueChange={(val: any) => setFormData({ ...formData, role: val })}
             options={[
-              { value: "user", label: "User (Customer)" },
-              { value: "agent", label: "Agent (Support Staff)" },
-              { value: "admin", label: "Administrator (Full Access)" },
+              { value: "user", label: "Pelapor (Pengguna)" },
+              { value: "agent", label: "Teknisi (Support Staff)" },
+              { value: "admin", label: "Administrator (Akses Penuh)" },
             ]}
           />
 
           {departments.length > 0 && (
             <Select
-              label="Department"
+              label="Departemen"
               value={formData.departmentId || "none"}
               onValueChange={(val) => setFormData({ ...formData, departmentId: val === "none" ? "" : val })}
               options={[
-                { value: "none", label: "None" },
+                { value: "none", label: "Tidak Ada" },
                 ...departments.map((d) => ({ value: d.id, label: d.name })),
               ]}
             />
@@ -343,7 +343,7 @@ export default function AdminUsersPage() {
               size="sm"
               onClick={() => setModalOpen(false)}
             >
-              Cancel
+              Batal
             </Button>
             <Button
               type="submit"
@@ -351,7 +351,7 @@ export default function AdminUsersPage() {
               isLoading={isSaving}
               leftIcon={<Plus className="h-3.5 w-3.5" />}
             >
-              Create Account
+              Buat Akun
             </Button>
           </div>
         </form>

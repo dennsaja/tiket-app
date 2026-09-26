@@ -156,7 +156,7 @@ export function TicketActions({
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-xs space-y-4">
       <h3 className="text-xs font-semibold text-gray-900 border-b border-gray-100 pb-2">
-        Manage Ticket
+        Kelola Tiket
       </h3>
 
       {isAgentOrAdmin ? (
@@ -171,18 +171,18 @@ export function TicketActions({
               leftIcon={<UserCheck className="h-3.5 w-3.5 text-indigo-600" />}
               className="w-full text-xs justify-center"
             >
-              Assign to Me
+              Tugaskan ke Saya
             </Button>
           )}
 
           {/* Assignee select */}
           {agents.length > 0 && (
             <Select
-              label="Assignee"
+              label="Teknisi / Assignee"
               value={currentAssigneeId || "unassigned"}
               onValueChange={handleAssignChange}
               options={[
-                { value: "unassigned", label: "Unassigned" },
+                { value: "unassigned", label: "Belum Ditugaskan" },
                 ...agents.map((a) => ({ value: a.id, label: a.name })),
               ]}
             />
@@ -190,7 +190,7 @@ export function TicketActions({
 
           {/* Status select */}
           <Select
-            label="Change Status"
+            label="Ubah Status"
             value={currentStatus}
             onValueChange={(val) => {
               if (val === "resolved") {
@@ -200,28 +200,28 @@ export function TicketActions({
               }
             }}
             options={[
-              { value: "open", label: "Open" },
-              { value: "assigned", label: "Assigned" },
-              { value: "in_progress", label: "In Progress" },
-              { value: "pending", label: "Pending" },
-              { value: "waiting_for_user", label: "Waiting for User" },
-              { value: "resolved", label: "Resolved" },
-              { value: "closed", label: "Closed" },
-              { value: "reopened", label: "Reopened" },
-              { value: "cancelled", label: "Cancelled" },
+              { value: "open", label: "Baru" },
+              { value: "assigned", label: "Ditugaskan" },
+              { value: "in_progress", label: "Sedang Dikerjakan" },
+              { value: "pending", label: "Tertunda" },
+              { value: "waiting_for_user", label: "Menunggu Respons User" },
+              { value: "resolved", label: "Selesai" },
+              { value: "closed", label: "Ditutup" },
+              { value: "reopened", label: "Dibuka Kembali" },
+              { value: "cancelled", label: "Dibatalkan" },
             ]}
           />
 
           {/* Priority select */}
           <Select
-            label="Priority"
+            label="Tingkat Prioritas"
             value={currentPriority}
             onValueChange={handlePriorityChange}
             options={[
-              { value: "critical", label: "Critical" },
-              { value: "high", label: "High" },
-              { value: "medium", label: "Medium" },
-              { value: "low", label: "Low" },
+              { value: "critical", label: "Kritis" },
+              { value: "high", label: "Tinggi" },
+              { value: "medium", label: "Sedang" },
+              { value: "low", label: "Rendah" },
             ]}
           />
 
@@ -235,7 +235,7 @@ export function TicketActions({
                 leftIcon={<CheckCircle className="h-3.5 w-3.5 text-green-600" />}
                 className="w-full text-xs justify-center text-green-700 hover:bg-green-50 hover:border-green-300"
               >
-                Resolve Ticket
+                Selesaikan Tiket
               </Button>
             )}
 
@@ -247,7 +247,7 @@ export function TicketActions({
                 leftIcon={<CheckCircle className="h-3.5 w-3.5 text-gray-600" />}
                 className="w-full text-xs justify-center"
               >
-                Close Ticket
+                Tutup Tiket
               </Button>
             )}
 
@@ -259,7 +259,7 @@ export function TicketActions({
                 leftIcon={<RotateCcw className="h-3.5 w-3.5 text-amber-600" />}
                 className="w-full text-xs justify-center text-amber-700 hover:bg-amber-50"
               >
-                Reopen Ticket
+                Buka Kembali Tiket
               </Button>
             )}
 
@@ -271,7 +271,7 @@ export function TicketActions({
                 leftIcon={<Trash2 className="h-3.5 w-3.5" />}
                 className="w-full text-xs justify-center mt-2"
               >
-                Delete Ticket
+                Hapus Tiket
               </Button>
             )}
           </div>
@@ -288,7 +288,7 @@ export function TicketActions({
                 leftIcon={<CheckCircle className="h-3.5 w-3.5 text-green-600" />}
                 className="w-full text-xs justify-center text-green-700 hover:bg-green-50"
               >
-                Confirm & Close Ticket
+                Konfirmasi &amp; Tutup Tiket
               </Button>
               <Button
                 variant="outline"
@@ -297,7 +297,7 @@ export function TicketActions({
                 leftIcon={<RotateCcw className="h-3.5 w-3.5 text-amber-600" />}
                 className="w-full text-xs justify-center text-amber-700 hover:bg-amber-50"
               >
-                Issue Not Resolved (Reopen)
+                Masalah Belum Tuntas (Buka Kembali)
               </Button>
             </>
           )}
@@ -310,7 +310,7 @@ export function TicketActions({
               leftIcon={<XCircle className="h-3.5 w-3.5 text-red-600" />}
               className="w-full text-xs justify-center text-red-600 hover:bg-red-50"
             >
-              Cancel Ticket
+              Batalkan Tiket
             </Button>
           )}
         </div>
@@ -320,15 +320,15 @@ export function TicketActions({
       <Modal
         open={resolveModalOpen}
         onOpenChange={setResolveModalOpen}
-        title="Resolve Ticket"
-        description="Provide a resolution summary explaining how the issue was diagnosed and fixed."
+        title="Selesaikan Tiket"
+        description="Berikan ringkasan solusi yang menjelaskan bagaimana kendala diperbaiki."
       >
         <div className="space-y-3 pt-2">
           <Textarea
-            label="Resolution Details"
+            label="Rincian Solusi &amp; Penyelesaian"
             value={resolutionText}
             onChange={(e) => setResolutionText(e.target.value)}
-            placeholder="Describe the solution provided to the requester..."
+            placeholder="Jelaskan solusi atau perbaikan yang telah dilakukan untuk pelapor..."
             rows={4}
             required
           />
@@ -338,7 +338,7 @@ export function TicketActions({
               size="sm"
               onClick={() => setResolveModalOpen(false)}
             >
-              Cancel
+              Batal
             </Button>
             <Button
               size="sm"
@@ -346,7 +346,7 @@ export function TicketActions({
               isLoading={isUpdating}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
-              Confirm Resolution
+              Konfirmasi Selesai
             </Button>
           </div>
         </div>

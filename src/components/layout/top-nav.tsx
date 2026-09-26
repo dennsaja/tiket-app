@@ -106,7 +106,7 @@ export function TopNav({ breadcrumbs, title }: TopNavProps) {
               ref={searchRef}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search tickets..."
+              placeholder="Cari tiket..."
               className="h-7 w-48 text-xs"
             />
             <button
@@ -124,7 +124,7 @@ export function TopNav({ breadcrumbs, title }: TopNavProps) {
           <button
             onClick={() => setSearchOpen(true)}
             className="flex h-7 w-7 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-            aria-label="Search"
+            aria-label="Cari"
           >
             <Search className="h-3.5 w-3.5" />
           </button>
@@ -137,7 +137,7 @@ export function TopNav({ breadcrumbs, title }: TopNavProps) {
           leftIcon={<Plus className="h-3.5 w-3.5" />}
           className="hidden sm:inline-flex"
         >
-          New Ticket
+          Buat Tiket
         </Button>
 
         {/* Theme Toggle */}
@@ -158,21 +158,21 @@ export function TopNav({ breadcrumbs, title }: TopNavProps) {
           <DropdownMenuContent align="end" className="w-80">
             <div className="flex items-center justify-between px-2 py-1.5">
               <DropdownMenuLabel className="p-0">
-                Notifications
+                Notifikasi
               </DropdownMenuLabel>
               {unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
                   className="text-xs text-indigo-600 hover:underline"
                 >
-                  Mark all read
+                  Tandai semua dibaca
                 </button>
               )}
             </div>
             <DropdownMenuSeparator />
             {notifications.length === 0 ? (
               <div className="py-6 text-center text-xs text-gray-400">
-                No notifications
+                Tidak ada notifikasi
               </div>
             ) : (
               <div className="max-h-72 overflow-y-auto">

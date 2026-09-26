@@ -200,11 +200,11 @@ describe("Utility Functions", () => {
     expect(isOverdue(null)).toBe(false);
   });
 
-  it("should format ticket status labels", () => {
-    expect(getTicketStatusLabel("open")).toBe("Open");
-    expect(getTicketStatusLabel("in_progress")).toBe("In Progress");
-    expect(getTicketStatusLabel("waiting_for_user")).toBe("Waiting for User");
-    expect(getTicketStatusLabel("closed")).toBe("Closed");
+  it("should format ticket status labels in Bahasa Indonesia", () => {
+    expect(getTicketStatusLabel("open")).toBe("Baru");
+    expect(getTicketStatusLabel("in_progress")).toBe("Sedang Dikerjakan");
+    expect(getTicketStatusLabel("waiting_for_user")).toBe("Menunggu Respons User");
+    expect(getTicketStatusLabel("closed")).toBe("Ditutup");
   });
 
   it("should slugify text correctly", () => {
