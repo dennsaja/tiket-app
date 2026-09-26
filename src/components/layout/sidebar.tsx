@@ -33,6 +33,7 @@ import {
   Shield,
   Menu,
   X,
+  ArrowUpCircle,
 } from "lucide-react";
 
 interface NavItem {
@@ -62,6 +63,7 @@ const adminNavItems: NavItem[] = [
   { href: "/admin/categories", label: "Categories", icon: FolderOpen },
   { href: "/admin/sla", label: "SLA Policies", icon: Timer },
   { href: "/admin/audit", label: "Audit Log", icon: ScrollText },
+  { href: "/admin/updates", label: "System Updates", icon: ArrowUpCircle },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 

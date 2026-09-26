@@ -100,40 +100,60 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Environment Status */}
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2">
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-3 dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2 dark:border-slate-800">
             Environment & Infrastructure Status
           </h2>
 
           <dl className="grid grid-cols-2 gap-3 text-xs">
-            <div className="rounded border border-gray-100 bg-gray-50 p-2.5">
-              <dt className="text-gray-500 flex items-center gap-1.5 font-medium">
-                <Server className="h-3.5 w-3.5 text-indigo-600" /> Operating System
+            <div className="rounded border border-gray-100 bg-gray-50 p-2.5 dark:border-slate-800 dark:bg-slate-800/50">
+              <dt className="text-gray-500 flex items-center gap-1.5 font-medium dark:text-gray-400">
+                <Server className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Operating System
               </dt>
-              <dd className="mt-1 font-semibold text-gray-900">Ubuntu 24.04 LTS (LXC)</dd>
+              <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">Ubuntu 24.04 LTS (LXC)</dd>
             </div>
 
-            <div className="rounded border border-gray-100 bg-gray-50 p-2.5">
-              <dt className="text-gray-500 flex items-center gap-1.5 font-medium">
-                <Database className="h-3.5 w-3.5 text-indigo-600" /> Database Engine
+            <div className="rounded border border-gray-100 bg-gray-50 p-2.5 dark:border-slate-800 dark:bg-slate-800/50">
+              <dt className="text-gray-500 flex items-center gap-1.5 font-medium dark:text-gray-400">
+                <Database className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Database Engine
               </dt>
-              <dd className="mt-1 font-semibold text-gray-900">PostgreSQL 16 (Local)</dd>
+              <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">PostgreSQL 16 (Local)</dd>
             </div>
 
-            <div className="rounded border border-gray-100 bg-gray-50 p-2.5">
-              <dt className="text-gray-500 flex items-center gap-1.5 font-medium">
-                <Shield className="h-3.5 w-3.5 text-green-600" /> Authentication
+            <div className="rounded border border-gray-100 bg-gray-50 p-2.5 dark:border-slate-800 dark:bg-slate-800/50">
+              <dt className="text-gray-500 flex items-center gap-1.5 font-medium dark:text-gray-400">
+                <Shield className="h-3.5 w-3.5 text-green-600 dark:text-green-400" /> Authentication
               </dt>
-              <dd className="mt-1 font-semibold text-gray-900">NextAuth v5 (Bcrypt + JWT)</dd>
+              <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">NextAuth v5 (Bcrypt + JWT)</dd>
             </div>
 
-            <div className="rounded border border-gray-100 bg-gray-50 p-2.5">
-              <dt className="text-gray-500 flex items-center gap-1.5 font-medium">
-                <HardDrive className="h-3.5 w-3.5 text-indigo-600" /> File Storage
+            <div className="rounded border border-gray-100 bg-gray-50 p-2.5 dark:border-slate-800 dark:bg-slate-800/50">
+              <dt className="text-gray-500 flex items-center gap-1.5 font-medium dark:text-gray-400">
+                <HardDrive className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> File Storage
               </dt>
-              <dd className="mt-1 font-semibold text-gray-900">Local Filesystem (/var/helpdesk)</dd>
+              <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">Local Filesystem (/var/helpdesk)</dd>
             </div>
           </dl>
+        </div>
+
+        {/* Application Updates (GitHub Sync) */}
+        <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-5 shadow-xs space-y-3 dark:border-indigo-900/40 dark:bg-slate-900">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-indigo-900 dark:text-indigo-300">
+                Pembaruan Aplikasi (GitHub Auto-Sync)
+              </h2>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                Periksa commit dan versi terbaru langsung dari repositori GitHub resmi.
+              </p>
+            </div>
+            <a
+              href="/admin/updates"
+              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 transition-colors shadow-xs"
+            >
+              Buka Pembaruan Sistem &rarr;
+            </a>
+          </div>
         </div>
 
         <div className="flex justify-end pt-2">
