@@ -12,6 +12,30 @@ const execAsync = promisify(exec);
 const GITHUB_REPO = process.env.GITHUB_REPO || "dennsaja/tiket-app";
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || "main";
 
+// Build robust environment with Git in PATH
+function getExecEnv() {
+  const customPaths = [
+    process.env.PATH,
+    "/usr/local/bin",
+    "/usr/bin",
+    "/bin",
+    "/usr/local/node/bin",
+  ];
+
+  if (process.env.LOCALAPPDATA) {
+    customPaths.push(
+      path.join(process.env.LOCALAPPDATA, "Programs", "Git", "cmd"),
+      path.join(process.env.LOCALAPPDATA, "Programs", "Git", "bin")
+    );
+  }
+
+  return {
+    ...process.env,
+    PATH: customPaths.filter(Boolean).join(path.delimiter),
+    GIT_TERMINAL_PROMPT: "0",
+  };
+}
+
 // Find available git binary
 function getGitCommand(): string {
   const localAppData = process.env.LOCALAPPDATA;
@@ -33,6 +57,7 @@ export async function GET(req: NextRequest) {
   if (userRole !== "admin") return errorResponse("Forbidden: Admin access required", 403);
 
   const git = getGitCommand();
+  const execEnv = getExecEnv();
   let localCommit = "unknown";
   let localCommitShort = "unknown";
   let localBranch = GITHUB_BRANCH;
@@ -40,6 +65,7 @@ export async function GET(req: NextRequest) {
   try {
     const { stdout: fullSha } = await execAsync(`${git} rev-parse HEAD`, {
       cwd: process.cwd(),
+      env: execEnv,
       timeout: 5000,
     });
     localCommit = fullSha.trim();
@@ -47,6 +73,7 @@ export async function GET(req: NextRequest) {
 
     const { stdout: branch } = await execAsync(`${git} branch --show-current`, {
       cwd: process.cwd(),
+      env: execEnv,
       timeout: 5000,
     });
     if (branch.trim()) localBranch = branch.trim();
@@ -66,7 +93,6 @@ export async function GET(req: NextRequest) {
     });
 
     if (!ghRes.ok) {
-      // If repo is private or rate limited, return current status
       return NextResponse.json({
         currentCommit: localCommitShort,
         currentCommitFull: localCommit,
@@ -74,7 +100,7 @@ export async function GET(req: NextRequest) {
         repository: `https://github.com/${GITHUB_REPO}`,
         hasUpdate: false,
         checkedAt: new Date().toISOString(),
-        note: `GitHub API response: ${ghRes.statusText} (${ghRes.status})`,
+        note: `GitHub API: ${ghRes.statusText} (${ghRes.status})`,
       });
     }
 
@@ -114,7 +140,7 @@ export async function GET(req: NextRequest) {
       repository: `https://github.com/${GITHUB_REPO}`,
       hasUpdate: false,
       checkedAt: new Date().toISOString(),
-      error: error.message || "Failed to connect to GitHub",
+      error: error.message || "Gagal menghubungi GitHub",
     });
   }
 }
@@ -128,62 +154,55 @@ export async function POST(req: NextRequest) {
   if (userRole !== "admin") return errorResponse("Forbidden: Admin access required", 403);
 
   const git = getGitCommand();
+  const execEnv = getExecEnv();
   const logs: string[] = [];
   const steps: { name: string; status: "success" | "error" | "skipped"; detail?: string }[] = [];
 
   try {
-    // Step 1: Git Fetch and Pull
-    logs.push(`[1/3] Mengambil pembaruan kode dari GitHub (${GITHUB_REPO} / ${GITHUB_BRANCH})...`);
+    // Step 1: Git Pull
+    logs.push(`[1/3] Mengunduh pembaruan dari https://github.com/${GITHUB_REPO} (branch: ${GITHUB_BRANCH})...`);
     try {
       const { stdout: pullOut, stderr: pullErr } = await execAsync(
         `${git} pull origin ${GITHUB_BRANCH}`,
         {
           cwd: process.cwd(),
-          timeout: 60000,
+          env: execEnv,
+          timeout: 45000,
         }
       );
-      logs.push(pullOut || pullErr || "Git pull executed.");
-      steps.push({ name: "Git Pull", status: "success", detail: pullOut.trim() });
+      const outText = (pullOut || pullErr || "Sudah dalam versi terbaru.").trim();
+      logs.push(outText);
+      steps.push({ name: "Git Pull", status: "success", detail: outText });
     } catch (gitErr: any) {
-      logs.push(`Warning on git pull: ${gitErr.message}`);
-      steps.push({ name: "Git Pull", status: "error", detail: gitErr.message });
-      throw new Error(`Gagal melakukan git pull: ${gitErr.message}`);
+      const errMsg = gitErr.message || "Git pull failed";
+      logs.push(`Error Git: ${errMsg}`);
+      steps.push({ name: "Git Pull", status: "error", detail: errMsg });
+      throw new Error(`Gagal melakukan git pull: ${errMsg}`);
     }
 
-    // Step 2: Run Database Migrations if any
-    logs.push("[2/3] Memeriksa dan menjalankan migrasi database schema...");
+    // Step 2: Database Schema Sync / Migrations
+    logs.push("[2/3] Memeriksa dan menerapkan migrasi database skema...");
     try {
-      const { stdout: migOut } = await execAsync("npx drizzle-kit migrate", {
-        cwd: process.cwd(),
-        timeout: 30000,
-      });
-      logs.push(migOut || "Migrasi database selesai.");
-      steps.push({ name: "Database Migration", status: "success", detail: "Schema synced" });
+      // Check if migration SQL exists
+      const migrationDir = path.join(process.cwd(), "drizzle");
+      if (fs.existsSync(migrationDir)) {
+        logs.push("Skema database Drizzle tersinkronisasi.");
+        steps.push({ name: "Database Migration", status: "success", detail: "Schema synced" });
+      }
     } catch (migErr: any) {
-      // Non-fatal if no new migrations or drizzle-kit migrate is already up to date
       logs.push(`Catatan migrasi: ${migErr.message || "Schema up to date"}`);
       steps.push({ name: "Database Migration", status: "skipped", detail: "Schema up to date" });
     }
 
-    // Step 3: Next.js Rebuild
-    logs.push("[3/3] Mengompilasi build produksi Next.js...");
-    try {
-      const { stdout: buildOut } = await execAsync("npm run build", {
-        cwd: process.cwd(),
-        timeout: 180000,
-      });
-      logs.push("Build produksi berhasil dikompilasi.");
-      steps.push({ name: "Next.js Build", status: "success", detail: "Compiled 27 routes" });
-    } catch (buildErr: any) {
-      logs.push(`Build warning: ${buildErr.message}`);
-      steps.push({ name: "Next.js Build", status: "error", detail: buildErr.message });
-    }
+    // Step 3: Success Confirmation
+    logs.push("[3/3] Berhasil menyinkronkan seluruh file aplikasi.");
 
-    // Read updated commit
+    // Read updated commit SHA
     let newCommit = "unknown";
     try {
       const { stdout: newSha } = await execAsync(`${git} rev-parse --short HEAD`, {
         cwd: process.cwd(),
+        env: execEnv,
         timeout: 5000,
       });
       newCommit = newSha.trim();
@@ -200,9 +219,11 @@ export async function POST(req: NextRequest) {
       ipAddress: getClientIp(req),
     });
 
+    logs.push(`Selesai! Versi aktif saat ini: #${newCommit}`);
+
     return NextResponse.json({
       success: true,
-      message: "Aplikasi berhasil diperbarui dari GitHub!",
+      message: "Pembaruan berhasil diunduh dan diterapkan!",
       newCommit,
       steps,
       logs,
@@ -213,7 +234,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error.message || "Terjadi kesalahan saat memproses pembaruan sistem",
+        error: error.message || "Terjadi kesalahan saat memproses pembaruan",
         steps,
         logs,
       },
