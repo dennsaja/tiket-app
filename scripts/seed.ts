@@ -16,6 +16,21 @@ async function seed() {
 
   console.log("🌱 Seeding database...");
 
+  // Ensure PostgreSQL enum has noc and owner
+  try {
+    await pool.query(`
+      DO $$
+      BEGIN
+        ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'noc';
+        ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'owner';
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+    `);
+  } catch {
+    // Ignore if enum doesn't exist yet or already has values
+  }
+
   // ── Departments ──────────────────────────────────────────────────────────────
   console.log("  Creating departments...");
   const [techDept, supportDept, billingDept, networkDept] = await db
