@@ -9,7 +9,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
-import { HeadphonesIcon, Eye, EyeOff, Lock } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
 const loginSchema = z.object({
@@ -28,6 +28,18 @@ const errorMessages: Record<string, string> = {
   AccountInactive: "Akun Anda telah dinonaktifkan. Hubungi administrator.",
   default: "Terjadi kesalahan saat masuk. Silakan coba lagi.",
 };
+
+function VercelLogo({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 76 65"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" />
+    </svg>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -72,25 +84,27 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-black px-4 font-sans">
       <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600">
-            <HeadphonesIcon className="h-5 w-5 text-white" />
+        {/* Logo (Vercel Style) */}
+        <div className="mb-6 flex flex-col items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-white dark:bg-white dark:text-black shadow-xs">
+            <VercelLogo className="h-5 w-5" />
           </div>
           <div className="text-center">
-            <h1 className="text-xl font-bold text-gray-900">HelpDesk</h1>
-            <p className="mt-0.5 text-sm text-gray-500">
-              Masuk ke akun HelpDesk Anda
+            <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+              Masuk ke HelpDesk
+            </h1>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              Platform layanan tiket &amp; dukungan teknis terpadu
             </p>
           </div>
         </div>
 
-        {/* Form card */}
-        <div className="rounded-md border border-gray-200 bg-white p-6 shadow-sm">
+        {/* Form card (Vercel Style) */}
+        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black">
           {serverError && (
-            <Alert variant="error" className="mb-4" onClose={() => setServerError(null)}>
+            <Alert variant="error" className="mb-4 text-xs" onClose={() => setServerError(null)}>
               {serverError}
             </Alert>
           )}
@@ -118,7 +132,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="pointer-events-auto"
+                    className="pointer-events-auto text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
                     tabIndex={-1}
                   >
                     {showPassword ? (
@@ -130,43 +144,39 @@ export default function LoginPage() {
                 }
                 {...register("password")}
               />
-              <div className="mt-1.5 flex justify-end">
-                <Link
-                  href="/forgot-password"
-                  className="text-xs text-indigo-600 hover:underline"
-                >
-                  Lupa kata sandi?
-                </Link>
-              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="rememberMe"
-                className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                {...register("rememberMe")}
-              />
-              <label htmlFor="rememberMe" className="text-xs text-gray-600">
-                Ingat saya selama 30 hari
-              </label>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  className="h-3.5 w-3.5 rounded border-zinc-300 text-black focus:ring-black dark:border-zinc-700 dark:bg-black"
+                  {...register("rememberMe")}
+                />
+                <label htmlFor="rememberMe" className="text-xs text-zinc-600 dark:text-zinc-400">
+                  Ingat saya
+                </label>
+              </div>
             </div>
 
             <Button
               type="submit"
-              className="w-full"
-              loading={isSubmitting}
-              size="lg"
+              className="w-full text-xs h-9"
+              isLoading={isSubmitting}
             >
-              {isSubmitting ? "Memproses..." : "Masuk"}
+              Masuk
             </Button>
           </form>
         </div>
 
         {/* Register link */}
-        <p className="mt-4 text-center text-xs text-gray-500">
+        <p className="mt-5 text-center text-xs text-zinc-500 dark:text-zinc-400">
           Belum memiliki akun?{" "}
-          <Link href="/register" className="text-indigo-600 hover:underline font-medium">
+          <Link
+            href="/register"
+            className="font-medium text-black hover:underline dark:text-white"
+          >
             Daftar sekarang
           </Link>
         </p>

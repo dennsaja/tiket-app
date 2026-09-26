@@ -16,11 +16,7 @@ import {
   Lock,
   ExternalLink,
   Building2,
-  Clock,
-  Shield,
   User,
-  Paperclip,
-  CheckCircle2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils";
@@ -124,34 +120,24 @@ export default function DepartmentChatPage() {
     }
   }, [authStatus, fetchRooms]);
 
-  // Load messages when selected room changes
+  // Load messages when selectedRoomId changes
   React.useEffect(() => {
     if (selectedRoomId) {
       fetchMessages(selectedRoomId);
     }
   }, [selectedRoomId, fetchMessages]);
 
-  // Auto-scroll when messages change
+  // Scroll to bottom on new messages
   React.useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Background polling for live messages every 4 seconds
-  React.useEffect(() => {
-    if (!selectedRoomId) return;
-    const interval = setInterval(() => {
-      fetchMessages(selectedRoomId, true);
-      fetchRooms(true);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [selectedRoomId, fetchMessages, fetchRooms]);
-
   // 3. Send Message
-  const handleSendMessage = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!inputMessage.trim() || !selectedRoomId || isSending) return;
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRoomId || !inputMessage.trim() || isSending) return;
 
-    const content = inputMessage.trim();
+    const trimmed = inputMessage.trim();
     setInputMessage("");
     setIsSending(true);
 
@@ -159,11 +145,11 @@ export default function DepartmentChatPage() {
       const res = await fetch(`/api/chat/rooms/${selectedRoomId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: trimmed }),
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
+        const err = await res.json();
         throw new Error(err.error || "Gagal mengirim pesan");
       }
 
@@ -171,78 +157,53 @@ export default function DepartmentChatPage() {
       setMessages((prev) => [...prev, newMsg]);
       fetchRooms(true);
     } catch (err: any) {
-      toast.error(err.message || "Gagal mengirim pesan");
-      setInputMessage(content); // Restore message
+      toast.error(err.message || "Terjadi kesalahan");
+      setInputMessage(trimmed);
     } finally {
       setIsSending(false);
     }
   };
 
-  // Filter rooms by search
-  const filteredRooms = React.useMemo(() => {
-    if (!searchQuery.trim()) return rooms;
+  const filteredRooms = rooms.filter((r) => {
     const q = searchQuery.toLowerCase();
-    return rooms.filter(
-      (r) =>
-        r.title.toLowerCase().includes(q) ||
-        r.ticketNumber.toString().includes(q) ||
-        r.department?.name?.toLowerCase().includes(q) ||
-        r.reporterName?.toLowerCase().includes(q)
-    );
-  }, [rooms, searchQuery]);
-
-  if (authStatus === "loading") {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <Spinner size="lg" />
-      </div>
+      r.title.toLowerCase().includes(q) ||
+      String(r.ticketNumber).includes(q) ||
+      r.department?.name.toLowerCase().includes(q)
     );
-  }
-
-  if (userRole !== "admin" && userRole !== "agent") {
-    return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/50 dark:bg-red-950/20">
-        <Shield className="h-8 w-8 text-red-600 mx-auto" />
-        <h2 className="mt-2 text-base font-semibold text-red-900 dark:text-red-300">
-          Akses Terbatas
-        </h2>
-        <p className="mt-1 text-xs text-red-700 dark:text-red-400">
-          Halaman Obrolan Department hanya dapat diakses oleh Administrator dan Teknisi/Agent terkait.
-        </p>
-      </div>
-    );
-  }
+  });
 
   return (
-    <div className="h-[calc(100vh-8.5rem)] flex flex-col rounded-lg border border-gray-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
-      {/* Top Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900">
+    <div className="flex flex-col h-[calc(100vh-6.5rem)] rounded-xl border border-zinc-200 bg-white overflow-hidden shadow-xs dark:border-zinc-800 dark:bg-black">
+      {/* Chat Top Banner */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200 bg-zinc-50/50 dark:border-zinc-800 dark:bg-zinc-950/50">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
-            <MessagesSquare className="h-4 w-4" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-black text-white dark:bg-white dark:text-black shadow-xs">
+            <MessagesSquare className="h-3.5 w-3.5" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
-              Chat Tim Departemen
-              <span className="inline-flex items-center gap-1 rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700 border border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800">
-                <Lock className="h-2.5 w-2.5" /> Khusus Admin &amp; Anggota Dept
+            <h1 className="text-xs font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+              Ruang Chat Tim Departemen
+              <span className="rounded-full bg-zinc-200/70 px-1.5 py-0.2 text-[10px] font-mono text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                Internal
               </span>
             </h1>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              Setiap tiket baru memiliki ruang koordinasi internal otomatis untuk teknisi &amp; admin.
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+              Saluran koordinasi tertutup khusus admin dan teknisi per tiket
             </p>
           </div>
         </div>
 
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={() => {
-            fetchRooms();
-            if (selectedRoomId) fetchMessages(selectedRoomId);
+            fetchRooms(false);
+            if (selectedRoomId) fetchMessages(selectedRoomId, false);
           }}
-          leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
-          className="text-xs text-gray-500"
+          isLoading={isLoadingRooms}
+          leftIcon={<RefreshCw className="h-3 w-3" />}
+          className="text-xs"
         >
           Segarkan
         </Button>
@@ -251,29 +212,29 @@ export default function DepartmentChatPage() {
       {/* 2-Column Chat Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Column: Channels / Rooms List */}
-        <div className="w-80 border-r border-gray-200 dark:border-slate-800 flex flex-col bg-gray-50/30 dark:bg-slate-900/50">
+        <div className="w-80 border-r border-zinc-200 dark:border-zinc-800 flex flex-col bg-zinc-50/40 dark:bg-zinc-950/40">
           {/* Search Box */}
-          <div className="p-3 border-b border-gray-200 dark:border-slate-800">
+          <div className="p-3 border-b border-zinc-200 dark:border-zinc-800">
             <div className="relative flex items-center">
-              <Search className="absolute left-2.5 h-3.5 w-3.5 text-gray-400" />
+              <Search className="absolute left-2.5 h-3.5 w-3.5 text-zinc-400" />
               <input
                 type="text"
-                placeholder="Cari tiket atau department..."
+                placeholder="Cari tiket atau departemen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded border border-gray-200 bg-white pl-8 pr-3 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-gray-100"
+                className="w-full rounded-md border border-zinc-200 bg-white pl-8 pr-3 py-1.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-black focus:outline-none dark:border-zinc-800 dark:bg-black dark:text-zinc-100 dark:focus:border-white"
               />
             </div>
           </div>
 
           {/* Rooms Scroll List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-slate-800">
+          <div className="flex-1 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800/60">
             {isLoadingRooms ? (
               <div className="flex h-32 items-center justify-center">
                 <Spinner size="md" />
               </div>
             ) : filteredRooms.length === 0 ? (
-              <div className="p-6 text-center text-xs text-gray-400">
+              <div className="p-6 text-center text-xs text-zinc-400">
                 Tidak ada obrolan tiket yang tersedia.
               </div>
             ) : (
@@ -286,40 +247,40 @@ export default function DepartmentChatPage() {
                     onClick={() => setSelectedRoomId(room.ticketId)}
                     className={`w-full p-3 text-left transition-colors flex flex-col gap-1 ${
                       isSelected
-                        ? "bg-indigo-50/80 border-l-4 border-indigo-600 dark:bg-slate-800"
-                        : "hover:bg-gray-100/70 dark:hover:bg-slate-800/50"
+                        ? "bg-zinc-100/90 border-l-2 border-black dark:bg-zinc-900 dark:border-white"
+                        : "hover:bg-zinc-100/50 dark:hover:bg-zinc-900/40"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-bold text-gray-800 dark:text-gray-200">
+                      <span className="font-mono text-xs font-semibold text-zinc-800 dark:text-zinc-200">
                         #{room.ticketNumber}
                       </span>
-                      <span className="text-[10px] text-gray-400">
+                      <span className="text-[10px] text-zinc-400 font-mono">
                         {formatRelativeTime(room.updatedAt)}
                       </span>
                     </div>
 
-                    <p className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
+                    <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100 truncate">
                       {room.title}
                     </p>
 
                     <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                      <span className="inline-flex items-center gap-1 rounded bg-gray-200/70 px-1.5 py-0.2 text-[10px] font-medium text-gray-700 dark:bg-slate-700 dark:text-gray-300">
+                      <span className="inline-flex items-center gap-1 rounded bg-zinc-200/70 px-1.5 py-0.2 text-[10px] font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                         <Building2 className="h-2.5 w-2.5" />
-                        {room.department?.name || "General"}
+                        {room.department?.name || "Umum"}
                       </span>
                       <StatusBadge status={room.status} size="sm" dot={false} />
                     </div>
 
                     {room.lastMessage ? (
-                      <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400 truncate">
-                        <span className="font-semibold text-gray-700 dark:text-gray-300">
+                      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">
                           {room.lastMessage.authorName}:
                         </span>{" "}
                         {room.lastMessage.content}
                       </p>
                     ) : (
-                      <p className="mt-1 text-[11px] text-gray-400 italic">
+                      <p className="mt-1 text-[11px] text-zinc-400 italic">
                         Belum ada diskusi internal
                       </p>
                     )}
@@ -331,36 +292,36 @@ export default function DepartmentChatPage() {
         </div>
 
         {/* Right Column: Active Room Messages */}
-        <div className="flex-1 flex flex-col bg-white dark:bg-slate-900">
+        <div className="flex-1 flex flex-col bg-white dark:bg-black">
           {selectedRoomId && activeTicket ? (
             <>
               {/* Room Header */}
-              <div className="flex items-center justify-between p-3.5 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+              <div className="flex items-center justify-between p-3.5 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-sm font-bold text-indigo-600 dark:text-indigo-400">
+                    <span className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100">
                       #{activeTicket.ticketNumber}
                     </span>
-                    <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                    <h2 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
                       {activeTicket.title}
                     </h2>
                     <StatusBadge status={activeTicket.status} size="sm" />
                     <PriorityBadge priority={activeTicket.priority} size="sm" />
                   </div>
 
-                  <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-3 text-[11px] text-zinc-500 dark:text-zinc-400">
                     <span className="flex items-center gap-1">
-                      <Building2 className="h-3 w-3 text-gray-400" />
-                      Department:{" "}
-                      <strong className="text-gray-800 dark:text-gray-200">
-                        {activeTicket.department?.name || "General"}
+                      <Building2 className="h-3 w-3 text-zinc-400" />
+                      Departemen:{" "}
+                      <strong className="text-zinc-800 dark:text-zinc-200 font-medium">
+                        {activeTicket.department?.name || "Umum"}
                       </strong>
                     </span>
                     {activeTicket.assignee && (
                       <span className="flex items-center gap-1">
-                        <User className="h-3 w-3 text-gray-400" />
+                        <User className="h-3 w-3 text-zinc-400" />
                         Teknisi:{" "}
-                        <strong className="text-gray-800 dark:text-gray-200">
+                        <strong className="text-zinc-800 dark:text-zinc-200 font-medium">
                           {activeTicket.assignee.name}
                         </strong>
                       </span>
@@ -371,28 +332,28 @@ export default function DepartmentChatPage() {
                 <Link
                   href={`/tickets/${selectedRoomId}`}
                   target="_blank"
-                  className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-black hover:underline dark:text-white"
                 >
                   Detail Tiket <ExternalLink className="h-3 w-3" />
                 </Link>
               </div>
 
               {/* Messages Scroll Area */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {isLoadingMessages ? (
                   <div className="flex h-48 items-center justify-center">
                     <Spinner size="md" />
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-48 text-center space-y-2 text-gray-400">
-                    <div className="h-10 w-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 dark:bg-slate-800 dark:text-indigo-400">
-                      <Lock className="h-5 w-5" />
+                  <div className="flex flex-col items-center justify-center h-48 text-center space-y-2 text-zinc-400">
+                    <div className="h-9 w-9 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                      <Lock className="h-4 w-4" />
                     </div>
-                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                       Ruang Obrolan Internal Tiket #{activeTicket.ticketNumber}
                     </p>
                     <p className="text-[11px] max-w-sm">
-                      Kirim pesan pertama untuk berkoordinasi dengan admin dan rekan teknisi di department {activeTicket.department?.name || "terkait"}.
+                      Kirim pesan pertama untuk berkoordinasi dengan admin dan rekan teknisi di departemen {activeTicket.department?.name || "terkait"}.
                     </p>
                   </div>
                 ) : (
@@ -411,21 +372,21 @@ export default function DepartmentChatPage() {
                           name={msg.author?.name || "Staff"}
                           src={msg.author?.avatarUrl}
                           size="sm"
-                          className="h-7 w-7 text-[10px] mt-0.5 shrink-0"
+                          className="h-6 w-6 text-[9px] mt-0.5 shrink-0 border border-zinc-200 dark:border-zinc-800"
                         />
 
                         <div
-                          className={`max-w-[75%] rounded-lg p-3 shadow-xs space-y-1 ${
+                          className={`max-w-[75%] rounded-xl p-3 shadow-xs space-y-1 ${
                             isMe
-                              ? "bg-indigo-600 text-white"
-                              : "bg-gray-100 text-gray-900 dark:bg-slate-800 dark:text-gray-100"
+                              ? "bg-black text-white dark:bg-white dark:text-black"
+                              : "bg-zinc-100 text-zinc-900 border border-zinc-200/60 dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-800"
                           }`}
                         >
                           <div className="flex items-center gap-2 justify-between">
                             <div className="flex items-center gap-1.5">
                               <span
                                 className={`text-[11px] font-bold ${
-                                  isMe ? "text-indigo-100" : "text-gray-800 dark:text-gray-200"
+                                  isMe ? "text-zinc-200 dark:text-zinc-800" : "text-zinc-800 dark:text-zinc-200"
                                 }`}
                               >
                                 {msg.author?.name}
@@ -434,20 +395,20 @@ export default function DepartmentChatPage() {
                                 className={`rounded px-1 py-0.2 text-[9px] font-semibold ${
                                   isAdmin
                                     ? isMe
-                                      ? "bg-indigo-700 text-indigo-100"
+                                      ? "bg-zinc-800 text-zinc-200 dark:bg-zinc-200 dark:text-zinc-800"
                                       : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                                     : isMe
-                                    ? "bg-indigo-700 text-indigo-100"
-                                    : "bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-gray-300"
+                                    ? "bg-zinc-800 text-zinc-200 dark:bg-zinc-200 dark:text-zinc-800"
+                                    : "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                                 }`}
                               >
-                                {isAdmin ? "ADMIN" : "AGENT"}
+                                {isAdmin ? "ADMIN" : "TEKNISI"}
                               </span>
                             </div>
 
                             <span
-                              className={`text-[10px] ${
-                                isMe ? "text-indigo-200" : "text-gray-400"
+                              className={`text-[10px] font-mono ${
+                                isMe ? "text-zinc-400 dark:text-zinc-500" : "text-zinc-400"
                               }`}
                             >
                               {formatDateTime(msg.createdAt)}
@@ -468,15 +429,15 @@ export default function DepartmentChatPage() {
               {/* Chat Input */}
               <form
                 onSubmit={handleSendMessage}
-                className="p-3 border-t border-gray-200 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900 flex items-center gap-2"
+                className="p-3 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 flex items-center gap-2"
               >
                 <input
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  placeholder={`Ketik pesan internal untuk tim ${activeTicket.department?.name || ""}... (Tekan Enter untuk kirim)`}
+                  placeholder={`Ketik pesan internal untuk tim ${activeTicket.department?.name || ""}...`}
                   disabled={isSending}
-                  className="flex-1 rounded border border-gray-300 bg-white px-3 py-2 text-xs text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-gray-100"
+                  className="flex-1 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-black focus:outline-none dark:border-zinc-800 dark:bg-black dark:text-zinc-100 dark:focus:border-white"
                 />
 
                 <Button
@@ -484,17 +445,17 @@ export default function DepartmentChatPage() {
                   size="sm"
                   disabled={!inputMessage.trim() || isSending}
                   isLoading={isSending}
-                  leftIcon={<Send className="h-3.5 w-3.5" />}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0"
+                  leftIcon={<Send className="h-3 w-3" />}
+                  className="shrink-0 text-xs"
                 >
                   Kirim
                 </Button>
               </form>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center flex-1 text-center p-6 text-gray-400 space-y-2">
-              <MessagesSquare className="h-10 w-10 text-gray-300" />
-              <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+            <div className="flex flex-col items-center justify-center flex-1 text-center p-6 text-zinc-400 space-y-2">
+              <MessagesSquare className="h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+              <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
                 Pilih salah satu tiket di sebelah kiri untuk membuka obrolan tim.
               </p>
             </div>

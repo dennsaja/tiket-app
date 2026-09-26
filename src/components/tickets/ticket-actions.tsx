@@ -9,8 +9,6 @@ import {
   XCircle,
   RotateCcw,
   Trash2,
-  AlertTriangle,
-  Send,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,13 +61,13 @@ export function TicketActions({
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to update status");
+        throw new Error(err.error || "Gagal memperbarui status");
       }
 
-      toast.success(`Status updated to ${newStatus}`);
+      toast.success("Status tiket berhasil diperbarui");
       onActionComplete();
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      toast.error(err.message || "Terjadi kesalahan");
     } finally {
       setIsUpdating(false);
       setResolveModalOpen(false);
@@ -87,13 +85,13 @@ export function TicketActions({
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to update priority");
+        throw new Error(err.error || "Gagal memperbarui prioritas");
       }
 
-      toast.success(`Priority updated to ${newPriority}`);
+      toast.success("Prioritas tiket berhasil diperbarui");
       onActionComplete();
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      toast.error(err.message || "Terjadi kesalahan");
     } finally {
       setIsUpdating(false);
     }
@@ -112,13 +110,13 @@ export function TicketActions({
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to assign ticket");
+        throw new Error(err.error || "Gagal menugaskan tiket");
       }
 
-      toast.success("Ticket assignment updated");
+      toast.success("Penugasan teknisi berhasil diperbarui");
       onActionComplete();
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      toast.error(err.message || "Terjadi kesalahan");
     } finally {
       setIsUpdating(false);
     }
@@ -129,7 +127,7 @@ export function TicketActions({
   };
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this ticket? This action cannot be undone.")) {
+    if (!confirm("Apakah Anda yakin ingin menghapus tiket ini? Tindakan ini tidak dapat dibatalkan.")) {
       return;
     }
 
@@ -141,21 +139,21 @@ export function TicketActions({
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to delete ticket");
+        throw new Error(err.error || "Gagal menghapus tiket");
       }
 
-      toast.success("Ticket deleted successfully");
+      toast.success("Tiket berhasil dihapus");
       window.location.href = "/tickets";
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      toast.error(err.message || "Terjadi kesalahan");
     } finally {
       setIsUpdating(false);
     }
   };
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-xs space-y-4">
-      <h3 className="text-xs font-semibold text-gray-900 border-b border-gray-100 pb-2">
+    <div className="rounded-xl border border-zinc-200 bg-white p-4.5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-4">
+      <h3 className="text-xs font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 pb-2">
         Kelola Tiket
       </h3>
 
@@ -168,7 +166,7 @@ export function TicketActions({
               size="sm"
               onClick={handleAssignToMe}
               isLoading={isUpdating}
-              leftIcon={<UserCheck className="h-3.5 w-3.5 text-indigo-600" />}
+              leftIcon={<UserCheck className="h-3.5 w-3.5" />}
               className="w-full text-xs justify-center"
             >
               Tugaskan ke Saya
@@ -226,14 +224,14 @@ export function TicketActions({
           />
 
           {/* Action buttons */}
-          <div className="pt-2 border-t border-gray-100 flex flex-col gap-1.5">
+          <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex flex-col gap-1.5">
             {currentStatus !== "resolved" && currentStatus !== "closed" && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setResolveModalOpen(true)}
-                leftIcon={<CheckCircle className="h-3.5 w-3.5 text-green-600" />}
-                className="w-full text-xs justify-center text-green-700 hover:bg-green-50 hover:border-green-300"
+                leftIcon={<CheckCircle className="h-3.5 w-3.5 text-emerald-600" />}
+                className="w-full text-xs justify-center hover:bg-emerald-50 hover:border-emerald-200 dark:hover:bg-emerald-950/30"
               >
                 Selesaikan Tiket
               </Button>
@@ -244,7 +242,7 @@ export function TicketActions({
                 variant="outline"
                 size="sm"
                 onClick={() => handleStatusChange("closed")}
-                leftIcon={<CheckCircle className="h-3.5 w-3.5 text-gray-600" />}
+                leftIcon={<CheckCircle className="h-3.5 w-3.5" />}
                 className="w-full text-xs justify-center"
               >
                 Tutup Tiket
@@ -257,7 +255,7 @@ export function TicketActions({
                 size="sm"
                 onClick={() => handleStatusChange("reopened")}
                 leftIcon={<RotateCcw className="h-3.5 w-3.5 text-amber-600" />}
-                className="w-full text-xs justify-center text-amber-700 hover:bg-amber-50"
+                className="w-full text-xs justify-center hover:bg-amber-50 dark:hover:bg-amber-950/30"
               >
                 Buka Kembali Tiket
               </Button>
@@ -285,8 +283,8 @@ export function TicketActions({
                 variant="outline"
                 size="sm"
                 onClick={() => handleStatusChange("closed")}
-                leftIcon={<CheckCircle className="h-3.5 w-3.5 text-green-600" />}
-                className="w-full text-xs justify-center text-green-700 hover:bg-green-50"
+                leftIcon={<CheckCircle className="h-3.5 w-3.5 text-emerald-600" />}
+                className="w-full text-xs justify-center hover:bg-emerald-50"
               >
                 Konfirmasi &amp; Tutup Tiket
               </Button>
@@ -295,7 +293,7 @@ export function TicketActions({
                 size="sm"
                 onClick={() => handleStatusChange("reopened")}
                 leftIcon={<RotateCcw className="h-3.5 w-3.5 text-amber-600" />}
-                className="w-full text-xs justify-center text-amber-700 hover:bg-amber-50"
+                className="w-full text-xs justify-center hover:bg-amber-50"
               >
                 Masalah Belum Tuntas (Buka Kembali)
               </Button>
@@ -308,7 +306,7 @@ export function TicketActions({
               size="sm"
               onClick={() => handleStatusChange("cancelled")}
               leftIcon={<XCircle className="h-3.5 w-3.5 text-red-600" />}
-              className="w-full text-xs justify-center text-red-600 hover:bg-red-50"
+              className="w-full text-xs justify-center text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
             >
               Batalkan Tiket
             </Button>
@@ -316,7 +314,7 @@ export function TicketActions({
         </div>
       )}
 
-      {/* Resolve Ticket Modal with Resolution Description */}
+      {/* Resolve Ticket Modal */}
       <Modal
         open={resolveModalOpen}
         onOpenChange={setResolveModalOpen}
@@ -344,7 +342,6 @@ export function TicketActions({
               size="sm"
               onClick={() => handleStatusChange("resolved", resolutionText)}
               isLoading={isUpdating}
-              className="bg-green-600 hover:bg-green-700 text-white"
             >
               Konfirmasi Selesai
             </Button>

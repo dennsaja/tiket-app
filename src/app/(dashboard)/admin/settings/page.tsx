@@ -4,7 +4,6 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Settings, Save, Server, Database, Shield, HardDrive } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -26,19 +25,19 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div className="border-b border-gray-200 pb-3">
-        <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Settings className="h-5 w-5 text-indigo-600" /> Pengaturan Sistem
+      <div className="border-b border-zinc-200 pb-4 dark:border-zinc-800">
+        <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+          <Settings className="h-5 w-5 text-zinc-900 dark:text-zinc-100" /> Pengaturan Sistem
         </h1>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
           Konfigurasi parameter global aplikasi, default sistem, dan kebijakan akses
         </p>
       </div>
 
       <form onSubmit={handleSave} className="space-y-5">
         {/* General Settings */}
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2">
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 border-b border-zinc-100 dark:border-zinc-800 pb-2">
             Konfigurasi Umum
           </h2>
 
@@ -63,15 +62,15 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Security & Access */}
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2">
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 border-b border-zinc-100 dark:border-zinc-800 pb-2">
             Kontrol Akses
           </h2>
 
           <div className="flex items-center justify-between py-1">
             <div>
-              <p className="text-xs font-semibold text-gray-900">Izinkan Pendaftaran Publik</p>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Izinkan Pendaftaran Publik</p>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                 Izinkan pengguna baru mendaftarkan akun support secara mandiri
               </p>
             </div>
@@ -79,14 +78,14 @@ export default function AdminSettingsPage() {
               type="checkbox"
               checked={allowRegistration}
               onChange={(e) => setAllowRegistration(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black dark:border-zinc-700 dark:bg-black"
             />
           </div>
 
-          <div className="flex items-center justify-between py-1 border-t border-gray-100 pt-3">
+          <div className="flex items-center justify-between py-1 border-t border-zinc-100 dark:border-zinc-800 pt-3">
             <div>
-              <p className="text-xs font-semibold text-gray-900">Penugasan Agen Otomatis (Load-Balancing)</p>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Penugasan Agen Otomatis (Load-Balancing)</p>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                 Otomatis menugaskan tiket baru ke teknisi/agen dengan beban kerja aktif terendah
               </p>
             </div>
@@ -94,62 +93,62 @@ export default function AdminSettingsPage() {
               type="checkbox"
               checked={autoAssign}
               onChange={(e) => setAutoAssign(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black dark:border-zinc-700 dark:bg-black"
             />
           </div>
         </div>
 
-        {/* Environment Status */}
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-3 dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2 dark:border-slate-800">
+        {/* Environment Status (Vercel Style) */}
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 border-b border-zinc-100 dark:border-zinc-800 pb-2">
             Status Lingkungan &amp; Infrastruktur
           </h2>
 
           <dl className="grid grid-cols-2 gap-3 text-xs">
-            <div className="rounded border border-gray-100 bg-gray-50 p-2.5 dark:border-slate-800 dark:bg-slate-800/50">
-              <dt className="text-gray-500 flex items-center gap-1.5 font-medium dark:text-gray-400">
-                <Server className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Sistem Operasi
+            <div className="rounded-lg border border-zinc-100 bg-zinc-50/70 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+              <dt className="text-zinc-500 flex items-center gap-1.5 font-medium dark:text-zinc-400">
+                <Server className="h-3.5 w-3.5 text-zinc-900 dark:text-zinc-100" /> Sistem Operasi
               </dt>
-              <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">Ubuntu 24.04 LTS (LXC)</dd>
+              <dd className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">Ubuntu 24.04 LTS (LXC)</dd>
             </div>
 
-            <div className="rounded border border-gray-100 bg-gray-50 p-2.5 dark:border-slate-800 dark:bg-slate-800/50">
-              <dt className="text-gray-500 flex items-center gap-1.5 font-medium dark:text-gray-400">
-                <Database className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Mesin Database
+            <div className="rounded-lg border border-zinc-100 bg-zinc-50/70 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+              <dt className="text-zinc-500 flex items-center gap-1.5 font-medium dark:text-zinc-400">
+                <Database className="h-3.5 w-3.5 text-zinc-900 dark:text-zinc-100" /> Mesin Database
               </dt>
-              <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">PostgreSQL 16 (Lokal)</dd>
+              <dd className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100 font-mono">PostgreSQL 16 (Lokal)</dd>
             </div>
 
-            <div className="rounded border border-gray-100 bg-gray-50 p-2.5 dark:border-slate-800 dark:bg-slate-800/50">
-              <dt className="text-gray-500 flex items-center gap-1.5 font-medium dark:text-gray-400">
-                <Shield className="h-3.5 w-3.5 text-green-600 dark:text-green-400" /> Autentikasi
+            <div className="rounded-lg border border-zinc-100 bg-zinc-50/70 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+              <dt className="text-zinc-500 flex items-center gap-1.5 font-medium dark:text-zinc-400">
+                <Shield className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Autentikasi
               </dt>
-              <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">NextAuth v5 (Bcrypt + JWT)</dd>
+              <dd className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">NextAuth v5 (Bcrypt + JWT)</dd>
             </div>
 
-            <div className="rounded border border-gray-100 bg-gray-50 p-2.5 dark:border-slate-800 dark:bg-slate-800/50">
-              <dt className="text-gray-500 flex items-center gap-1.5 font-medium dark:text-gray-400">
-                <HardDrive className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Penyimpanan Berkas
+            <div className="rounded-lg border border-zinc-100 bg-zinc-50/70 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+              <dt className="text-zinc-500 flex items-center gap-1.5 font-medium dark:text-zinc-400">
+                <HardDrive className="h-3.5 w-3.5 text-zinc-900 dark:text-zinc-100" /> Penyimpanan Berkas
               </dt>
-              <dd className="mt-1 font-semibold text-gray-900 dark:text-gray-100">Filesystem Lokal (/var/helpdesk)</dd>
+              <dd className="mt-1 font-semibold text-zinc-900 dark:text-zinc-100 font-mono">/var/helpdesk</dd>
             </div>
           </dl>
         </div>
 
-        {/* Application Updates (GitHub Sync) */}
-        <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-5 shadow-xs space-y-3 dark:border-indigo-900/40 dark:bg-slate-900">
+        {/* Application Updates Link Card (Vercel Style) */}
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/40 p-5 shadow-xs space-y-3 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-indigo-900 dark:text-indigo-300">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
                 Pembaruan Aplikasi (GitHub Auto-Sync)
               </h2>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                 Periksa commit dan versi terbaru langsung dari repositori GitHub resmi.
               </p>
             </div>
             <a
               href="/admin/updates"
-              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 rounded-md bg-black text-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-800 transition-colors shadow-xs dark:bg-white dark:text-black dark:hover:bg-zinc-200"
             >
               Buka Pembaruan Sistem &rarr;
             </a>

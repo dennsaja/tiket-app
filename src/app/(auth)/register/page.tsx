@@ -8,7 +8,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
-import { HeadphonesIcon, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { Eye, EyeOff, CheckCircle } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +32,18 @@ const registerSchema = z
 
 type RegisterForm = z.infer<typeof registerSchema>;
 
+function VercelLogo({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 76 65"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" />
+    </svg>
+  );
+}
+
 function PasswordStrengthBar({ password }: { password: string }) {
   const checks = [
     { label: "8+ karakter", ok: password.length >= 8 },
@@ -40,7 +52,7 @@ function PasswordStrengthBar({ password }: { password: string }) {
     { label: "Angka", ok: /\d/.test(password) },
   ];
   const strength = checks.filter((c) => c.ok).length;
-  const strengthColors = ["", "bg-red-400", "bg-orange-400", "bg-yellow-400", "bg-green-500"];
+  const strengthColors = ["", "bg-red-500", "bg-amber-500", "bg-yellow-500", "bg-emerald-500"];
 
   return (
     <div className="mt-2 space-y-2">
@@ -50,7 +62,7 @@ function PasswordStrengthBar({ password }: { password: string }) {
             key={i}
             className={cn(
               "h-1 flex-1 rounded-full transition-colors",
-              i <= strength ? strengthColors[strength] : "bg-gray-200"
+              i <= strength ? strengthColors[strength] : "bg-zinc-200 dark:bg-zinc-800"
             )}
           />
         ))}
@@ -62,7 +74,7 @@ function PasswordStrengthBar({ password }: { password: string }) {
               key={check.label}
               className={cn(
                 "flex items-center gap-0.5 text-[10px]",
-                check.ok ? "text-green-600" : "text-gray-400"
+                check.ok ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400"
               )}
             >
               <CheckCircle className="h-2.5 w-2.5" />
@@ -122,15 +134,15 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+      <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-black px-4 font-sans">
         <div className="w-full max-w-sm text-center">
           <div className="mb-4 flex justify-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle className="h-6 w-6 text-green-600" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/50">
+              <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
             </div>
           </div>
-          <h2 className="text-lg font-bold text-gray-900">Akun berhasil dibuat!</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Akun berhasil dibuat!</h2>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Mengalihkan Anda ke halaman login...
           </p>
         </div>
@@ -139,22 +151,25 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-8">
+    <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-black px-4 py-8 font-sans">
       <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600">
-            <HeadphonesIcon className="h-5 w-5 text-white" />
+        {/* Logo (Vercel Style) */}
+        <div className="mb-6 flex flex-col items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-white dark:bg-white dark:text-black shadow-xs">
+            <VercelLogo className="h-5 w-5" />
           </div>
           <div className="text-center">
-            <h1 className="text-xl font-bold text-gray-900">Buat Akun Baru</h1>
-            <p className="mt-0.5 text-sm text-gray-500">Daftar untuk mengakses layanan HelpDesk</p>
+            <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Buat Akun Baru</h1>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              Daftar untuk mengakses layanan helpdesk &amp; tiket
+            </p>
           </div>
         </div>
 
-        <div className="rounded-md border border-gray-200 bg-white p-6 shadow-sm">
+        {/* Form card (Vercel Style) */}
+        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black">
           {serverError && (
-            <Alert variant="error" className="mb-4" onClose={() => setServerError(null)}>
+            <Alert variant="error" className="mb-4 text-xs" onClose={() => setServerError(null)}>
               {serverError}
             </Alert>
           )}
@@ -162,8 +177,7 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input
               label="Nama Lengkap"
-              type="text"
-              placeholder="Budi Santoso"
+              placeholder="Budi Pratama"
               autoComplete="name"
               error={errors.name?.message}
               required
@@ -173,7 +187,7 @@ export default function RegisterPage() {
             <Input
               label="Alamat Email"
               type="email"
-              placeholder="nama@perusahaan.com"
+              placeholder="budi@perusahaan.com"
               autoComplete="email"
               error={errors.email?.message}
               required
@@ -184,7 +198,7 @@ export default function RegisterPage() {
               <Input
                 label="Kata Sandi"
                 type={showPassword ? "text" : "password"}
-                placeholder="Min. 8 karakter"
+                placeholder="••••••••"
                 autoComplete="new-password"
                 error={errors.password?.message}
                 required
@@ -192,7 +206,7 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="pointer-events-auto"
+                    className="pointer-events-auto text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
                     tabIndex={-1}
                   >
                     {showPassword ? (
@@ -210,7 +224,7 @@ export default function RegisterPage() {
             <Input
               label="Konfirmasi Kata Sandi"
               type={showConfirm ? "text" : "password"}
-              placeholder="Ketik ulang kata sandi"
+              placeholder="••••••••"
               autoComplete="new-password"
               error={errors.confirmPassword?.message}
               required
@@ -218,7 +232,7 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => setShowConfirm((v) => !v)}
-                  className="pointer-events-auto"
+                  className="pointer-events-auto text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
                   tabIndex={-1}
                 >
                   {showConfirm ? (
@@ -233,18 +247,21 @@ export default function RegisterPage() {
 
             <Button
               type="submit"
-              className="w-full"
-              loading={isSubmitting}
-              size="lg"
+              className="w-full text-xs h-9"
+              isLoading={isSubmitting}
             >
-              {isSubmitting ? "Mendaftarkan akun..." : "Daftar Sekarang"}
+              Daftar Akun
             </Button>
           </form>
         </div>
 
-        <p className="mt-4 text-center text-xs text-gray-500">
+        {/* Login link */}
+        <p className="mt-5 text-center text-xs text-zinc-500 dark:text-zinc-400">
           Sudah memiliki akun?{" "}
-          <Link href="/login" className="text-indigo-600 hover:underline font-medium">
+          <Link
+            href="/login"
+            className="font-medium text-black hover:underline dark:text-white"
+          >
             Masuk di sini
           </Link>
         </p>

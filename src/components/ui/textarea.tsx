@@ -39,11 +39,11 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     };
 
     return (
-      <div className={cn("flex flex-col gap-1", containerClassName)}>
+      <div className={cn("flex flex-col gap-1.5", containerClassName)}>
         {label && (
           <label
             htmlFor={inputId}
-            className="text-xs font-medium text-gray-700"
+            className="text-xs font-medium text-zinc-700 dark:text-zinc-300"
           >
             {label}
             {props.required && (
@@ -58,31 +58,32 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           onChange={handleChange}
           maxLength={maxLength}
           className={cn(
-            "w-full rounded border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400",
-            "transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400",
-            "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500",
+            "w-full rounded-md border bg-white px-3 py-2 text-xs text-zinc-900 placeholder:text-zinc-400 shadow-xs",
+            "transition-colors focus:outline-none focus:ring-1 focus:ring-black focus:border-black",
+            "dark:border-zinc-800 dark:bg-black dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:ring-white dark:focus:border-white",
+            "disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400 dark:disabled:bg-zinc-900",
             "resize-y min-h-[80px]",
             error
-              ? "border-red-400 focus:border-red-400 focus:ring-red-500/20"
-              : "border-gray-300",
+              ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+              : "border-zinc-200",
             className
           )}
           {...props}
         />
         <div className="flex items-start justify-between">
           <div>
-            {error && <p className="text-xs text-red-600">{error}</p>}
+            {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
             {helperText && !error && (
-              <p className="text-xs text-gray-500">{helperText}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{helperText}</p>
             )}
           </div>
           {showCount && maxLength && (
             <p
               className={cn(
-                "text-xs tabular-nums ml-auto",
+                "text-xs tabular-nums ml-auto font-mono",
                 charCount > maxLength * 0.9
-                  ? "text-orange-600"
-                  : "text-gray-400"
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-zinc-400"
               )}
             >
               {charCount}/{maxLength}

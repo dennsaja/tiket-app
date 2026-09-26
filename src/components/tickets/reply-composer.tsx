@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Lock, Send, Paperclip, X, AlertCircle } from "lucide-react";
+import { Lock, Send, Paperclip, X } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface ReplyComposerProps {
@@ -30,7 +30,7 @@ export function ReplyComposer({
       const selected = Array.from(e.target.files);
       const valid = selected.filter((f) => f.size <= 10 * 1024 * 1024);
       if (valid.length < selected.length) {
-        toast.error("Some files exceed the 10MB limit and were skipped.");
+        toast.error("Beberapa berkas melebihi batas 10MB.");
       }
       setFiles((prev) => [...prev, ...valid]);
     }
@@ -96,7 +96,7 @@ export function ReplyComposer({
 
   if (disabled) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center text-xs text-gray-500">
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
         Tiket ini sudah ditutup atau dibatalkan. Tidak dapat mengirim balasan baru.
       </div>
     );
@@ -105,19 +105,21 @@ export function ReplyComposer({
   return (
     <form
       onSubmit={handleSubmit}
-      className={`rounded-lg border bg-white p-4 shadow-xs transition-colors ${
-        isInternalNote ? "border-amber-300 ring-1 ring-amber-200" : "border-gray-200"
+      className={`rounded-xl border bg-white p-4.5 shadow-xs transition-colors dark:bg-black ${
+        isInternalNote
+          ? "border-amber-300 ring-1 ring-amber-200 dark:border-amber-700 dark:ring-amber-900/50"
+          : "border-zinc-200 dark:border-zinc-800"
       }`}
     >
-      <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-        <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-md text-xs">
+      <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 p-0.5 rounded-lg text-xs">
           <button
             type="button"
             onClick={() => setIsInternalNote(false)}
-            className={`px-3 py-1 font-medium rounded transition-all ${
+            className={`px-3 py-1 font-medium rounded-md transition-all text-xs ${
               !isInternalNote
-                ? "bg-white text-gray-900 shadow-xs"
-                : "text-gray-500 hover:text-gray-900"
+                ? "bg-white text-black shadow-xs dark:bg-zinc-800 dark:text-white"
+                : "text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-white"
             }`}
           >
             Balasan Publik
@@ -126,10 +128,10 @@ export function ReplyComposer({
             <button
               type="button"
               onClick={() => setIsInternalNote(true)}
-              className={`flex items-center gap-1 px-3 py-1 font-medium rounded transition-all ${
+              className={`flex items-center gap-1 px-3 py-1 font-medium rounded-md transition-all text-xs ${
                 isInternalNote
-                  ? "bg-amber-100 text-amber-900 shadow-xs"
-                  : "text-gray-500 hover:text-gray-900"
+                  ? "bg-amber-100 text-amber-900 shadow-xs dark:bg-amber-950 dark:text-amber-200"
+                  : "text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-white"
               }`}
             >
               <Lock className="h-3 w-3" />
@@ -139,7 +141,7 @@ export function ReplyComposer({
         </div>
 
         {isInternalNote && (
-          <span className="text-[11px] text-amber-700 flex items-center gap-1 font-medium">
+          <span className="text-[11px] text-amber-700 dark:text-amber-400 flex items-center gap-1 font-medium">
             <Lock className="h-3 w-3" /> Hanya teknisi &amp; admin
           </span>
         )}
@@ -155,23 +157,23 @@ export function ReplyComposer({
               : "Ketik balasan pesan Anda kepada pelapor..."
           }
           rows={4}
-          className="text-xs sm:text-sm border-gray-200 resize-y"
+          className="text-xs sm:text-sm"
         />
       </div>
 
       {files.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-2.5 flex flex-wrap gap-2">
           {files.map((file, idx) => (
             <span
               key={idx}
-              className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-1 text-xs text-gray-700"
+              className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 dark:bg-zinc-900 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-800"
             >
-              <Paperclip className="h-3 w-3" />
+              <Paperclip className="h-3 w-3 text-zinc-400" />
               <span className="truncate max-w-[120px]">{file.name}</span>
               <button
                 type="button"
                 onClick={() => removeFile(idx)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 ml-0.5"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -180,7 +182,7 @@ export function ReplyComposer({
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
+      <div className="mt-3 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-3">
         <div>
           <input
             ref={fileInputRef}
@@ -196,7 +198,7 @@ export function ReplyComposer({
             size="sm"
             onClick={() => fileInputRef.current?.click()}
             leftIcon={<Paperclip className="h-3.5 w-3.5" />}
-            className="text-xs text-gray-600"
+            className="text-xs text-zinc-500"
           >
             Lampirkan Berkas
           </Button>
@@ -207,7 +209,7 @@ export function ReplyComposer({
           size="sm"
           isLoading={isSubmitting}
           leftIcon={<Send className="h-3.5 w-3.5" />}
-          className={isInternalNote ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}
+          className={isInternalNote ? "bg-amber-600 hover:bg-amber-700 text-white border-amber-600" : ""}
         >
           {isInternalNote ? "Simpan Catatan" : "Kirim Balasan"}
         </Button>

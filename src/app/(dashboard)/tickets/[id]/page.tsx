@@ -23,9 +23,7 @@ import {
   User,
   Mail,
   Phone,
-  Tag as TagIcon,
   RefreshCw,
-  Clock,
   Share2,
   Check,
   MapPin,
@@ -122,8 +120,8 @@ export default function TicketDetailPage() {
 
   if (error || !ticket) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/50 dark:bg-red-950/30">
-        <h2 className="text-base font-semibold text-red-800 dark:text-red-400">Gagal Membuka Tiket</h2>
+      <div className="rounded-xl border border-red-200 bg-red-50/50 p-6 text-center dark:border-red-900/50 dark:bg-red-950/30">
+        <h2 className="text-sm font-semibold text-red-800 dark:text-red-400">Gagal Membuka Tiket</h2>
         <p className="mt-1 text-xs text-red-600 dark:text-red-300">{error || "Tiket tidak ditemukan"}</p>
         <div className="mt-4">
           <Link href="/tickets">
@@ -146,22 +144,22 @@ export default function TicketDetailPage() {
 
   return (
     <div className="space-y-4">
-      {/* Top Bar Navigation & Status */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-3">
+      {/* Top Bar Navigation & Status (Vercel Style) */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-200 pb-3.5 dark:border-zinc-800">
         <div className="flex items-center gap-2 flex-wrap">
           <Link href="/tickets">
-            <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-3.5 w-3.5" />}>
               Kembali
             </Button>
           </Link>
-          <div className="h-4 w-px bg-gray-300" />
-          <span className="font-mono text-xs font-semibold text-gray-500">
+          <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800" />
+          <span className="font-mono text-xs font-semibold text-zinc-500 dark:text-zinc-400">
             #{ticket.ticketNumber}
           </span>
           <StatusBadge status={ticket.status} size="md" />
           <PriorityBadge priority={ticket.priority} size="md" />
           {isSharedViewer && (
-            <span className="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+            <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
               <Info className="h-3 w-3" /> Penampil Link Bersama
             </span>
           )}
@@ -173,8 +171,8 @@ export default function TicketDetailPage() {
               <Button
                 variant="outline"
                 size="sm"
-                leftIcon={<MessagesSquare className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
-                className="text-xs text-indigo-700 bg-indigo-50/50 border-indigo-200 hover:bg-indigo-100 dark:bg-slate-800 dark:text-indigo-300 dark:border-slate-700"
+                leftIcon={<MessagesSquare className="h-3.5 w-3.5" />}
+                className="text-xs"
               >
                 Chat Tim
               </Button>
@@ -188,7 +186,7 @@ export default function TicketDetailPage() {
             onClick={handleShareTicket}
             leftIcon={
               copied ? (
-                <Check className="h-3.5 w-3.5 text-green-600" />
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
               ) : (
                 <Share2 className="h-3.5 w-3.5" />
               )
@@ -207,7 +205,7 @@ export default function TicketDetailPage() {
             }}
             isLoading={isRefreshing}
             leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
-            className="text-xs text-gray-500"
+            className="text-xs text-zinc-500"
           >
             Segarkan
           </Button>
@@ -215,28 +213,28 @@ export default function TicketDetailPage() {
       </div>
 
       {/* Main Title Section */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-xs">
-        <h1 className="text-lg font-bold text-gray-900 leading-snug">
+      <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-black">
+        <h1 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100 leading-snug">
           {ticket.title}
         </h1>
-        <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-500 border-t border-gray-100 pt-2">
+        <div className="mt-2.5 flex flex-wrap items-center gap-4 text-xs text-zinc-500 border-t border-zinc-100 dark:border-zinc-800/80 pt-2.5">
           <span className="flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5 text-gray-400" />
-            Dilaporkan oleh <strong className="text-gray-700">{ticket.requester?.name}</strong>
+            <User className="h-3.5 w-3.5 text-zinc-400" />
+            Dilaporkan oleh <strong className="text-zinc-800 dark:text-zinc-200 font-medium">{ticket.requester?.name}</strong>
           </span>
           <span className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5 text-gray-400" />
-            {formatDateTime(ticket.createdAt)} ({formatRelativeTime(ticket.createdAt)})
+            <Calendar className="h-3.5 w-3.5 text-zinc-400" />
+            <span className="font-mono">{formatDateTime(ticket.createdAt)}</span> ({formatRelativeTime(ticket.createdAt)})
           </span>
           {ticket.department && (
             <span className="flex items-center gap-1.5">
-              <Building2 className="h-3.5 w-3.5 text-gray-400" />
+              <Building2 className="h-3.5 w-3.5 text-zinc-400" />
               {ticket.department.name}
             </span>
           )}
           {ticket.category && (
             <span className="flex items-center gap-1.5">
-              <FolderOpen className="h-3.5 w-3.5 text-gray-400" />
+              <FolderOpen className="h-3.5 w-3.5 text-zinc-400" />
               {ticket.category.name}
               {ticket.subcategory && ` / ${ticket.subcategory.name}`}
             </span>
@@ -286,15 +284,15 @@ export default function TicketDetailPage() {
           />
 
           {/* Ticket Metadata Card */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-xs space-y-3">
-            <h3 className="text-xs font-semibold text-gray-900 border-b border-gray-100 pb-2">
+          <div className="rounded-xl border border-zinc-200 bg-white p-4.5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-3">
+            <h3 className="text-xs font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 pb-2">
               Informasi Tiket
             </h3>
 
             <dl className="space-y-2 text-xs">
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <dt className="text-gray-500">Pelapor</dt>
-                <dd className="font-medium text-gray-900 flex items-center gap-1.5">
+              <div className="flex justify-between py-1 border-b border-zinc-50 dark:border-zinc-900">
+                <dt className="text-zinc-500">Pelapor</dt>
+                <dd className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
                   <Avatar
                     name={ticket.requester?.name || "User"}
                     src={ticket.requester?.avatarUrl}
@@ -305,23 +303,23 @@ export default function TicketDetailPage() {
                 </dd>
               </div>
 
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <dt className="text-gray-500">Email</dt>
-                <dd className="font-mono text-gray-700 select-all">
+              <div className="flex justify-between py-1 border-b border-zinc-50 dark:border-zinc-900">
+                <dt className="text-zinc-500">Email</dt>
+                <dd className="font-mono text-zinc-700 dark:text-zinc-300 select-all">
                   {ticket.requester?.email}
                 </dd>
               </div>
 
               {ticket.requester?.phone && (
-                <div className="flex justify-between py-1 border-b border-gray-50">
-                  <dt className="text-gray-500">Telepon</dt>
-                  <dd className="text-gray-700">{ticket.requester.phone}</dd>
+                <div className="flex justify-between py-1 border-b border-zinc-50 dark:border-zinc-900">
+                  <dt className="text-zinc-500">Telepon</dt>
+                  <dd className="text-zinc-700 dark:text-zinc-300 font-mono">{ticket.requester.phone}</dd>
                 </div>
               )}
 
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <dt className="text-gray-500">Teknisi</dt>
-                <dd className="font-medium text-gray-900 flex items-center gap-1.5">
+              <div className="flex justify-between py-1 border-b border-zinc-50 dark:border-zinc-900">
+                <dt className="text-zinc-500">Teknisi</dt>
+                <dd className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
                   {ticket.assignee ? (
                     <>
                       <Avatar
@@ -333,31 +331,31 @@ export default function TicketDetailPage() {
                       <span>{ticket.assignee.name}</span>
                     </>
                   ) : (
-                    <span className="text-gray-400 italic">Belum Ditugaskan</span>
+                    <span className="text-zinc-400 italic">Belum Ditugaskan</span>
                   )}
                 </dd>
               </div>
 
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <dt className="text-gray-500">Departemen</dt>
-                <dd className="text-gray-900">
+              <div className="flex justify-between py-1 border-b border-zinc-50 dark:border-zinc-900">
+                <dt className="text-zinc-500">Departemen</dt>
+                <dd className="text-zinc-900 dark:text-zinc-100">
                   {ticket.department?.name || "Umum"}
                 </dd>
               </div>
 
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <dt className="text-gray-500">Kategori</dt>
-                <dd className="text-gray-900">
+              <div className="flex justify-between py-1 border-b border-zinc-50 dark:border-zinc-900">
+                <dt className="text-zinc-500">Kategori</dt>
+                <dd className="text-zinc-900 dark:text-zinc-100">
                   {ticket.category?.name || "Tidak Ada"}
                 </dd>
               </div>
 
               {ticket.resolution && (
-                <div className="pt-2 border-t border-green-100 bg-green-50/50 p-2.5 rounded">
-                  <dt className="font-semibold text-green-900 text-xs mb-1">
+                <div className="pt-2 border-t border-emerald-100 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20 p-2.5 rounded-lg">
+                  <dt className="font-semibold text-emerald-900 dark:text-emerald-300 text-xs mb-1">
                     Ringkasan Solusi:
                   </dt>
-                  <dd className="text-green-800 text-xs whitespace-pre-wrap">
+                  <dd className="text-emerald-800 dark:text-emerald-400 text-xs whitespace-pre-wrap">
                     {ticket.resolution}
                   </dd>
                 </div>
@@ -365,23 +363,23 @@ export default function TicketDetailPage() {
             </dl>
           </div>
 
-          {/* Informasi Pelapor & Lokasi Card (Hanya tampil jika ada data) */}
+          {/* Informasi Pelapor & Lokasi Card */}
           {(ticket.reporterName || ticket.reporterAddress || ticket.reporterMapUrl) && (
-            <div className="rounded-lg border border-indigo-100 bg-indigo-50/30 p-4 shadow-xs space-y-3 dark:border-indigo-900/40 dark:bg-slate-800/80">
-              <div className="flex items-center gap-1.5 border-b border-indigo-100 dark:border-slate-700 pb-2">
-                <User className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                <h3 className="text-xs font-semibold text-gray-900 dark:text-gray-100">
-                  Informasi Pelapor & Lokasi
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4.5 shadow-xs space-y-3 dark:border-zinc-800 dark:bg-zinc-950/50">
+              <div className="flex items-center gap-1.5 border-b border-zinc-200 dark:border-zinc-800 pb-2">
+                <User className="h-3.5 w-3.5 text-zinc-900 dark:text-zinc-100" />
+                <h3 className="text-xs font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+                  Informasi Pelapor &amp; Lokasi
                 </h3>
               </div>
 
               <dl className="space-y-2.5 text-xs">
                 {ticket.reporterName && (
                   <div>
-                    <dt className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                    <dt className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
                       Nama Pelapor
                     </dt>
-                    <dd className="mt-0.5 font-medium text-gray-900 dark:text-gray-200">
+                    <dd className="mt-0.5 font-medium text-zinc-900 dark:text-zinc-200">
                       {ticket.reporterName}
                     </dd>
                   </div>
@@ -389,27 +387,27 @@ export default function TicketDetailPage() {
 
                 {ticket.reporterAddress && (
                   <div>
-                    <dt className="text-[11px] font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-gray-400" />
+                    <dt className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+                      <MapPin className="h-3 w-3 text-zinc-400" />
                       Alamat Tertulis
                     </dt>
-                    <dd className="mt-0.5 text-gray-800 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                    <dd className="mt-0.5 text-zinc-800 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
                       {ticket.reporterAddress}
                     </dd>
                   </div>
                 )}
 
                 {ticket.reporterMapUrl && (
-                  <div className="pt-1.5 border-t border-indigo-100/60 dark:border-slate-700">
-                    <dt className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                  <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                    <dt className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mb-1.5 flex items-center gap-1">
+                      <MapPin className="h-3 w-3 text-zinc-900 dark:text-zinc-100" />
                       Lokasi Google Maps
                     </dt>
                     <a
                       href={ticket.reporterMapUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 transition-colors shadow-xs"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-black text-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-800 transition-colors shadow-xs dark:bg-white dark:text-black dark:hover:bg-zinc-200"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                       Buka Rute di Google Maps

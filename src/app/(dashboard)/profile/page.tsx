@@ -9,24 +9,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Spinner } from "@/components/ui/spinner";
-import { User, Lock, Mail, Phone, Shield, Save } from "lucide-react";
+import { User, Lock, Save } from "lucide-react";
 import toast from "react-hot-toast";
 
 const profileSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
+  name: z.string().min(2, "Nama minimal 2 karakter"),
+  email: z.string().email("Format email tidak valid"),
   phone: z.string().optional(),
 });
 
 const passwordSchema = z
   .object({
-    currentPassword: z.string().min(1, "Current password is required"),
-    newPassword: z.string().min(8, "New password must be at least 8 characters"),
+    currentPassword: z.string().min(1, "Kata sandi saat ini wajib diisi"),
+    newPassword: z.string().min(8, "Kata sandi baru minimal 8 karakter"),
     confirmPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
-    message: "Passwords do not match",
+    message: "Konfirmasi kata sandi tidak cocok",
     path: ["confirmPassword"],
   });
 
@@ -93,13 +92,13 @@ export default function ProfilePage() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to update profile");
+        throw new Error(err.error || "Gagal memperbarui profil");
       }
 
-      toast.success("Profile updated successfully");
+      toast.success("Profil berhasil diperbarui");
       await update();
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      toast.error(err.message || "Terjadi kesalahan");
     } finally {
       setIsUpdatingProfile(false);
     }
@@ -120,13 +119,13 @@ export default function ProfilePage() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to update password");
+        throw new Error(err.error || "Gagal memperbarui kata sandi");
       }
 
-      toast.success("Password changed successfully");
+      toast.success("Kata sandi berhasil diperbarui");
       resetPassword();
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      toast.error(err.message || "Terjadi kesalahan");
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -134,39 +133,39 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="border-b border-gray-200 pb-3">
-        <h1 className="text-xl font-bold text-gray-900">Profil Pengguna</h1>
-        <p className="text-xs text-gray-500">
+      <div className="border-b border-zinc-200 pb-4 dark:border-zinc-800">
+        <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Profil Pengguna</h1>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
           Kelola pengaturan akun, informasi kontak, dan kata sandi Anda
         </p>
       </div>
 
-      {/* Profile Overview Card */}
-      <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs flex items-center gap-4">
+      {/* Profile Overview Card (Vercel Style) */}
+      <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs flex items-center gap-4 dark:border-zinc-800 dark:bg-black">
         <Avatar
           name={user?.name || "User"}
           src={user?.image}
           size="lg"
-          className="h-14 w-14 text-base"
+          className="h-12 w-12 text-sm border border-zinc-200 dark:border-zinc-800"
         />
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold text-gray-900">{user?.name}</h2>
+            <h2 className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">{user?.name}</h2>
             <Badge
               variant={userRole === "admin" ? "purple" : userRole === "agent" ? "indigo" : "default"}
-              className="capitalize"
+              className="capitalize text-[10px]"
             >
               {userRole === "admin" ? "Administrator" : userRole === "agent" ? "Teknisi" : "Pelapor"}
             </Badge>
           </div>
-          <p className="text-xs text-gray-500">{user?.email}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono mt-0.5">{user?.email}</p>
         </div>
       </div>
 
       {/* Edit Profile Form */}
       <form onSubmit={handleSubmitProfile(onProfileSubmit)}>
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2 flex items-center gap-1.5">
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs space-y-4 dark:border-zinc-800 dark:bg-black">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 border-b border-zinc-100 dark:border-zinc-800 pb-2 flex items-center gap-1.5">
             <User className="h-3.5 w-3.5" /> Data Pribadi
           </h2>
 
@@ -207,8 +206,8 @@ export default function ProfilePage() {
 
       {/* Change Password Form */}
       <form onSubmit={handleSubmitPassword(onPasswordSubmit)}>
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2 flex items-center gap-1.5">
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs space-y-4 dark:border-zinc-800 dark:bg-black">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 border-b border-zinc-100 dark:border-zinc-800 pb-2 flex items-center gap-1.5">
             <Lock className="h-3.5 w-3.5" /> Keamanan &amp; Kata Sandi
           </h2>
 

@@ -29,11 +29,11 @@ export default function AdminCategoriesPage() {
     setIsLoading(true);
     try {
       const res = await fetch("/api/categories");
-      if (!res.ok) throw new Error("Failed to load categories");
+      if (!res.ok) throw new Error("Gagal memuat daftar kategori");
       const data = await res.json();
       setCategories(data || []);
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      toast.error(err.message || "Terjadi kesalahan");
     } finally {
       setIsLoading(false);
     }
@@ -67,15 +67,15 @@ export default function AdminCategoriesPage() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to create category");
+        throw new Error(err.error || "Gagal membuat kategori");
       }
 
-      toast.success("Category created successfully");
+      toast.success("Kategori baru berhasil dibuat");
       setCatModalOpen(false);
       setCatForm({ name: "", description: "", departmentId: "" });
       fetchCategories();
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      toast.error(err.message || "Terjadi kesalahan");
     } finally {
       setIsSavingCat(false);
     }
@@ -83,88 +83,94 @@ export default function AdminCategoriesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-200 pb-4 dark:border-zinc-800">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <FolderOpen className="h-5 w-5 text-indigo-600" /> Kategori &amp; Subkategori
+          <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+            <FolderOpen className="h-5 w-5 text-zinc-900 dark:text-zinc-100" /> Kategori &amp; Subkategori
           </h1>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
             Kelola taksonomi klasifikasi tiket untuk pengelompokan kendala
           </p>
         </div>
         <Button
           size="sm"
           onClick={() => setCatModalOpen(true)}
-          leftIcon={<Plus className="h-4 w-4" />}
+          leftIcon={<Plus className="h-3.5 w-3.5" />}
         >
           Tambah Kategori
         </Button>
       </div>
 
-      {isLoading ? (
-        <div className="flex h-48 items-center justify-center">
-          <Spinner />
-        </div>
-      ) : categories.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white p-12 text-center text-xs text-gray-400">
-          Belum ada kategori yang dikonfigurasi.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {categories.map((cat) => (
+      <div className="space-y-3">
+        {isLoading ? (
+          <div className="flex h-48 items-center justify-center rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
+            <Spinner />
+          </div>
+        ) : categories.length === 0 ? (
+          <div className="rounded-xl border border-zinc-200 bg-white p-12 text-center text-xs text-zinc-400 dark:border-zinc-800 dark:bg-black">
+            Belum ada kategori yang dikonfigurasi.
+          </div>
+        ) : (
+          categories.map((cat) => (
             <div
               key={cat.id}
-              className="rounded-lg border border-gray-200 bg-white p-4 shadow-xs space-y-3"
+              className="rounded-xl border border-zinc-200 bg-white p-4 shadow-xs dark:border-zinc-800 dark:bg-black space-y-3"
             >
-              <div className="flex items-start justify-between border-b border-gray-100 pb-2.5">
+              <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900">{cat.name}</h3>
-                  <p className="text-xs text-gray-500">{cat.description || "Tanpa deskripsi"}</p>
-                </div>
-                <Badge variant={cat.isActive ? "success" : "error"} className="text-[10px]">
-                  {cat.isActive ? "Aktif" : "Nonaktif"}
-                </Badge>
-              </div>
-
-              {/* Subcategories list */}
-              <div className="space-y-1.5 pt-1">
-                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                  Subkategori ({cat.subcategories?.length || 0})
-                </span>
-                {cat.subcategories && cat.subcategories.length > 0 ? (
-                  <div className="space-y-1">
-                    {cat.subcategories.map((sub: any) => (
-                      <div
-                        key={sub.id}
-                        className="flex items-center gap-2 text-xs text-gray-700 bg-gray-50 rounded px-2 py-1"
-                      >
-                        <CornerDownRight className="h-3 w-3 text-gray-400" />
-                        <span>{sub.name}</span>
-                      </div>
-                    ))}
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">{cat.name}</h3>
+                    <Badge variant={cat.isActive ? "success" : "default"} dot className="text-[10px]">
+                      {cat.isActive ? "Aktif" : "Nonaktif"}
+                    </Badge>
                   </div>
-                ) : (
-                  <p className="text-xs text-gray-400 italic">Belum ada subkategori</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    {cat.description || "Tidak ada deskripsi"}
+                  </p>
+                </div>
+
+                {cat.department && (
+                  <span className="text-[11px] font-medium text-zinc-600 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-300 rounded-md px-2 py-0.5 border border-zinc-200/60 dark:border-zinc-700">
+                    Departemen: {cat.department.name}
+                  </span>
                 )}
               </div>
-            </div>
-          ))}
-        </div>
-      )}
 
-      {/* Category Modal */}
+              {/* Subcategories */}
+              {cat.subcategories && cat.subcategories.length > 0 && (
+                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap gap-2 items-center">
+                  <span className="text-[11px] font-medium text-zinc-400 flex items-center gap-1">
+                    <Tag className="h-3 w-3" /> Subkategori:
+                  </span>
+                  {cat.subcategories.map((sub: any) => (
+                    <span
+                      key={sub.id}
+                      className="inline-flex items-center gap-1 rounded-md bg-zinc-50 border border-zinc-200 px-2 py-0.5 text-xs text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+                    >
+                      <CornerDownRight className="h-2.5 w-2.5 text-zinc-400" />
+                      {sub.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Create Category Modal */}
       <Modal
         open={catModalOpen}
         onOpenChange={setCatModalOpen}
-        title="Tambah Kategori"
-        description="Buat kategori klasifikasi tiket baru"
+        title="Tambah Kategori Baru"
+        description="Kategori mengelompokkan jenis kendala atau keluhan tiket"
       >
         <form onSubmit={handleCreateCategory} className="space-y-3 pt-2">
           <Input
             label="Nama Kategori"
             value={catForm.name}
             onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
-            placeholder="Contoh: Hardware / Software / Jaringan"
+            placeholder="Contoh: Masalah Jaringan, Software, Akun"
             required
           />
 
@@ -172,7 +178,7 @@ export default function AdminCategoriesPage() {
             label="Deskripsi"
             value={catForm.description}
             onChange={(e) => setCatForm({ ...catForm, description: e.target.value })}
-            placeholder="Cakupan masalah yang masuk kategori ini..."
+            placeholder="Panduan kategori ini..."
             rows={3}
           />
 
@@ -182,13 +188,13 @@ export default function AdminCategoriesPage() {
               value={catForm.departmentId || "none"}
               onValueChange={(val) => setCatForm({ ...catForm, departmentId: val === "none" ? "" : val })}
               options={[
-                { value: "none", label: "Tidak Ada (Umum)" },
+                { value: "none", label: "Semua Departemen (Umum)" },
                 ...departments.map((d) => ({ value: d.id, label: d.name })),
               ]}
             />
           )}
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+          <div className="flex justify-end gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
             <Button
               type="button"
               variant="outline"

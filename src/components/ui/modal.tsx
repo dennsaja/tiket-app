@@ -27,7 +27,7 @@ const ModalOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]",
+      "fixed inset-0 z-50 bg-black/50 backdrop-blur-xs",
       "data-[state=open]:animate-in data-[state=closed]:animate-out",
       "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
@@ -47,12 +47,12 @@ const ModalContent = React.forwardRef<
   ModalContentProps
 >(({ className, children, size = "md", ...props }, ref) => (
   <DialogPrimitive.Portal>
-    <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] data-[state=open]:animate-fade-in" />
+    <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs data-[state=open]:animate-fade-in" />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
         "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
-        "w-full rounded-md border border-gray-200 bg-white shadow-xl",
+        "w-full rounded-xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-black",
         "focus:outline-none",
         "data-[state=open]:animate-fade-in",
         {
@@ -86,25 +86,29 @@ function ModalHeader({
   return (
     <div
       className={cn(
-        "flex items-start justify-between border-b border-gray-200 px-5 py-4",
+        "flex items-start justify-between border-b border-zinc-200 px-5 py-4 dark:border-zinc-800",
         className
       )}
     >
       <div>
-        <DialogPrimitive.Title className="text-sm font-semibold text-gray-900">
+        <DialogPrimitive.Title className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
           {title}
         </DialogPrimitive.Title>
         {description && (
-          <DialogPrimitive.Description className="mt-0.5 text-xs text-gray-500">
+          <DialogPrimitive.Description className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
             {description}
           </DialogPrimitive.Description>
         )}
       </div>
-      {onClose && (
-        <DialogPrimitive.Close
+      {onClose ? (
+        <button
           onClick={onClose}
-          className="ml-4 shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none"
+          className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors dark:hover:bg-zinc-900 dark:hover:text-zinc-300"
         >
+          <X className="h-4 w-4" />
+        </button>
+      ) : (
+        <DialogPrimitive.Close className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors dark:hover:bg-zinc-900 dark:hover:text-zinc-300">
           <X className="h-4 w-4" />
         </DialogPrimitive.Close>
       )}
@@ -115,42 +119,41 @@ function ModalHeader({
 function ModalBody({
   className,
   children,
-}: {
-  className?: string;
-  children: React.ReactNode;
-}) {
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("px-5 py-4", className)}>{children}</div>
+    <div className={cn("p-5 max-h-[75vh] overflow-y-auto", className)} {...props}>
+      {children}
+    </div>
   );
 }
 
 function ModalFooter({
   className,
   children,
-}: {
-  className?: string;
-  children: React.ReactNode;
-}) {
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        "flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-3",
+        "flex items-center justify-end gap-2 border-t border-zinc-200 px-5 py-3.5 bg-zinc-50/50 dark:border-zinc-800 dark:bg-zinc-950/50 rounded-b-xl",
         className
       )}
+      {...props}
     >
       {children}
     </div>
   );
 }
 
-// Convenient high-level Modal component
-interface HighLevelModalProps {
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  title?: string;
+interface ModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
   description?: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl" | "full";
-  children?: React.ReactNode;
 }
 
 function Modal({
@@ -158,28 +161,22 @@ function Modal({
   onOpenChange,
   title,
   description,
-  size = "md",
   children,
-}: HighLevelModalProps) {
-  if (title) {
-    return (
-      <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
-        <ModalContent size={size}>
-          <ModalHeader
-            title={title}
-            description={description}
-            onClose={() => onOpenChange?.(false)}
-          />
-          <ModalBody>{children}</ModalBody>
-        </ModalContent>
-      </DialogPrimitive.Root>
-    );
-  }
-
+  footer,
+  size = "md",
+}: ModalProps) {
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
-      {children}
-    </DialogPrimitive.Root>
+    <ModalRoot open={open} onOpenChange={onOpenChange}>
+      <ModalContent size={size}>
+        <ModalHeader
+          title={title}
+          description={description}
+          onClose={() => onOpenChange(false)}
+        />
+        <ModalBody>{children}</ModalBody>
+        {footer && <ModalFooter>{footer}</ModalFooter>}
+      </ModalContent>
+    </ModalRoot>
   );
 }
 
@@ -187,11 +184,10 @@ export {
   Modal,
   ModalRoot,
   ModalTrigger,
-  ModalClose,
   ModalContent,
   ModalHeader,
   ModalBody,
   ModalFooter,
+  ModalClose,
   ModalOverlay,
-  ModalPortal,
 };

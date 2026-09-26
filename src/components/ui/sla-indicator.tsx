@@ -19,7 +19,6 @@ function getSlaStatus(
 ): { status: SlaStatus; remaining: string; percent: number } {
   const now = completedAt ? new Date(completedAt) : new Date();
   const due = new Date(dueAt);
-  const totalMinutes = differenceInMinutes(due, new Date(dueAt.getTime() - 24 * 60 * 60 * 1000));
   const remainingMinutes = differenceInMinutes(due, now);
 
   if (completedAt) {
@@ -46,7 +45,6 @@ function getSlaStatus(
   const m = remainingMinutes % 60;
   const remaining = h > 0 ? `${h}j ${m}m` : `${m}m`;
 
-  // Use 24h as baseline for percentage if total unknown
   const baseMinutes = 24 * 60;
   const used = baseMinutes - remainingMinutes;
   const percent = Math.min(Math.max((used / baseMinutes) * 100, 0), 100);
@@ -64,8 +62,8 @@ function SlaIndicator({
 }: SlaIndicatorProps) {
   if (!dueAt) {
     return (
-      <div className={cn("flex items-center gap-1 text-xs text-gray-400", className)}>
-        <Clock className="h-3.5 w-3.5" />
+      <div className={cn("flex items-center gap-1 text-xs text-zinc-400 font-mono", className)}>
+        <Clock className="h-3 w-3" />
         <span>Tanpa SLA</span>
       </div>
     );
@@ -77,38 +75,38 @@ function SlaIndicator({
 
   const statusConfig = {
     ok: {
-      bar: "bg-green-500",
-      text: "text-green-700",
-      bg: "bg-green-50",
-      border: "border-green-200",
+      bar: "bg-emerald-500",
+      text: "text-emerald-700 dark:text-emerald-400",
+      bg: "bg-emerald-50 dark:bg-emerald-950/40",
+      border: "border-emerald-200 dark:border-emerald-800",
       Icon: CheckCircle,
     },
     warning: {
-      bar: "bg-yellow-500",
-      text: "text-yellow-700",
-      bg: "bg-yellow-50",
-      border: "border-yellow-200",
+      bar: "bg-amber-500",
+      text: "text-amber-700 dark:text-amber-400",
+      bg: "bg-amber-50 dark:bg-amber-950/40",
+      border: "border-amber-200 dark:border-amber-800",
       Icon: AlertTriangle,
     },
     breached: {
       bar: "bg-red-500",
-      text: "text-red-700",
-      bg: "bg-red-50",
-      border: "border-red-200",
+      text: "text-red-700 dark:text-red-400",
+      bg: "bg-red-50 dark:bg-red-950/40",
+      border: "border-red-200 dark:border-red-800",
       Icon: AlertTriangle,
     },
     completed: {
-      bar: "bg-green-500",
-      text: "text-green-700",
-      bg: "bg-green-50",
-      border: "border-green-200",
+      bar: "bg-zinc-400",
+      text: "text-zinc-600 dark:text-zinc-400",
+      bg: "bg-zinc-50 dark:bg-zinc-900",
+      border: "border-zinc-200 dark:border-zinc-800",
       Icon: CheckCircle,
     },
     na: {
-      bar: "bg-gray-300",
-      text: "text-gray-500",
-      bg: "bg-gray-50",
-      border: "border-gray-200",
+      bar: "bg-zinc-300",
+      text: "text-zinc-400",
+      bg: "bg-zinc-50 dark:bg-zinc-900",
+      border: "border-zinc-200 dark:border-zinc-800",
       Icon: Clock,
     },
   };
@@ -118,50 +116,54 @@ function SlaIndicator({
 
   if (compact) {
     return (
-      <div
+      <span
         className={cn(
-          "flex items-center gap-1 text-xs",
+          "inline-flex items-center gap-1 text-[11px] font-medium font-mono",
           config.text,
           className
         )}
+        title={`Batas: ${format(due, "dd MMM yyyy HH:mm")}`}
       >
-        <Icon className="h-3 w-3" />
+        <Icon className="h-3 w-3 shrink-0" />
         <span>{remaining}</span>
-      </div>
+      </span>
     );
   }
 
   return (
     <div className={cn("space-y-1.5", className)}>
-      {label && (
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500">{label}</span>
-          <div className={cn("flex items-center gap-1 text-xs font-medium", config.text)}>
-            <Icon className="h-3 w-3" />
-            <span>{remaining}</span>
-          </div>
-        </div>
-      )}
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-medium text-zinc-600 dark:text-zinc-400">
+          {label || "Target Waktu"}
+        </span>
+        <span
+          className={cn(
+            "flex items-center gap-1 font-mono text-[11px] font-medium",
+            config.text
+          )}
+        >
+          <Icon className="h-3 w-3" />
+          {remaining}
+        </span>
+      </div>
+
+      {/* Vercel Hairline Progress Bar */}
+      <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
         <div
-          className={cn("h-full rounded-full transition-all", config.bar)}
+          className={cn("h-full rounded-full transition-all duration-300", config.bar)}
           style={{ width: `${percent}%` }}
         />
       </div>
-      {!label && (
-        <div className={cn("flex items-center gap-1 text-xs", config.text)}>
-          <Icon className="h-3 w-3" />
-          <span>{remaining}</span>
-          {dueAt && (
-            <span className="ml-auto text-gray-400">
-              Batas {format(due, "d MMM, HH:mm")}
-            </span>
-          )}
-        </div>
-      )}
+
+      <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
+        <span>Batas: {format(due, "dd MMM HH:mm")}</span>
+        {status === "breached" && (
+          <span className="font-medium text-red-600 dark:text-red-400">Terlewat</span>
+        )}
+      </div>
     </div>
   );
 }
 
 export { SlaIndicator };
-export type { SlaStatus };
+export type { SlaIndicatorProps };

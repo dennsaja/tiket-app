@@ -2,8 +2,7 @@
 
 import * as React from "react";
 import { SlaIndicator } from "@/components/ui/sla-indicator";
-import { formatDateTime } from "@/lib/utils";
-import { Timer, CheckCircle2, AlertCircle } from "lucide-react";
+import { Timer, CheckCircle2 } from "lucide-react";
 
 interface SlaPanelProps {
   firstResponseDue?: string | Date | null;
@@ -24,34 +23,34 @@ export function SlaPanel({
 }: SlaPanelProps) {
   if (!firstResponseDue && !resolutionDue) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-4 text-xs text-gray-500 text-center">
+      <div className="rounded-xl border border-zinc-200 bg-white p-4 text-xs text-zinc-400 text-center dark:border-zinc-800 dark:bg-black">
         Tidak ada kebijakan SLA aktif untuk tiket ini.
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-xs space-y-4">
-      <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-        <h3 className="text-xs font-semibold text-gray-900 flex items-center gap-1.5">
-          <Timer className="h-4 w-4 text-indigo-600" />
+    <div className="rounded-xl border border-zinc-200 bg-white p-4.5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-4">
+      <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2.5">
+        <h3 className="text-xs font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+          <Timer className="h-3.5 w-3.5 text-zinc-900 dark:text-zinc-100" />
           Target Waktu SLA
         </h3>
         {policyName && (
-          <span className="text-[10px] text-gray-400 font-mono">
+          <span className="text-[10px] text-zinc-400 font-mono">
             {policyName}
           </span>
         )}
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3.5">
         {/* First Response SLA */}
         {firstResponseDue && (
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-600 font-medium">Respons Pertama</span>
+              <span className="text-zinc-600 dark:text-zinc-400 font-medium">Respons Pertama</span>
               {firstResponseAt ? (
-                <span className="text-green-700 flex items-center gap-1 text-[11px] font-medium">
+                <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 text-[11px] font-medium font-mono">
                   <CheckCircle2 className="h-3 w-3" /> Sudah Direspons
                 </span>
               ) : null}
@@ -65,11 +64,11 @@ export function SlaPanel({
 
         {/* Resolution SLA */}
         {resolutionDue && (
-          <div className="space-y-1 pt-2 border-t border-gray-100">
+          <div className="space-y-1 pt-2.5 border-t border-zinc-100 dark:border-zinc-800">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-600 font-medium">Waktu Resolusi</span>
+              <span className="text-zinc-600 dark:text-zinc-400 font-medium">Waktu Resolusi</span>
               {resolvedAt ? (
-                <span className="text-green-700 flex items-center gap-1 text-[11px] font-medium">
+                <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 text-[11px] font-medium font-mono">
                   <CheckCircle2 className="h-3 w-3" /> Selesai
                 </span>
               ) : null}

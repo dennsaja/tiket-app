@@ -15,12 +15,9 @@ import {
   Paperclip,
   X,
   Send,
-  HelpCircle,
-  AlertCircle,
   FileText,
   User,
   MapPin,
-  Map,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -79,7 +76,7 @@ export default function NewTicketPage() {
         if (deptRes.ok) setDepartments(await deptRes.json());
         if (catRes.ok) setCategories(await catRes.json());
       } catch {
-        toast.error("Failed to load departments/categories");
+        toast.error("Gagal memuat data departemen/kategori");
       }
     }
     loadMeta();
@@ -102,7 +99,7 @@ export default function NewTicketPage() {
       const selected = Array.from(e.target.files);
       const valid = selected.filter((f) => f.size <= 10 * 1024 * 1024);
       if (valid.length < selected.length) {
-        toast.error("Some files exceed 10MB limit and were excluded");
+        toast.error("Beberapa berkas melebihi batas 10MB.");
       }
       setFiles((prev) => [...prev, ...valid]);
     }
@@ -148,7 +145,7 @@ export default function NewTicketPage() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to create ticket");
+        throw new Error(err.error || "Gagal membuat tiket");
       }
 
       const newTicket = await res.json();
@@ -175,24 +172,25 @@ export default function NewTicketPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-2 border-b border-gray-200 pb-3">
+      <div className="flex items-center gap-2 border-b border-zinc-200 pb-4 dark:border-zinc-800">
         <Link href="/tickets">
-          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-3.5 w-3.5" />}>
             Kembali
           </Button>
         </Link>
-        <div className="h-4 w-px bg-gray-300" />
+        <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800" />
         <div>
-          <h1 className="text-lg font-bold text-gray-900">Buat Tiket Bantuan</h1>
-          <p className="text-xs text-gray-500">
+          <h1 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Buat Tiket Bantuan</h1>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
             Kirimkan pertanyaan, keluhan, atau kendala teknis kepada tim support
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2">
+        {/* Main Details Card */}
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 border-b border-zinc-100 dark:border-zinc-800 pb-2">
             Detail Tiket
           </h2>
 
@@ -209,25 +207,25 @@ export default function NewTicketPage() {
           <Textarea
             label="Deskripsi Lengkap"
             placeholder="Jelaskan kendala secara detail, pesan error yang muncul, langkah kejadian, atau informasi penting lainnya..."
-            rows={6}
+            rows={5}
             {...register("description")}
             error={errors.description?.message}
             required
           />
 
-          {/* Priority selector */}
+          {/* Priority selector (Vercel Style) */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-700">
+            <label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
               Tingkat Prioritas <span className="text-red-500">*</span>
             </label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {(["low", "medium", "high", "critical"] as const).map((p) => (
                 <label
                   key={p}
-                  className={`flex cursor-pointer items-center justify-between rounded border p-2.5 transition-all ${
+                  className={`flex cursor-pointer items-center justify-between rounded-lg border p-2.5 transition-all ${
                     currentPriority === p
-                      ? "border-indigo-600 bg-indigo-50/50 ring-1 ring-indigo-500"
-                      : "border-gray-200 hover:bg-gray-50"
+                      ? "border-black bg-zinc-50 dark:border-white dark:bg-zinc-900 shadow-xs"
+                      : "border-zinc-200 hover:bg-zinc-50/60 dark:border-zinc-800 dark:hover:bg-zinc-900/50"
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -243,14 +241,14 @@ export default function NewTicketPage() {
               ))}
             </div>
             {errors.priority && (
-              <p className="text-xs text-red-600">{errors.priority.message}</p>
+              <p className="text-xs text-red-600 dark:text-red-400">{errors.priority.message}</p>
             )}
           </div>
         </div>
 
         {/* Categorization & Department */}
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2">
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 border-b border-zinc-100 dark:border-zinc-800 pb-2">
             Departemen &amp; Kategori
           </h2>
 
@@ -315,12 +313,12 @@ export default function NewTicketPage() {
         </div>
 
         {/* Informasi Pelapor (Opsional) */}
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-4">
-          <div className="border-b border-gray-100 pb-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Informasi Pelapor & Lokasi (Opsional)
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-4">
+          <div className="border-b border-zinc-100 dark:border-zinc-800 pb-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+              Informasi Pelapor &amp; Lokasi (Opsional)
             </h2>
-            <p className="text-[11px] text-gray-400 mt-0.5">
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
               Lengkapi data kontak PIC dan lokasi on-site untuk mempermudah koordinasi teknisi di lapangan.
             </p>
           </div>
@@ -359,29 +357,29 @@ export default function NewTicketPage() {
         </div>
 
         {/* Attachments Upload Card */}
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-xs space-y-3">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-3">
+          <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
               Lampiran Berkas (Opsional)
             </h2>
-            <span className="text-[11px] text-gray-400">Maks 10MB per berkas</span>
+            <span className="text-[11px] text-zinc-400 font-mono">Maks 10MB per berkas</span>
           </div>
 
           <div className="flex flex-wrap gap-2">
             {files.map((file, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-1.5 rounded border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs text-gray-700"
+                className="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50/60 px-2.5 py-1.5 text-xs text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
               >
-                <FileText className="h-3.5 w-3.5 text-gray-400" />
+                <FileText className="h-3.5 w-3.5 text-zinc-400" />
                 <span className="font-medium truncate max-w-[160px]">{file.name}</span>
-                <span className="text-gray-400 text-[10px]">
+                <span className="text-zinc-400 text-[10px] font-mono">
                   ({(file.size / 1024).toFixed(0)} KB)
                 </span>
                 <button
                   type="button"
                   onClick={() => removeFile(idx)}
-                  className="ml-1 text-gray-400 hover:text-red-600"
+                  className="ml-1 text-zinc-400 hover:text-red-600 dark:hover:text-red-400"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -422,7 +420,7 @@ export default function NewTicketPage() {
             type="submit"
             size="md"
             isLoading={isSubmitting}
-            leftIcon={<Send className="h-4 w-4" />}
+            leftIcon={<Send className="h-3.5 w-3.5" />}
           >
             Kirim Tiket
           </Button>

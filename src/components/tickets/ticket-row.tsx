@@ -8,7 +8,7 @@ import { PriorityBadge } from "@/components/tickets/priority-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { formatRelativeTime, truncate } from "@/lib/utils";
 import { SlaIndicator } from "@/components/ui/sla-indicator";
-import { ChevronRight, Paperclip, MessageSquare } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 interface TicketRowProps {
   ticket: {
@@ -51,20 +51,20 @@ export function TicketRow({
   showCheckbox,
 }: TicketRowProps) {
   return (
-    <TableRow className="group hover:bg-gray-50/80 cursor-pointer transition-colors">
+    <TableRow className="group hover:bg-zinc-50/80 dark:hover:bg-zinc-900/50 cursor-pointer transition-colors">
       {showCheckbox && (
         <TableCell className="w-10 px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
           <input
             type="checkbox"
             checked={isSelected}
             onChange={(e) => onSelect?.(ticket.id, e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            className="h-3.5 w-3.5 rounded border-zinc-300 text-black focus:ring-black dark:border-zinc-700 dark:bg-black dark:text-white"
           />
         </TableCell>
       )}
 
-      <TableCell className="w-20 font-mono text-xs text-gray-500 font-medium">
-        <Link href={`/tickets/${ticket.id}`} className="hover:text-indigo-600 block py-1">
+      <TableCell className="w-20 font-mono text-xs text-zinc-400 font-medium">
+        <Link href={`/tickets/${ticket.id}`} className="hover:text-black dark:hover:text-white block py-1">
           #{ticket.ticketNumber}
         </Link>
       </TableCell>
@@ -72,13 +72,13 @@ export function TicketRow({
       <TableCell className="min-w-[240px] max-w-md">
         <Link href={`/tickets/${ticket.id}`} className="block py-1">
           <div className="flex items-center gap-1.5">
-            <span className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors text-sm line-clamp-1">
+            <span className="font-medium text-zinc-900 group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white transition-colors text-xs line-clamp-1">
               {ticket.title}
             </span>
           </div>
-          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500">
+          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-zinc-400">
             {ticket.department && (
-              <span className="text-gray-600 font-medium">{ticket.department.name}</span>
+              <span className="text-zinc-500 font-medium dark:text-zinc-400">{ticket.department.name}</span>
             )}
             {ticket.category && (
               <>
@@ -99,12 +99,12 @@ export function TicketRow({
       </TableCell>
 
       <TableCell className="w-36">
-        <div className="flex items-center gap-1.5 text-xs text-gray-700">
+        <div className="flex items-center gap-1.5 text-xs text-zinc-700 dark:text-zinc-300">
           <Avatar
             name={ticket.requester?.name || "User"}
             src={ticket.requester?.avatarUrl}
             size="sm"
-            className="h-5 w-5 text-[9px]"
+            className="h-5 w-5 text-[9px] border border-zinc-200 dark:border-zinc-800"
           />
           <span className="truncate max-w-[100px]" title={ticket.requester?.name}>
             {ticket.requester?.name || "Unknown"}
@@ -114,19 +114,19 @@ export function TicketRow({
 
       <TableCell className="w-36">
         {ticket.assignee ? (
-          <div className="flex items-center gap-1.5 text-xs text-gray-700">
+          <div className="flex items-center gap-1.5 text-xs text-zinc-700 dark:text-zinc-300">
             <Avatar
               name={ticket.assignee.name}
               src={ticket.assignee.avatarUrl}
               size="sm"
-              className="h-5 w-5 text-[9px]"
+              className="h-5 w-5 text-[9px] border border-zinc-200 dark:border-zinc-800"
             />
             <span className="truncate max-w-[100px]" title={ticket.assignee.name}>
               {ticket.assignee.name}
             </span>
           </div>
         ) : (
-          <span className="text-xs text-gray-400 italic">Belum Ditugaskan</span>
+          <span className="text-xs text-zinc-400 italic">Belum Ditugaskan</span>
         )}
       </TableCell>
 
@@ -137,17 +137,17 @@ export function TicketRow({
             compact
           />
         ) : (
-          <span className="text-xs text-gray-400">—</span>
+          <span className="text-xs text-zinc-400">—</span>
         )}
       </TableCell>
 
-      <TableCell className="w-28 text-xs text-gray-500">
+      <TableCell className="w-28 text-xs text-zinc-400 font-mono">
         {formatRelativeTime(ticket.createdAt)}
       </TableCell>
 
       <TableCell className="w-8 text-right pr-3">
-        <Link href={`/tickets/${ticket.id}`} className="text-gray-400 group-hover:text-gray-700">
-          <ChevronRight className="h-4 w-4" />
+        <Link href={`/tickets/${ticket.id}`} className="text-zinc-400 group-hover:text-black dark:group-hover:text-white">
+          <ChevronRight className="h-3.5 w-3.5" />
         </Link>
       </TableCell>
     </TableRow>

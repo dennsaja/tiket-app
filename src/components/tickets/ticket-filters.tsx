@@ -88,16 +88,16 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
   );
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-xs space-y-3">
+    <div className="rounded-lg border border-zinc-200 bg-white p-3.5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-3">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md">
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari berdasarkan ID tiket, judul, atau deskripsi..."
-              className="pl-8 h-9 text-xs"
+              placeholder="Cari ID tiket, judul, atau pelapor..."
+              className="pl-8 h-8 text-xs font-normal"
             />
           </div>
         </form>
@@ -105,29 +105,22 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
         <div className="flex items-center gap-2">
           {hasActiveFilters && (
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleReset}
-              leftIcon={<RotateCcw className="h-3.5 w-3.5" />}
-              className="h-9 text-xs"
+              leftIcon={<RotateCcw className="h-3 w-3" />}
+              className="text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
             >
-              Reset
+              Reset Filter
             </Button>
           )}
-          <Button
-            size="sm"
-            onClick={() => applyFilters()}
-            leftIcon={<Filter className="h-3.5 w-3.5" />}
-            className="h-9 text-xs"
-          >
-            Terapkan Filter
-          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 pt-1 border-t border-gray-100">
+      {/* Filter Row */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 pt-1">
+        {/* Status */}
         <Select
-          label="Status"
           value={status}
           onValueChange={(val) => {
             setStatus(val);
@@ -142,12 +135,11 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
             { value: "waiting_for_user", label: "Menunggu Respons User" },
             { value: "resolved", label: "Selesai" },
             { value: "closed", label: "Ditutup" },
-            { value: "reopened", label: "Dibuka Kembali" },
           ]}
         />
 
+        {/* Priority */}
         <Select
-          label="Prioritas"
           value={priority}
           onValueChange={(val) => {
             setPriority(val);
@@ -162,51 +154,45 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
           ]}
         />
 
-        {agents.length > 0 && (
-          <Select
-            label="Teknisi / Assignee"
-            value={assigneeId}
-            onValueChange={(val) => {
-              setAssigneeId(val);
-              applyFilters({ assigneeId: val });
-            }}
-            options={[
-              { value: "all", label: "Semua Teknisi" },
-              { value: "unassigned", label: "Belum Ditugaskan" },
-              ...agents.map((a) => ({ value: a.id, label: a.name })),
-            ]}
-          />
-        )}
+        {/* Department */}
+        <Select
+          value={departmentId}
+          onValueChange={(val) => {
+            setDepartmentId(val);
+            applyFilters({ departmentId: val });
+          }}
+          options={[
+            { value: "all", label: "Semua Departemen" },
+            ...departments.map((d) => ({ value: d.id, label: d.name })),
+          ]}
+        />
 
-        {departments.length > 0 && (
-          <Select
-            label="Departemen"
-            value={departmentId}
-            onValueChange={(val) => {
-              setDepartmentId(val);
-              applyFilters({ departmentId: val });
-            }}
-            options={[
-              { value: "all", label: "Semua Departemen" },
-              ...departments.map((d) => ({ value: d.id, label: d.name })),
-            ]}
-          />
-        )}
+        {/* Category */}
+        <Select
+          value={categoryId}
+          onValueChange={(val) => {
+            setCategoryId(val);
+            applyFilters({ categoryId: val });
+          }}
+          options={[
+            { value: "all", label: "Semua Kategori" },
+            ...categories.map((c) => ({ value: c.id, label: c.name })),
+          ]}
+        />
 
-        {categories.length > 0 && (
-          <Select
-            label="Kategori"
-            value={categoryId}
-            onValueChange={(val) => {
-              setCategoryId(val);
-              applyFilters({ categoryId: val });
-            }}
-            options={[
-              { value: "all", label: "Semua Kategori" },
-              ...categories.map((c) => ({ value: c.id, label: c.name })),
-            ]}
-          />
-        )}
+        {/* Assignee */}
+        <Select
+          value={assigneeId}
+          onValueChange={(val) => {
+            setAssigneeId(val);
+            applyFilters({ assigneeId: val });
+          }}
+          options={[
+            { value: "all", label: "Semua Teknisi" },
+            { value: "unassigned", label: "Belum Ditugaskan" },
+            ...agents.map((a) => ({ value: a.id, label: a.name })),
+          ]}
+        />
       </div>
     </div>
   );

@@ -11,7 +11,7 @@ import { PriorityBadge } from "@/components/tickets/priority-badge";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDuration } from "@/lib/utils";
-import { Plus, Timer, Clock, ShieldCheck } from "lucide-react";
+import { Plus, Timer } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function AdminSlaPage() {
@@ -35,11 +35,11 @@ export default function AdminSlaPage() {
     setIsLoading(true);
     try {
       const res = await fetch("/api/sla-policies");
-      if (!res.ok) throw new Error("Failed to load SLA policies");
+      if (!res.ok) throw new Error("Gagal memuat kebijakan SLA");
       const data = await res.json();
       setPolicies(data || []);
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      toast.error(err.message || "Terjadi kesalahan");
     } finally {
       setIsLoading(false);
     }
@@ -77,10 +77,10 @@ export default function AdminSlaPage() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to create policy");
+        throw new Error(err.error || "Gagal membuat kebijakan SLA");
       }
 
-      toast.success("SLA policy created successfully");
+      toast.success("Kebijakan SLA berhasil dibuat");
       setModalOpen(false);
       setFormData({
         name: "",
@@ -93,7 +93,7 @@ export default function AdminSlaPage() {
       });
       fetchPolicies();
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      toast.error(err.message || "Terjadi kesalahan");
     } finally {
       setIsSaving(false);
     }
@@ -101,70 +101,76 @@ export default function AdminSlaPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-200 pb-4 dark:border-zinc-800">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Timer className="h-5 w-5 text-indigo-600" /> Kebijakan SLA (Service Level Agreement)
+          <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+            <Timer className="h-5 w-5 text-zinc-900 dark:text-zinc-100" /> Kebijakan Target Waktu SLA
           </h1>
-          <p className="text-xs text-gray-500">
-            Atur target waktu respons pertama dan batas waktu penyelesaian tiket berdasarkan prioritas
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            Konfigurasi batas waktu respons awal dan target resolusi kendala tiket
           </p>
         </div>
         <Button
           size="sm"
           onClick={() => setModalOpen(true)}
-          leftIcon={<Plus className="h-4 w-4" />}
+          leftIcon={<Plus className="h-3.5 w-3.5" />}
         >
           Tambah Kebijakan SLA
         </Button>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white shadow-xs overflow-hidden">
+      <div className="rounded-xl border border-zinc-200 bg-white shadow-xs overflow-hidden dark:border-zinc-800 dark:bg-black">
         {isLoading ? (
           <div className="flex h-48 items-center justify-center">
             <Spinner />
           </div>
         ) : policies.length === 0 ? (
-          <div className="py-12 text-center text-xs text-gray-400">
+          <div className="py-12 text-center text-xs text-zinc-400">
             Belum ada kebijakan SLA yang dikonfigurasi.
           </div>
         ) : (
           <Table>
-            <TableHeader className="bg-gray-50/75 border-b border-gray-200">
+            <TableHeader className="bg-zinc-50/50 border-b border-zinc-200 dark:bg-zinc-950/50 dark:border-zinc-800">
               <TableRow>
-                <TableHead className="text-xs font-semibold text-gray-600">Nama Kebijakan</TableHead>
-                <TableHead className="w-28 text-xs font-semibold text-gray-600">Prioritas</TableHead>
-                <TableHead className="w-36 text-xs font-semibold text-gray-600">Respons Pertama</TableHead>
-                <TableHead className="w-36 text-xs font-semibold text-gray-600">Resolusi</TableHead>
-                <TableHead className="w-32 text-xs font-semibold text-gray-600">Jam Operasional</TableHead>
-                <TableHead className="w-24 text-xs font-semibold text-gray-600">Status</TableHead>
+                <TableHead className="w-48 text-[11px] font-medium text-zinc-500">Nama Kebijakan</TableHead>
+                <TableHead className="w-28 text-[11px] font-medium text-zinc-500">Prioritas</TableHead>
+                <TableHead className="w-36 text-[11px] font-medium text-zinc-500">Departemen</TableHead>
+                <TableHead className="w-36 text-[11px] font-medium text-zinc-500">Target Respons</TableHead>
+                <TableHead className="w-36 text-[11px] font-medium text-zinc-500">Target Resolusi</TableHead>
+                <TableHead className="w-28 text-[11px] font-medium text-zinc-500">Jam Kerja</TableHead>
+                <TableHead className="w-24 text-[11px] font-medium text-zinc-500">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {policies.map((p) => (
-                <TableRow key={p.id} className="hover:bg-gray-50/80">
-                  <TableCell>
+                <TableRow key={p.id}>
+                  <TableCell className="font-medium text-xs text-zinc-900 dark:text-zinc-100">
                     <div>
-                      <p className="text-xs font-semibold text-gray-900">{p.name}</p>
-                      <p className="text-[11px] text-gray-500">{p.description || "—"}</p>
+                      <p>{p.name}</p>
+                      {p.description && (
+                        <p className="text-[11px] text-zinc-400 font-normal mt-0.5">{p.description}</p>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <PriorityBadge priority={p.priority} />
+                    {p.priority ? <PriorityBadge priority={p.priority} /> : <span className="text-zinc-400 text-xs">Semua</span>}
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-gray-700">
+                  <TableCell className="text-xs text-zinc-600 dark:text-zinc-400">
+                    {p.department?.name || "Semua"}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-zinc-900 dark:text-zinc-100">
                     {formatDuration(p.firstResponseMinutes)}
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-gray-700">
+                  <TableCell className="font-mono text-xs text-zinc-900 dark:text-zinc-100">
                     {formatDuration(p.resolutionMinutes)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={p.useBusinessHours ? "indigo" : "default"} className="text-[10px]">
-                      {p.useBusinessHours ? "Jam Kerja (Sen-Jum)" : "24/7 Non-Stop"}
-                    </Badge>
+                    <span className="text-xs text-zinc-500">
+                      {p.useBusinessHours ? "9-17 WIB" : "24/7"}
+                    </span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={p.isActive ? "success" : "error"} className="text-[10px]">
+                    <Badge variant={p.isActive ? "success" : "default"} dot className="text-[10px]">
                       {p.isActive ? "Aktif" : "Nonaktif"}
                     </Badge>
                   </TableCell>
@@ -175,73 +181,79 @@ export default function AdminSlaPage() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Create Policy Modal */}
       <Modal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        title="Tambah Kebijakan SLA"
-        description="Konfigurasi target waktu penanganan tiket"
+        title="Tambah Kebijakan SLA Baru"
+        description="Tetapkan target durasi waktu penanganan untuk setiap tingkat prioritas kendala"
       >
         <form onSubmit={handleCreatePolicy} className="space-y-3 pt-2">
           <Input
             label="Nama Kebijakan"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="Contoh: SLA Kritis 4 Jam"
+            placeholder="Contoh: SLA Server Down (Prioritas Kritis)"
             required
           />
-
-          <Select
-            label="Target Prioritas"
-            value={formData.priority}
-            onValueChange={(val: any) => setFormData({ ...formData, priority: val })}
-            options={[
-              { value: "critical", label: "Kritis" },
-              { value: "high", label: "Tinggi" },
-              { value: "medium", label: "Sedang" },
-              { value: "low", label: "Rendah" },
-            ]}
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Respons Pertama (menit)"
-              type="number"
-              value={formData.firstResponseMinutes}
-              onChange={(e) => setFormData({ ...formData, firstResponseMinutes: parseInt(e.target.value) || 0 })}
-              required
-            />
-            <Input
-              label="Resolusi Selesai (menit)"
-              type="number"
-              value={formData.resolutionMinutes}
-              onChange={(e) => setFormData({ ...formData, resolutionMinutes: parseInt(e.target.value) || 0 })}
-              required
-            />
-          </div>
 
           <Textarea
             label="Deskripsi"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Keterangan kebijakan SLA..."
+            placeholder="Keterangan kebijakan target waktu..."
             rows={2}
           />
 
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              type="checkbox"
-              id="use-business-hours"
-              checked={formData.useBusinessHours}
-              onChange={(e) => setFormData({ ...formData, useBusinessHours: e.target.checked })}
-              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          <div className="grid grid-cols-2 gap-3">
+            <Select
+              label="Tingkat Prioritas"
+              value={formData.priority}
+              onValueChange={(val: any) => setFormData({ ...formData, priority: val })}
+              options={[
+                { value: "critical", label: "Kritis" },
+                { value: "high", label: "Tinggi" },
+                { value: "medium", label: "Sedang" },
+                { value: "low", label: "Rendah" },
+              ]}
             />
-            <label htmlFor="use-business-hours" className="text-xs text-gray-700 cursor-pointer">
-              Hitung durasi hanya pada jam kerja operasional (09:00 - 17:00 Senin - Jumat)
-            </label>
+
+            {departments.length > 0 && (
+              <Select
+                label="Departemen"
+                value={formData.departmentId || "none"}
+                onValueChange={(val) => setFormData({ ...formData, departmentId: val === "none" ? "" : val })}
+                options={[
+                  { value: "none", label: "Semua Departemen" },
+                  ...departments.map((d) => ({ value: d.id, label: d.name })),
+                ]}
+              />
+            )}
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Batas Respons Awal (Menit)"
+              type="number"
+              min={1}
+              value={formData.firstResponseMinutes}
+              onChange={(e) => setFormData({ ...formData, firstResponseMinutes: Number(e.target.value) })}
+              helperText={`Setara dengan ${formatDuration(formData.firstResponseMinutes)}`}
+              required
+            />
+
+            <Input
+              label="Batas Resolusi (Menit)"
+              type="number"
+              min={1}
+              value={formData.resolutionMinutes}
+              onChange={(e) => setFormData({ ...formData, resolutionMinutes: Number(e.target.value) })}
+              helperText={`Setara dengan ${formatDuration(formData.resolutionMinutes)}`}
+              required
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
             <Button
               type="button"
               variant="outline"

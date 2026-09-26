@@ -22,13 +22,11 @@ import {
   Building2,
   FolderOpen,
   Timer,
-  BarChart3,
   ScrollText,
   Settings,
   LogOut,
   User,
   ChevronDown,
-  HeadphonesIcon,
   ClipboardList,
   Shield,
   Menu,
@@ -99,6 +97,19 @@ function NavLink({
   );
 }
 
+// Vercel Triangle Icon
+function VercelLogo({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 76 65"
+      fill="currentColor"
+      className={cn("h-4 w-4", className)}
+    >
+      <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" />
+    </svg>
+  );
+}
+
 export function Sidebar() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role as string | undefined;
@@ -114,17 +125,22 @@ export function Sidebar() {
   });
 
   const SidebarContent = ({ onLinkClick }: { onLinkClick?: () => void }) => (
-    <div className="flex h-full flex-col">
-      {/* Logo */}
-      <div className="flex h-12 items-center gap-2 border-b border-gray-200 px-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-indigo-600">
-          <HeadphonesIcon className="h-4 w-4 text-white" />
+    <div className="flex h-full flex-col bg-white dark:bg-black">
+      {/* Logo Header (Vercel Style) */}
+      <div className="flex h-13 items-center gap-2.5 border-b border-zinc-200 px-4 dark:border-zinc-800">
+        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-black text-white dark:bg-white dark:text-black shadow-xs">
+          <VercelLogo className="h-3.5 w-3.5" />
         </div>
-        <span className="font-semibold text-gray-900">HelpDesk</span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="font-semibold text-xs tracking-tight text-zinc-900 dark:text-zinc-100">HelpDesk</span>
+          <span className="text-[10px] font-mono rounded bg-zinc-100 px-1 py-0.2 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+            PRO
+          </span>
+        </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto p-2.5 space-y-0.5">
         <div className="space-y-0.5">
           {filteredMain.map((item) => (
             <NavLink key={item.href} item={item} onClick={onLinkClick} />
@@ -132,8 +148,8 @@ export function Sidebar() {
         </div>
 
         {isAdmin && (
-          <div className="pt-4">
-            <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+          <div className="pt-5">
+            <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
               Admin
             </p>
             <div className="space-y-0.5">
@@ -146,27 +162,28 @@ export function Sidebar() {
       </nav>
 
       {/* User section */}
-      <div className="border-t border-gray-200 p-2">
+      <div className="border-t border-zinc-200 p-2 dark:border-zinc-800">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-gray-100 transition-colors">
+            <button className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors">
               <Avatar
                 name={session?.user?.name || "User"}
                 src={session?.user?.image}
                 size="sm"
+                className="border border-zinc-200 dark:border-zinc-800"
               />
               <div className="flex-1 min-w-0">
-                <p className="truncate text-xs font-medium text-gray-900">
+                <p className="truncate text-xs font-medium text-zinc-900 dark:text-zinc-100">
                   {session?.user?.name}
                 </p>
-                <p className="truncate text-[10px] text-gray-500 capitalize">
+                <p className="truncate text-[10px] text-zinc-500 capitalize">
                   {roleLabel}
                 </p>
               </div>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-44">
+          <DropdownMenuContent align="start" className="w-48">
             <DropdownMenuLabel>
               {session?.user?.email}
             </DropdownMenuLabel>
@@ -179,7 +196,7 @@ export function Sidebar() {
             </DropdownMenuItem>
             {isAdmin && (
               <DropdownMenuItem asChild>
-                <Link href="/admin" className="flex items-center gap-2">
+                <Link href="/admin/users" className="flex items-center gap-2">
                   <Shield className="h-3.5 w-3.5" />
                   Panel Admin
                 </Link>
@@ -201,39 +218,34 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <aside className="hidden w-52 shrink-0 flex-col border-r border-gray-200 bg-white lg:flex h-screen sticky top-0">
+      {/* Mobile toggle button */}
+      <div className="fixed bottom-4 right-4 z-40 lg:hidden">
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-black text-white shadow-lg dark:bg-white dark:text-black"
+          aria-label="Menu"
+        >
+          {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+        </button>
+      </div>
+
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex w-56 shrink-0 flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
         <SidebarContent />
       </aside>
 
-      {/* Mobile hamburger */}
-      <div className="lg:hidden">
-        <button
-          onClick={() => setMobileOpen(true)}
-          className="fixed left-3 top-3 z-40 flex h-8 w-8 items-center justify-center rounded border border-gray-200 bg-white shadow-sm"
-        >
-          <Menu className="h-4 w-4 text-gray-600" />
-        </button>
-
-        {/* Mobile overlay */}
-        {mobileOpen && (
-          <div className="fixed inset-0 z-50 flex">
-            <div
-              className="fixed inset-0 bg-black/30"
-              onClick={() => setMobileOpen(false)}
-            />
-            <aside className="relative z-50 flex w-52 flex-col bg-white shadow-xl">
-              <button
-                onClick={() => setMobileOpen(false)}
-                className="absolute right-2 top-2 rounded p-1 text-gray-400 hover:bg-gray-100"
-              >
-                <X className="h-4 w-4" />
-              </button>
-              <SidebarContent onLinkClick={() => setMobileOpen(false)} />
-            </aside>
+      {/* Mobile Drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+            onClick={() => setMobileOpen(false)}
+          />
+          <div className="relative flex w-64 flex-col bg-white dark:bg-black z-10 border-r border-zinc-200 dark:border-zinc-800">
+            <SidebarContent onLinkClick={() => setMobileOpen(false)} />
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 }

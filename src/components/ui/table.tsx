@@ -12,7 +12,7 @@ function Table({
   return (
     <div className="w-full overflow-x-auto">
       <table
-        className={cn("w-full caption-bottom text-sm", className)}
+        className={cn("w-full caption-bottom text-xs", className)}
         {...props}
       >
         {children}
@@ -29,7 +29,7 @@ function TableHead({
   ...props
 }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <thead className={cn("border-b border-gray-200", className)} {...props}>
+    <thead className={cn("border-b border-zinc-200 bg-zinc-50/50 dark:border-zinc-800 dark:bg-zinc-950/50", className)} {...props}>
       {children}
     </thead>
   );
@@ -43,7 +43,7 @@ function TableBody({
   ...props
 }: React.HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <tbody className={cn("divide-y divide-gray-100", className)} {...props}>
+    <tbody className={cn("divide-y divide-zinc-100 dark:divide-zinc-800/80", className)} {...props}>
       {children}
     </tbody>
   );
@@ -59,7 +59,7 @@ function TableRow({
   return (
     <tr
       className={cn(
-        "transition-colors hover:bg-gray-50",
+        "transition-colors hover:bg-zinc-50/80 dark:hover:bg-zinc-900/50",
         className
       )}
       {...props}
@@ -89,8 +89,8 @@ function TableHeader({
   return (
     <th
       className={cn(
-        "h-9 px-3 text-left align-middle text-xs font-medium text-gray-500 first:pl-4",
-        sortable && "cursor-pointer select-none hover:text-gray-900",
+        "h-8 px-3 text-left align-middle text-[11px] font-medium text-zinc-500 dark:text-zinc-400 first:pl-4 last:pr-4",
+        sortable && "cursor-pointer select-none hover:text-zinc-900 dark:hover:text-zinc-100",
         className
       )}
       onClick={sortable ? onSort : undefined}
@@ -99,13 +99,13 @@ function TableHeader({
       <div className="flex items-center gap-1">
         {children}
         {sortable && (
-          <span className="shrink-0">
+          <span className="text-zinc-400">
             {sortDirection === "asc" ? (
-              <ChevronUp className="h-3 w-3" />
+              <ChevronUp className="h-3 w-3 text-zinc-900 dark:text-zinc-100" />
             ) : sortDirection === "desc" ? (
-              <ChevronDown className="h-3 w-3" />
+              <ChevronDown className="h-3 w-3 text-zinc-900 dark:text-zinc-100" />
             ) : (
-              <ChevronsUpDown className="h-3 w-3 text-gray-300" />
+              <ChevronsUpDown className="h-3 w-3 opacity-40" />
             )}
           </span>
         )}
@@ -124,7 +124,7 @@ function TableCell({
   return (
     <td
       className={cn(
-        "px-3 py-2.5 align-middle text-sm text-gray-700 first:pl-4",
+        "py-2.5 px-3 align-middle text-xs text-zinc-700 dark:text-zinc-300 first:pl-4 last:pr-4",
         className
       )}
       {...props}
@@ -134,21 +134,53 @@ function TableCell({
   );
 }
 
-// ─── Table Foot ───────────────────────────────────────────────────────────────
+// ─── Table Caption ────────────────────────────────────────────────────────────
 
-function TableFoot({
+function TableCaption({
   className,
   children,
   ...props
-}: React.HTMLAttributes<HTMLTableSectionElement>) {
+}: React.HTMLAttributes<HTMLTableCaptionElement>) {
   return (
-    <tfoot
-      className={cn("border-t border-gray-200 bg-gray-50 text-xs text-gray-500", className)}
+    <caption
+      className={cn("mt-4 text-xs text-zinc-400", className)}
       {...props}
     >
       {children}
-    </tfoot>
+    </caption>
   );
 }
 
-export { Table, TableHead, TableBody, TableRow, TableHeader, TableCell, TableFoot };
+// ─── Table Empty ──────────────────────────────────────────────────────────────
+
+function TableEmpty({
+  colSpan,
+  message = "Tidak ada data ditemukan",
+  children,
+}: {
+  colSpan: number;
+  message?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <tr>
+      <td
+        colSpan={colSpan}
+        className="py-12 text-center text-xs text-zinc-400 dark:text-zinc-500"
+      >
+        {children || message}
+      </td>
+    </tr>
+  );
+}
+
+export {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableHeader,
+  TableCell,
+  TableCaption,
+  TableEmpty,
+};

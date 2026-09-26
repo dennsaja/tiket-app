@@ -72,16 +72,16 @@ function Pagination({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center justify-between gap-3 px-1 py-2",
+        "flex flex-wrap items-center justify-between gap-3 px-1 py-1",
         className
       )}
     >
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
         Menampilkan{" "}
-        <span className="font-medium text-gray-700">
+        <span className="font-semibold text-zinc-900 dark:text-zinc-100">
           {start}–{end}
         </span>{" "}
-        dari <span className="font-medium text-gray-700">{total}</span> data
+        dari <span className="font-semibold text-zinc-900 dark:text-zinc-100">{total}</span> data
       </p>
 
       <div className="flex items-center gap-2">
@@ -109,19 +109,19 @@ function Pagination({
             r === "..." ? (
               <span
                 key={`ellipsis-${i}`}
-                className="flex h-7 w-7 items-center justify-center text-gray-400"
+                className="flex h-7 w-7 items-center justify-center text-zinc-400"
               >
-                <MoreHorizontal className="h-3.5 w-3.5" />
+                <MoreHorizontal className="h-3 w-3" />
               </span>
             ) : (
               <button
                 key={r}
                 onClick={() => onPageChange?.(r as number)}
                 className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded text-xs font-medium transition-colors cursor-pointer",
+                  "flex h-7 w-7 items-center justify-center rounded-md text-xs font-mono font-medium transition-colors cursor-pointer",
                   r === page
-                    ? "bg-indigo-600 text-white"
-                    : "text-gray-600 hover:bg-gray-100"
+                    ? "bg-black text-white dark:bg-white dark:text-black font-semibold shadow-xs"
+                    : "text-zinc-600 hover:bg-zinc-100 hover:text-black dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
                 )}
               >
                 {r}

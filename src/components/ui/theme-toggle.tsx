@@ -37,14 +37,13 @@ export function ThemeToggle() {
     localStorage.setItem(THEME_KEY, next);
   };
 
-  // Avoid hydration mismatch — render nothing until mounted
   if (!mounted) {
     return (
       <button
-        className="flex h-7 w-7 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+        className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200/80 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors dark:border-zinc-800 dark:hover:bg-zinc-900"
         aria-label="Toggle theme"
       >
-        <Sun className="h-4 w-4" />
+        <Sun className="h-3.5 w-3.5" />
       </button>
     );
   }
@@ -52,14 +51,14 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      className="flex h-7 w-7 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-      aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-      title={theme === "light" ? "Dark mode" : "Light mode"}
+      className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200/80 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 transition-colors dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
+      aria-label={theme === "light" ? "Ganti ke mode gelap" : "Ganti ke mode terang"}
+      title={theme === "light" ? "Mode Gelap" : "Mode Terang"}
     >
       {theme === "light" ? (
-        <Moon className="h-4 w-4" />
+        <Moon className="h-3.5 w-3.5" />
       ) : (
-        <Sun className="h-4 w-4 text-yellow-400" />
+        <Sun className="h-3.5 w-3.5 text-zinc-100" />
       )}
     </button>
   );

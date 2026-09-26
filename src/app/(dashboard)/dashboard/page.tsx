@@ -116,13 +116,13 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-4">
+      {/* Top Banner (Vercel Style) */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-200 pb-5 dark:border-zinc-800">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">
+          <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
             Selamat datang kembali, {user?.name || "User"}
           </h1>
-          <p className="text-xs text-gray-500">
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
             {userRole === "admin"
               ? "Ringkasan Sistem & Operasional Helpdesk"
               : userRole === "agent"
@@ -132,104 +132,108 @@ export default async function DashboardPage() {
         </div>
         <div className="flex items-center gap-2">
           <Link href="/tickets/new">
-            <Button size="sm" leftIcon={<Plus className="h-4 w-4" />}>
+            <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />}>
               Buat Tiket Baru
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards (Vercel Style) */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Tiket"
           value={total}
-          icon={<Ticket className="h-4 w-4 text-indigo-600" />}
+          icon={<Ticket className="h-4 w-4 text-zinc-900 dark:text-zinc-100" />}
           description="Seluruh tiket masuk"
+          colorClass="bg-zinc-100 dark:bg-zinc-800"
         />
         <StatCard
           title="Baru / Dikerjakan"
           value={openCount + inProgressCount}
-          icon={<Clock className="h-4 w-4 text-amber-600" />}
+          icon={<Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />}
           description={`${openCount} baru, ${inProgressCount} proses`}
+          colorClass="bg-amber-50 dark:bg-amber-950/40"
         />
         <StatCard
           title="SLA Terlewat"
           value={Number(overdueCount)}
-          icon={<AlertTriangle className="h-4 w-4 text-red-600" />}
-          description="Perlu penanganan"
+          icon={<AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />}
+          description="Perlu penanganan segera"
+          colorClass="bg-red-50 dark:bg-red-950/40"
         />
         <StatCard
           title="Selesai & Ditutup"
           value={resolvedCount}
-          icon={<CheckCircle2 className="h-4 w-4 text-green-600" />}
+          icon={<CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
           description="Berhasil diselesaikan"
+          colorClass="bg-emerald-50 dark:bg-emerald-950/40"
         />
       </div>
 
       {/* Quick Agent Banner */}
       {(userRole === "agent" || userRole === "admin") && (
-        <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-indigo-600 text-white shadow-xs">
-              <UserCheck className="h-5 w-5" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-black text-white dark:bg-white dark:text-black shadow-xs shrink-0">
+              <UserCheck className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-indigo-950">
+              <h3 className="text-xs font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
                 Anda memiliki {assignedToMeCount} tiket aktif yang ditugaskan kepada Anda
               </h3>
-              <p className="text-xs text-indigo-700">
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                 Periksa antrean tiket untuk memenuhi target SLA respons &amp; resolusi
               </p>
             </div>
           </div>
           <Link href={`/tickets?assigneeId=${userId}`}>
-            <Button size="sm" variant="outline" className="bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50">
+            <Button size="sm" variant="outline" className="text-xs shrink-0">
               Lihat Antrean Saya
             </Button>
           </Link>
         </div>
       )}
 
-      {/* Recent Tickets Table */}
-      <div className="rounded-lg border border-gray-200 bg-white shadow-xs">
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+      {/* Recent Tickets Table (Vercel Style) */}
+      <div className="rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black shadow-xs overflow-hidden">
+        <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 bg-zinc-50/40 dark:border-zinc-800 dark:bg-zinc-950/40">
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">Tiket Terbaru</h2>
-            <p className="text-xs text-gray-500">Daftar tiket bantuan dan aktivitas terkini</p>
+            <h2 className="text-xs font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Tiket Terbaru</h2>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Daftar tiket bantuan dan aktivitas terkini</p>
           </div>
           <Link
             href="/tickets"
-            className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+            className="flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-white transition-colors"
           >
             <span>Lihat semua</span>
-            <ArrowRight className="h-3.5 w-3.5" />
+            <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
 
         {recentTickets.length === 0 ? (
-          <div className="py-12 text-center text-xs text-gray-400">
+          <div className="py-12 text-center text-xs text-zinc-400 dark:text-zinc-500">
             Belum ada tiket ditemukan. Buat tiket pertama Anda untuk memulai.
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
             {recentTickets.map((t) => (
               <div
                 key={t.id}
-                className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-between px-4 py-3 hover:bg-zinc-50/80 dark:hover:bg-zinc-900/50 transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="font-mono text-xs font-medium text-gray-400">
+                  <span className="font-mono text-xs font-medium text-zinc-400">
                     #{t.ticketNumber}
                   </span>
                   <div className="min-w-0">
                     <Link
                       href={`/tickets/${t.id}`}
-                      className="text-xs font-medium text-gray-900 hover:text-indigo-600 truncate block max-w-md"
+                      className="text-xs font-medium text-zinc-900 hover:text-black dark:text-zinc-100 dark:hover:text-white truncate block max-w-md"
                     >
                       {t.title}
                     </Link>
-                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-400">
+                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-zinc-400">
                       <span>{t.requester?.name || "Pelapor"}</span>
                       {t.department && (
                         <>
@@ -238,7 +242,7 @@ export default async function DashboardPage() {
                         </>
                       )}
                       <span>•</span>
-                      <span>{formatRelativeTime(t.createdAt)}</span>
+                      <span className="font-mono">{formatRelativeTime(t.createdAt)}</span>
                     </div>
                   </div>
                 </div>
