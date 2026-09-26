@@ -432,9 +432,90 @@ export default function AdminUsersPage() {
         open={editModalOpen}
         onOpenChange={setEditModalOpen}
         title="Edit Data Pengguna"
-        description="Perbarui informasi peran atau departemen akun"
+        description="Perbarui foto profil, informasi peran, atau departemen akun"
       >
-        <form onSubmit={handleUpdateUser} className="space-y-3 pt-2">
+        <form onSubmit={handleUpdateUser} className="space-y-4 pt-2">
+          {/* Avatar Section */}
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+            <Avatar
+              name={selectedUser?.name || "User"}
+              src={selectedUser?.avatarUrl}
+              size="lg"
+              className="h-12 w-12 text-sm border border-zinc-200 dark:border-zinc-800"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                Foto Profil Pengguna
+              </p>
+              <p className="text-[10px] text-zinc-500">JPG, PNG, WEBP (Maks 5MB)</p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <input
+                id="edit-user-avatar"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !selectedUser) return;
+                  if (file.size > 5 * 1024 * 1024) {
+                    toast.error("Ukuran foto maksimal 5MB");
+                    return;
+                  }
+                  const formData = new FormData();
+                  formData.append("file", file);
+                  formData.append("userId", selectedUser.id);
+                  try {
+                    const res = await fetch("/api/users/avatar", {
+                      method: "POST",
+                      body: formData,
+                    });
+                    if (!res.ok) throw new Error("Gagal mengunggah foto profil");
+                    const data = await res.json();
+                    setSelectedUser((prev: any) => ({ ...prev, avatarUrl: data.avatarUrl }));
+                    toast.success("Foto profil pengguna berhasil diperbarui!");
+                    fetchUsers();
+                  } catch (err: any) {
+                    toast.error(err.message || "Gagal mengunggah foto");
+                  }
+                }}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById("edit-user-avatar")?.click()}
+                className="text-xs h-7 px-2"
+              >
+                Ganti Foto
+              </Button>
+              {selectedUser?.avatarUrl && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    if (!selectedUser) return;
+                    try {
+                      const res = await fetch(`/api/users/avatar?userId=${selectedUser.id}`, {
+                        method: "DELETE",
+                      });
+                      if (!res.ok) throw new Error("Gagal menghapus foto profil");
+                      setSelectedUser((prev: any) => ({ ...prev, avatarUrl: null }));
+                      toast.success("Foto profil dihapus");
+                      fetchUsers();
+                    } catch (err: any) {
+                      toast.error(err.message || "Gagal menghapus foto");
+                    }
+                  }}
+                  className="text-xs h-7 px-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+                >
+                  Hapus
+                </Button>
+              )}
+            </div>
+          </div>
+
           <Input
             label="Nama Lengkap"
             value={editFormData.name}
