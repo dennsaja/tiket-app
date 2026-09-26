@@ -4,7 +4,7 @@ import { errorResponse } from "@/lib/api/helpers";
 import { createAuditLog, getClientIp } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { exec } from "child_process";
+import { spawn, exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import fs from "fs";
@@ -53,10 +53,66 @@ function getGitCommand(): string {
   return "git";
 }
 
-// Helper to execute command with timeout and return stdout/stderr
+// Quick async exec helper for queries
 async function runCmd(cmd: string, cwd: string, timeoutMs = 60000): Promise<{ stdout: string; stderr: string }> {
   const env = getExecEnv();
   return execAsync(cmd, { cwd, env, timeout: timeoutMs });
+}
+
+// Streaming spawn helper that yields output lines in realtime
+function spawnStreamingCmd(
+  cmdString: string,
+  cwd: string,
+  onLine: (line: string, isErr?: boolean) => void,
+  timeoutMs = 300000
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const isWindows = process.platform === "win32";
+    const shell = isWindows ? (process.env.ComSpec || "cmd.exe") : "/bin/bash";
+    const shellArgs = isWindows ? ["/d", "/s", "/c", cmdString] : ["-c", cmdString];
+
+    let fullStdout = "";
+    let fullStderr = "";
+
+    const proc = spawn(shell, shellArgs, {
+      cwd,
+      env: getExecEnv(),
+      windowsVerbatimArguments: isWindows,
+    });
+
+    const timer = setTimeout(() => {
+      proc.kill("SIGKILL");
+      reject(new Error(`Command timed out after ${timeoutMs / 1000}s: ${cmdString}`));
+    }, timeoutMs);
+
+    proc.stdout.on("data", (chunk: Buffer) => {
+      const str = chunk.toString();
+      fullStdout += str;
+      const lines = str.split(/\r?\n/);
+      for (const line of lines) {
+        if (line.trim().length > 0) onLine(line, false);
+      }
+    });
+
+    proc.stderr.on("data", (chunk: Buffer) => {
+      const str = chunk.toString();
+      fullStderr += str;
+      const lines = str.split(/\r?\n/);
+      for (const line of lines) {
+        if (line.trim().length > 0) onLine(line, true);
+      }
+    });
+
+    proc.on("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+
+    proc.on("close", (code) => {
+      clearTimeout(timer);
+      resolve({ exitCode: code ?? 0, stdout: fullStdout, stderr: fullStderr });
+    });
+  });
 }
 
 // GET /api/admin/system/update — Check for updates from GitHub
@@ -157,7 +213,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/admin/system/update — Perform system update
+// POST /api/admin/system/update — Real-time Streaming System Update Execution
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return errorResponse("Unauthorized", 401);
@@ -167,154 +223,296 @@ export async function POST(req: NextRequest) {
     return errorResponse("Forbidden: Hanya NOC Administrator yang dapat melakukan pembaruan sistem", 403);
   }
 
+  const clientIp = getClientIp(req);
   const git = getGitCommand();
   const cwd = process.cwd();
-  const logs: string[] = [];
   const startTime = Date.now();
 
-  const addLog = (prefix: string, msg: string) => {
-    const lines = msg.split(/\r?\n/).filter((l) => l.trim().length > 0);
-    lines.forEach((line) => {
-      logs.push(`[${prefix}] ${line}`);
-    });
-  };
+  // Create real-time ReadableStream response
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (data: {
+        type: "log" | "status" | "complete" | "error" | "restart";
+        prefix?: string;
+        message?: string;
+        progress?: number;
+        newCommit?: string;
+        durationSec?: number;
+        error?: string;
+      }) => {
+        try {
+          const chunk = encoder.encode(JSON.stringify(data) + "\n");
+          controller.enqueue(chunk);
+        } catch {}
+      };
 
-  try {
-    addLog("INIT", `Memulai sinkronisasi pembaruan HelpDesk...`);
-    addLog("INIT", `Direktori aplikasi: ${cwd}`);
-    addLog("INIT", `Target repositori: https://github.com/${GITHUB_REPO}.git (branch: ${GITHUB_BRANCH})`);
+      const log = (prefix: string, message: string) => {
+        send({ type: "log", prefix, message });
+      };
 
-    // Step 0: Fix Git permissions & Safe Directory
-    try {
-      await runCmd(`${git} config --global --add safe.directory "*"`, cwd, 5000);
-      await runCmd(`${git} config --global --add safe.directory "${cwd.replace(/\\/g, "/")}"`, cwd, 5000);
-      addLog("INIT", "Konfigurasi safe.directory Git siap.");
-    } catch (e: any) {
-      addLog("WARN", `Konfigurasi safe.directory: ${e.message}`);
-    }
-
-    // Step 1: Ensure .git directory exists
-    const gitDir = path.join(cwd, ".git");
-    if (!fs.existsSync(gitDir)) {
-      addLog("GIT", "Direktori .git belum ada. Melakukan inisialisasi git repository baru...");
-      const { stdout: initOut, stderr: initErr } = await runCmd(`${git} init`, cwd, 10000);
-      if (initOut) addLog("GIT", initOut);
-      if (initErr) addLog("GIT", initErr);
-    }
-
-    // Step 2: Configure remote origin
-    try {
-      await runCmd(`${git} remote set-url origin https://github.com/${GITHUB_REPO}.git`, cwd, 5000);
-      addLog("GIT", `Remote origin diatur ke https://github.com/${GITHUB_REPO}.git`);
-    } catch {
       try {
-        await runCmd(`${git} remote add origin https://github.com/${GITHUB_REPO}.git`, cwd, 5000);
-        addLog("GIT", `Remote origin ditambahkan: https://github.com/${GITHUB_REPO}.git`);
-      } catch (remErr: any) {
-        addLog("GIT", `Info remote: ${remErr.message}`);
+        log("INIT", "=========================================================");
+        log("INIT", "  MEMULAI PROSES PEMBARUAN SISTEM HELPDESK (REALTIME)");
+        log("INIT", "=========================================================");
+        log("INIT", `Direktori Kerja: ${cwd}`);
+        log("INIT", `Target Repositori: https://github.com/${GITHUB_REPO}.git (branch: ${GITHUB_BRANCH})`);
+
+        // Step 0: Git Safe Directory
+        log("GIT", "Mengonfigurasi Git safe.directory...");
+        try {
+          await runCmd(`${git} config --global --add safe.directory "*"`, cwd, 5000);
+          await runCmd(`${git} config --global --add safe.directory "${cwd.replace(/\\/g, "/")}"`, cwd, 5000);
+          log("GIT", "Safe directory berhasil dikonfigurasi.");
+        } catch (e: any) {
+          log("GIT_WARN", `Konfigurasi safe.directory: ${e.message}`);
+        }
+
+        // Step 1: Ensure .git directory exists
+        const gitDir = path.join(cwd, ".git");
+        if (!fs.existsSync(gitDir)) {
+          log("GIT", "Direktori .git belum ditemukan. Melakukan inisialisasi Git repository...");
+          await spawnStreamingCmd(`${git} init`, cwd, (line) => log("GIT", line));
+        }
+
+        // Step 2: Configure remote origin
+        try {
+          await runCmd(`${git} remote set-url origin https://github.com/${GITHUB_REPO}.git`, cwd, 5000);
+          log("GIT", `Remote origin diatur ke: https://github.com/${GITHUB_REPO}.git`);
+        } catch {
+          try {
+            await runCmd(`${git} remote add origin https://github.com/${GITHUB_REPO}.git`, cwd, 5000);
+            log("GIT", `Remote origin ditambahkan: https://github.com/${GITHUB_REPO}.git`);
+          } catch {}
+        }
+
+        // Step 3: Fetch latest commits from origin
+        log("GIT", `Mengambil perubahan terbaru dari origin/${GITHUB_BRANCH}...`);
+        send({ type: "status", message: "Mengunduh kode terbaru dari GitHub...", progress: 20 });
+        const fetchRes = await spawnStreamingCmd(
+          `${git} fetch origin ${GITHUB_BRANCH}`,
+          cwd,
+          (line) => log("GIT_FETCH", line),
+          90000
+        );
+        if (fetchRes.exitCode !== 0) {
+          throw new Error(`Git fetch gagal dengan exit code ${fetchRes.exitCode}`);
+        }
+
+        // Step 4: Reset hard to origin/branch
+        log("GIT", `Menyesuaikan kode lokal dengan origin/${GITHUB_BRANCH}...`);
+        send({ type: "status", message: "Menerapkan commit terbaru...", progress: 35 });
+        const resetRes = await spawnStreamingCmd(
+          `${git} reset --hard origin/${GITHUB_BRANCH}`,
+          cwd,
+          (line) => log("GIT_RESET", line),
+          60000
+        );
+        if (resetRes.exitCode !== 0) {
+          throw new Error(`Git reset gagal dengan exit code ${resetRes.exitCode}`);
+        }
+
+        // Step 5: Read active commit
+        let newCommit = "unknown";
+        try {
+          const { stdout: shaOut } = await runCmd(`${git} rev-parse --short HEAD`, cwd, 5000);
+          newCommit = shaOut.trim();
+          log("GIT", `Commit aktif saat ini: #${newCommit}`);
+        } catch {}
+
+        // Step 6: Database Schema & Enum Sync
+        log("DB", "Sinkronisasi tipe enum dan skema database PostgreSQL...");
+        send({ type: "status", message: "Sinkronisasi database...", progress: 45 });
+        try {
+          const { Pool } = await import("pg");
+          const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+          await pool.query(`
+            DO $$
+            BEGIN
+              ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'noc';
+              ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'owner';
+            EXCEPTION
+              WHEN duplicate_object THEN null;
+            END $$;
+          `);
+          await pool.end();
+          log("DB", "Tipe enum role (noc, owner, admin, agent, user) terverifikasi.");
+        } catch (dbErr: any) {
+          log("DB_WARN", `Sinkronisasi enum: ${dbErr.message || "Lewati enum sync"}`);
+        }
+
+        // Run Drizzle Migrations if exists
+        try {
+          const migrationDir = path.join(cwd, "drizzle");
+          if (fs.existsSync(migrationDir)) {
+            log("DB", "Menjalankan migrasi Drizzle dari folder /drizzle...");
+            await migrate(db, { migrationsFolder: migrationDir });
+            log("DB", "Migrasi database Drizzle selesai.");
+          }
+        } catch (migErr: any) {
+          log("DB_WARN", `Pemberitahuan migrasi: ${migErr.message}`);
+        }
+
+        // Step 7: Dynamic Update Hooks & Custom Commands Support
+        // Supports: update-hooks.json, update.json, or scripts/update-hook.sh
+        send({ type: "status", message: "Memeriksa custom hook pembaruan...", progress: 55 });
+        
+        let customCommands: string[] = [];
+        const hookJsonPaths = [
+          path.join(cwd, "update-hooks.json"),
+          path.join(cwd, "update.json"),
+          path.join(cwd, ".update-commands.json"),
+        ];
+
+        for (const hookPath of hookJsonPaths) {
+          if (fs.existsSync(hookPath)) {
+            try {
+              const fileContent = fs.readFileSync(hookPath, "utf-8");
+              const parsed = JSON.parse(fileContent);
+              if (Array.isArray(parsed.commands)) {
+                customCommands = parsed.commands;
+                log("HOOK", `Ditemukan ${customCommands.length} perintah kustom dari ${path.basename(hookPath)}`);
+              } else if (Array.isArray(parsed.preBuildCommands)) {
+                customCommands = parsed.preBuildCommands;
+                log("HOOK", `Ditemukan ${customCommands.length} perintah pre-build dari ${path.basename(hookPath)}`);
+              }
+              break;
+            } catch (hErr: any) {
+              log("HOOK_WARN", `Gagal membaca ${path.basename(hookPath)}: ${hErr.message}`);
+            }
+          }
+        }
+
+        // Execute custom commands if found
+        if (customCommands.length > 0) {
+          for (const cmd of customCommands) {
+            log("HOOK_EXEC", `Menjalankan perintah kustom: ${cmd}`);
+            const hookRes = await spawnStreamingCmd(cmd, cwd, (line) => log("HOOK_OUTPUT", line), 180000);
+            if (hookRes.exitCode !== 0) {
+              log("HOOK_WARN", `Perintah "${cmd}" selesai dengan exit code ${hookRes.exitCode}`);
+            }
+          }
+        }
+
+        // Execute bash script hook if present (scripts/update-hook.sh or scripts/post-update.sh)
+        const hookScriptPaths = [
+          path.join(cwd, "scripts", "update-hook.sh"),
+          path.join(cwd, "scripts", "post-update.sh"),
+        ];
+
+        for (const scriptPath of hookScriptPaths) {
+          if (fs.existsSync(scriptPath)) {
+            log("HOOK", `Menjalankan script hook: ${path.relative(cwd, scriptPath)}`);
+            const scriptRes = await spawnStreamingCmd(
+              `bash "${scriptPath}"`,
+              cwd,
+              (line) => log("SCRIPT_HOOK", line),
+              180000
+            );
+            if (scriptRes.exitCode !== 0) {
+              log("HOOK_WARN", `Script hook selesai dengan exit code ${scriptRes.exitCode}`);
+            }
+            break;
+          }
+        }
+
+        // Step 8: Next.js Production Build
+        log("BUILD", "Memulai kompilasi Next.js (npm run build)...");
+        send({ type: "status", message: "Mengompilasi Next.js bundle...", progress: 70 });
+
+        const buildRes = await spawnStreamingCmd(
+          "npm run build",
+          cwd,
+          (line) => log("BUILD", line),
+          300000 // 5 minutes max
+        );
+
+        if (buildRes.exitCode !== 0) {
+          log("BUILD_ERR", `Kompilasi Next.js gagal dengan exit code ${buildRes.exitCode}`);
+          throw new Error("Gagal mengompilasi Next.js (npm run build). Periksa error di atas.");
+        }
+
+        log("BUILD", "Kompilasi Next.js berhasil 100%!");
+        send({ type: "status", message: "Pembaruan berhasil diterapkan!", progress: 100 });
+
+        const durationSec = Math.round((Date.now() - startTime) / 1000);
+        log("SUCCESS", `=========================================================`);
+        log("SUCCESS", `  PEMBARUAN BERHASIL SELESAI DALAM ${durationSec} DETIK!`);
+        log("SUCCESS", `  Versi Aktif: #${newCommit}`);
+        log("SUCCESS", `=========================================================`);
+
+        // Create Audit Log
+        if (session?.user?.id && session?.user?.email) {
+          await createAuditLog({
+            actorId: session.user.id,
+            actorEmail: session.user.email,
+            action: "settings_updated",
+            targetType: "system",
+            targetId: "update",
+            metadata: { action: "system_updated_from_github", newCommit, repository: GITHUB_REPO, durationSec },
+            ipAddress: clientIp,
+          }).catch(() => {});
+        }
+
+        // Step 9: Automatic Service Restart Trigger
+        log("RESTART", "Memicu restart service otomatis agar aplikasi berjalan dengan kode baru...");
+        send({
+          type: "restart",
+          message: "Service sedang di-restart otomatis. Halaman akan dimuat ulang...",
+        });
+
+        // Trigger detached background restart for systemd / PM2
+        try {
+          if (process.platform === "linux") {
+            const restartCmd = "sleep 3 && (systemctl restart helpdesk 2>/dev/null || pm2 restart helpdesk 2>/dev/null || pm2 reload all 2>/dev/null || kill -SIGUSR2 1 2>/dev/null || true)";
+            const restartProc = spawn("sh", ["-c", restartCmd], {
+              detached: true,
+              stdio: "ignore",
+            });
+            restartProc.unref();
+            log("RESTART", "Sinyal restart service systemd/PM2 terkirim.");
+          }
+        } catch (rErr: any) {
+          log("RESTART_WARN", `Sinyal restart: ${rErr.message}`);
+        }
+
+        // Complete the stream
+        send({
+          type: "complete",
+          newCommit,
+          durationSec,
+          message: `Sistem berhasil diperbarui ke versi #${newCommit}!`,
+        });
+
+        // Optional graceful exit to let systemd restart on exit if configured
+        setTimeout(() => {
+          if (process.env.NODE_ENV === "production") {
+            process.exit(0);
+          }
+        }, 4000);
+
+      } catch (error: any) {
+        const durationSec = Math.round((Date.now() - startTime) / 1000);
+        log("FAILED", `ERROR: ${error.message || "Terjadi kesalahan internal saat pembaruan"}`);
+        console.error("[SystemUpdate] Update failed:", error);
+
+        send({
+          type: "error",
+          error: error.message || "Gagal memperbarui aplikasi",
+          durationSec,
+        });
+      } finally {
+        controller.close();
       }
-    }
+    },
+  });
 
-    // Step 3: Fetch latest commits from origin
-    addLog("GIT", `Menjalankan: git fetch origin ${GITHUB_BRANCH}...`);
-    try {
-      const { stdout: fetchOut, stderr: fetchErr } = await runCmd(
-        `${git} fetch origin ${GITHUB_BRANCH}`,
-        cwd,
-        60000
-      );
-      if (fetchOut) addLog("GIT", fetchOut);
-      if (fetchErr) addLog("GIT", fetchErr);
-    } catch (fetchErr: any) {
-      addLog("GIT_ERR", fetchErr.message || "Fetch gagal");
-      throw new Error(`Gagal fetch dari GitHub: ${fetchErr.message}`);
-    }
-
-    // Step 4: Reset hard to origin/branch
-    addLog("GIT", `Menjalankan: git reset --hard origin/${GITHUB_BRANCH}...`);
-    try {
-      const { stdout: resetOut, stderr: resetErr } = await runCmd(
-        `${git} reset --hard origin/${GITHUB_BRANCH}`,
-        cwd,
-        30000
-      );
-      if (resetOut) addLog("GIT", resetOut);
-      if (resetErr) addLog("GIT", resetErr);
-    } catch (resetErr: any) {
-      addLog("GIT_ERR", resetErr.message || "Reset gagal");
-      throw new Error(`Gagal reset ke origin/${GITHUB_BRANCH}: ${resetErr.message}`);
-    }
-
-    // Step 5: Read new active commit
-    let newCommit = "unknown";
-    try {
-      const { stdout: newSha } = await runCmd(`${git} rev-parse --short HEAD`, cwd, 5000);
-      newCommit = newSha.trim();
-      addLog("GIT", `Commit aktif saat ini: #${newCommit}`);
-    } catch {}
-
-    // Step 6: Database Schema Migrations
-    addLog("DB", "Memeriksa dan mengeksekusi migrasi skema database Drizzle...");
-    try {
-      const migrationDir = path.join(cwd, "drizzle");
-      if (fs.existsSync(migrationDir)) {
-        await migrate(db, { migrationsFolder: migrationDir });
-        addLog("DB", "Migrasi database Drizzle berhasil diverifikasi dan disinkronkan.");
-      } else {
-        addLog("DB", "Folder migrasi /drizzle tidak ditemukan, melewati langkah ini.");
-      }
-    } catch (migErr: any) {
-      addLog("DB_WARN", `Pemberitahuan migrasi: ${migErr.message || "Skema sudah up-to-date."}`);
-    }
-
-    // Step 7: Build Next.js
-    addLog("BUILD", "Memulai kompilasi aset & TypeScript Next.js (npm run build)...");
-    try {
-      const { stdout: buildOut, stderr: buildErr } = await runCmd("npm run build", cwd, 180000);
-      if (buildOut) addLog("BUILD", buildOut);
-      if (buildErr) addLog("BUILD", buildErr);
-      addLog("BUILD", "Kompilasi Next.js berhasil diselesaikan!");
-    } catch (buildErr: any) {
-      addLog("BUILD_WARN", `Kompilasi Next.js: ${buildErr.message}`);
-      addLog("BUILD_WARN", "Jika proses runtime membutuhkan restart, jalankan 'systemctl restart helpdesk' di terminal.");
-    }
-
-    const durationSec = Math.round((Date.now() - startTime) / 1000);
-    addLog("SUCCESS", `Proses pembaruan selesai dalam ${durationSec} detik! Versi aktif: #${newCommit}`);
-
-    // Create Audit Log
-    await createAuditLog({
-      actorId: session.user.id,
-      actorEmail: session.user.email,
-      action: "settings_updated",
-      targetType: "system",
-      targetId: "update",
-      metadata: { action: "system_updated_from_github", newCommit, repository: GITHUB_REPO, durationSec },
-      ipAddress: getClientIp(req),
-    }).catch(() => {});
-
-    return NextResponse.json({
-      success: true,
-      message: `Pembaruan sistem berhasil diterapkan ke versi #${newCommit}!`,
-      newCommit,
-      logs,
-      durationSec,
-      updatedAt: new Date().toISOString(),
-    });
-  } catch (error: any) {
-    const durationSec = Math.round((Date.now() - startTime) / 1000);
-    addLog("FAILED", error.message || "Terjadi kesalahan internal saat pembaruan");
-    console.error("[SystemUpdate] Update execution failed:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message || "Terjadi kesalahan saat memproses pembaruan",
-        logs,
-        durationSec,
-      },
-      { status: 500 }
-    );
-  }
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "Connection": "keep-alive",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 }
-

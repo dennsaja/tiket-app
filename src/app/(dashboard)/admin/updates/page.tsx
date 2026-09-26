@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Terminal,
   Zap,
+  RotateCcw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatDateTime } from "@/lib/utils";
@@ -42,11 +43,26 @@ export default function AdminUpdatesPage() {
   const [isUpdating, setIsUpdating] = React.useState(false);
   const [updateModalOpen, setUpdateModalOpen] = React.useState(false);
   const [updateLogs, setUpdateLogs] = React.useState<string[]>([]);
+  const [currentStatus, setCurrentStatus] = React.useState<string>("Menyiapkan...");
+  const [isRestarting, setIsRestarting] = React.useState(false);
+  const [countdown, setCountdown] = React.useState<number | null>(null);
   const [updateResult, setUpdateResult] = React.useState<{
     success?: boolean;
     message?: string;
     newCommit?: string;
   } | null>(null);
+
+  const terminalEndRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    if (terminalEndRef.current) {
+      terminalEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  React.useEffect(() => {
+    scrollToBottom();
+  }, [updateLogs]);
 
   const checkUpdates = React.useCallback(async (silent = false) => {
     setIsChecking(true);
@@ -76,56 +92,78 @@ export default function AdminUpdatesPage() {
     checkUpdates(true);
   }, [checkUpdates]);
 
+  // Real-time Streaming Update
   const handleStartUpdate = async () => {
     setIsUpdating(true);
-    setUpdateLogs([
-      "[CLIENT] Memulai proses pembaruan aplikasi...",
-      "[CLIENT] Mengirim permintaan ke /api/admin/system/update...",
-    ]);
+    setIsRestarting(false);
+    setCountdown(null);
+    setUpdateLogs([]);
     setUpdateResult(null);
+    setCurrentStatus("Menghubungi server...");
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 240000); // 4 minutes
-
       const res = await fetch("/api/admin/system/update", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
-
-      const data = await res.json().catch(() => null);
-
-      if (data?.logs && Array.isArray(data.logs) && data.logs.length > 0) {
-        setUpdateLogs(data.logs);
+      if (!res.ok && !res.body) {
+        throw new Error(`Gagal memulai pembaruan: HTTP ${res.status}`);
       }
 
-      if (!res.ok || !data?.success) {
-        const errText = data?.error || `Pembaruan gagal dengan status HTTP ${res.status}`;
-        setUpdateResult({
-          success: false,
-          message: errText,
-        });
-        toast.error(errText);
-        return;
+      const reader = res.body?.getReader();
+      if (!reader) {
+        throw new Error("Browser tidak mendukung streaming respon.");
       }
 
-      setUpdateResult({
-        success: true,
-        message: data.message || "Pembaruan berhasil diterapkan!",
-        newCommit: data.newCommit,
-      });
-      toast.success("Pembaruan berhasil diterapkan!");
-      checkUpdates(true);
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const data = JSON.parse(line);
+
+            if (data.type === "log") {
+              const formatted = data.prefix ? `[${data.prefix}] ${data.message}` : data.message;
+              setUpdateLogs((prev) => [...prev, formatted]);
+            } else if (data.type === "status") {
+              setCurrentStatus(data.message || "Memproses...");
+            } else if (data.type === "restart") {
+              setIsRestarting(true);
+              setCurrentStatus("Me-restart service aplikasi...");
+              setCountdown(5);
+            } else if (data.type === "complete") {
+              setUpdateResult({
+                success: true,
+                message: data.message || "Pembaruan berhasil diterapkan!",
+                newCommit: data.newCommit,
+              });
+              toast.success("Pembaruan berhasil diselesaikan!");
+              checkUpdates(true);
+            } else if (data.type === "error") {
+              setUpdateResult({
+                success: false,
+                message: data.error || "Gagal memperbarui aplikasi",
+              });
+              toast.error(data.error || "Pembaruan gagal");
+            }
+          } catch {
+            // Raw text fallback
+            setUpdateLogs((prev) => [...prev, line]);
+          }
+        }
+      }
     } catch (err: any) {
-      const isAbort = err.name === "AbortError";
-      const errorMsg = isAbort
-        ? "Waktu tunggu habis (timeout 4 menit). Proses build atau fetch mungkin masih berjalan di server."
-        : err.message || "Terjadi kesalahan jaringan saat memperbarui";
-
-      setUpdateLogs((prev) => [...prev, `[NETWORK_ERROR] ${errorMsg}`]);
+      const errorMsg = err.message || "Terjadi kesalahan koneksi";
+      setUpdateLogs((prev) => [...prev, `[ERROR] ${errorMsg}`]);
       setUpdateResult({
         success: false,
         message: errorMsg,
@@ -135,6 +173,19 @@ export default function AdminUpdatesPage() {
       setIsUpdating(false);
     }
   };
+
+  // Countdown timer for restart
+  React.useEffect(() => {
+    if (countdown === null) return;
+    if (countdown <= 0) {
+      window.location.reload();
+      return;
+    }
+    const timer = setTimeout(() => {
+      setCountdown((prev) => (prev !== null ? prev - 1 : null));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [countdown]);
 
   const handleCopyLogs = () => {
     const text = updateLogs.join("\n");
@@ -154,7 +205,7 @@ export default function AdminUpdatesPage() {
             Pembaruan Sistem (System Updates)
           </h1>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Periksa dan terapkan pembaruan kode aplikasi langsung dari repositori GitHub resmi.
+            Periksa dan terapkan pembaruan kode aplikasi langsung dari repositori GitHub resmi secara otomatis dan realtime.
           </p>
         </div>
 
@@ -294,29 +345,44 @@ export default function AdminUpdatesPage() {
         </div>
       </div>
 
-      {/* Update Process Modal */}
+      {/* Update Process Modal with Real-time Terminal */}
       <Modal
         open={updateModalOpen}
         onOpenChange={(open) => {
-          if (!isUpdating) setUpdateModalOpen(open);
+          if (!isUpdating && !isRestarting) setUpdateModalOpen(open);
         }}
-        title="Proses Pembaruan Sistem"
-        description="Aplikasi sedang mengunduh pembaruan dari GitHub, sinkronisasi skema DB, dan mengompilasi file."
+        title="Proses Pembaruan Sistem (Live)"
+        description="Aplikasi sedang mengunduh pembaruan dari GitHub, mengeksekusi custom hooks, migrasi DB, dan mengompilasi file."
       >
         <div className="space-y-4 pt-2">
+          {/* Status Header */}
           {isUpdating ? (
-            <div className="flex flex-col items-center justify-center py-6 space-y-3">
-              <Spinner size="lg" />
-              <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                Sedang memproses git fetch, migrasi database &amp; build Next.js...
-              </p>
-              <p className="text-[11px] text-zinc-500 text-center max-w-xs">
-                Mohon tunggu beberapa saat. Seluruh tahapan eksekusi terminal tercatat secara langsung di bawah.
-              </p>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+              <Spinner size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                  {currentStatus}
+                </p>
+                <p className="text-[10px] text-zinc-500">
+                  Streaming output terminal dari server secara langsung...
+                </p>
+              </div>
+            </div>
+          ) : isRestarting || countdown !== null ? (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200">
+              <RotateCcw className="h-4 w-4 animate-spin shrink-0 text-amber-600" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold">
+                  Memuat Ulang Aplikasi dalam {countdown ?? 0} detik...
+                </p>
+                <p className="text-[10px] text-amber-700 dark:text-amber-300">
+                  Service helpdesk sedang di-restart untuk memuat perubahan terbaru.
+                </p>
+              </div>
             </div>
           ) : updateResult?.success ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 text-center dark:border-emerald-900/60 dark:bg-emerald-950/20 space-y-2">
-              <CheckCircle2 className="h-7 w-7 text-emerald-600 dark:text-emerald-400 mx-auto" />
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 text-center dark:border-emerald-900/60 dark:bg-emerald-950/20 space-y-1.5">
+              <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400 mx-auto" />
               <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
                 {updateResult.message}
               </p>
@@ -327,8 +393,8 @@ export default function AdminUpdatesPage() {
               )}
             </div>
           ) : updateResult && !updateResult.success ? (
-            <div className="rounded-xl border border-red-200 bg-red-50/50 p-4 text-center dark:border-red-900/60 dark:bg-red-950/20 space-y-2">
-              <AlertCircle className="h-7 w-7 text-red-600 dark:text-red-400 mx-auto" />
+            <div className="rounded-xl border border-red-200 bg-red-50/50 p-4 text-center dark:border-red-900/60 dark:bg-red-950/20 space-y-1.5">
+              <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400 mx-auto" />
               <p className="text-sm font-semibold text-red-900 dark:text-red-200">
                 Gagal Memperbarui Aplikasi
               </p>
@@ -338,11 +404,12 @@ export default function AdminUpdatesPage() {
             </div>
           ) : null}
 
-          {/* Logs Output */}
+          {/* Real-time Streaming Logs Output */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
-                <Terminal className="h-3 w-3" /> Log Eksekusi Server:
+              <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Terminal className="h-3.5 w-3.5 text-zinc-600 dark:text-zinc-400" />
+                Live Terminal Stream:
               </p>
               {updateLogs.length > 0 && (
                 <button
@@ -354,18 +421,43 @@ export default function AdminUpdatesPage() {
                 </button>
               )}
             </div>
-            <div className="max-h-56 overflow-y-auto rounded-lg bg-black border border-zinc-800 p-3 font-mono text-[11px] text-zinc-300 space-y-1">
-              {updateLogs.map((log, i) => (
-                <div key={i} className="leading-tight break-all font-mono">
-                  <span className="text-zinc-500 select-none">&gt;</span> {log}
+            <div className="h-64 overflow-y-auto rounded-lg bg-black border border-zinc-800 p-3 font-mono text-[11px] text-zinc-300 space-y-1 shadow-inner select-text">
+              {updateLogs.length === 0 ? (
+                <div className="text-zinc-500 flex items-center gap-2 py-4 justify-center">
+                  <Spinner size="sm" />
+                  <span>Menghubungi server dan membuka terminal stream...</span>
                 </div>
-              ))}
+              ) : (
+                updateLogs.map((log, i) => (
+                  <div key={i} className="leading-tight break-all font-mono">
+                    <span className="text-zinc-600 select-none">&gt;</span>{" "}
+                    <span
+                      className={
+                        log.includes("ERROR") || log.includes("ERR") || log.includes("FAILED")
+                          ? "text-red-400 font-semibold"
+                          : log.includes("SUCCESS")
+                          ? "text-emerald-400 font-semibold"
+                          : log.includes("WARN")
+                          ? "text-amber-400"
+                          : log.includes("HOOK")
+                          ? "text-purple-400"
+                          : log.includes("INIT")
+                          ? "text-blue-400"
+                          : "text-zinc-300"
+                      }
+                    >
+                      {log}
+                    </span>
+                  </div>
+                ))
+              )}
+              <div ref={terminalEndRef} />
             </div>
           </div>
 
           {/* Modal Actions */}
           <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-            {updateResult?.success ? (
+            {updateResult?.success || countdown !== null ? (
               <Button
                 size="sm"
                 onClick={() => {
@@ -373,7 +465,7 @@ export default function AdminUpdatesPage() {
                 }}
                 className="bg-black hover:bg-zinc-800 text-white dark:bg-white dark:text-black dark:hover:bg-zinc-200 font-medium"
               >
-                Muat Ulang Halaman
+                Muat Ulang Sekarang
               </Button>
             ) : (
               <Button
