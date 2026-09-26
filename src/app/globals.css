@@ -329,6 +329,87 @@ html.dark .table-hover tr:hover td {
   border-color: #bbf7d0;
 }
 
+/* ─── Dark Mode Status & Priority Badges ───────────────────────────────────── */
+
+html.dark .status-open {
+  background-color: #1e3a8a;
+  color: #93c5fd;
+  border-color: #1d4ed8;
+}
+
+html.dark .status-assigned {
+  background-color: #312e81;
+  color: #c7d2fe;
+  border-color: #4338ca;
+}
+
+html.dark .status-in_progress {
+  background-color: #581c87;
+  color: #e9d5ff;
+  border-color: #7e22ce;
+}
+
+html.dark .status-pending {
+  background-color: #713f12;
+  color: #fef08a;
+  border-color: #a16207;
+}
+
+html.dark .status-waiting_for_user,
+html.dark .status-waiting_for_third_party {
+  background-color: #7c2d12;
+  color: #fed7aa;
+  border-color: #c2410c;
+}
+
+html.dark .status-resolved {
+  background-color: #14532d;
+  color: #bbf7d0;
+  border-color: #15803d;
+}
+
+html.dark .status-closed {
+  background-color: #334155;
+  color: #cbd5e1;
+  border-color: #475569;
+}
+
+html.dark .status-reopened {
+  background-color: #78350f;
+  color: #fde68a;
+  border-color: #b45309;
+}
+
+html.dark .status-cancelled {
+  background-color: #7f1d1d;
+  color: #fecaca;
+  border-color: #b91c1c;
+}
+
+html.dark .priority-critical {
+  background-color: #7f1d1d;
+  color: #fecaca;
+  border-color: #b91c1c;
+}
+
+html.dark .priority-high {
+  background-color: #7c2d12;
+  color: #fed7aa;
+  border-color: #c2410c;
+}
+
+html.dark .priority-medium {
+  background-color: #713f12;
+  color: #fef08a;
+  border-color: #a16207;
+}
+
+html.dark .priority-low {
+  background-color: #14532d;
+  color: #bbf7d0;
+  border-color: #15803d;
+}
+
 /* ─── SLA Indicator Colors ─────────────────────────────────────────────────── */
 
 .sla-ok {

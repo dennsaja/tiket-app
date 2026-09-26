@@ -34,6 +34,7 @@ import {
   Menu,
   X,
   ArrowUpCircle,
+  MessagesSquare,
 } from "lucide-react";
 
 interface NavItem {
@@ -54,6 +55,7 @@ const mainNavItems: NavItem[] = [
   },
   { href: "/tickets", label: "All Tickets", icon: Ticket },
   { href: "/tickets?mine=true", label: "My Tickets", icon: ClipboardList, agentOnly: true },
+  { href: "/chat", label: "Department Chat", icon: MessagesSquare, agentOnly: true },
   { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
 ];
 

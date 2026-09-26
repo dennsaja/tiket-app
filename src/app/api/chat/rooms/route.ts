@@ -1,0 +1,99 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { tickets, users, departments, ticketMessages } from "@/lib/db/schema";
+import { eq, desc, and, or, isNull, sql } from "drizzle-orm";
+import { errorResponse } from "@/lib/api/helpers";
+
+// GET /api/chat/rooms — List all ticket chat channels for Admin and matching Department Agents
+export async function GET(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user) return errorResponse("Unauthorized", 401);
+
+  const userRole = (session.user as any).role;
+  const userId = session.user.id!;
+
+  // Only Admin and Agents can access department chats
+  if (userRole !== "admin" && userRole !== "agent") {
+    return errorResponse("Forbidden: Only support staff can access department chats", 403);
+  }
+
+  // Get agent's department
+  const currentUser = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: { id: true, departmentId: true, role: true },
+  });
+
+  const userDeptId = currentUser?.departmentId;
+
+  // Build query conditions
+  const conditions: any[] = [isNull(tickets.deletedAt)];
+
+  // If Agent (not Admin), restrict to their department or assigned tickets
+  if (userRole === "agent") {
+    if (userDeptId) {
+      conditions.push(
+        or(
+          eq(tickets.departmentId, userDeptId),
+          eq(tickets.assigneeId, userId),
+          isNull(tickets.departmentId)
+        )
+      );
+    } else {
+      // Agent without assigned department can see unassigned department tickets or assigned to them
+      conditions.push(
+        or(
+          eq(tickets.assigneeId, userId),
+          isNull(tickets.departmentId)
+        )
+      );
+    }
+  }
+
+  const roomTickets = await db.query.tickets.findMany({
+    where: and(...conditions),
+    orderBy: [desc(tickets.updatedAt)],
+    limit: 50,
+    with: {
+      department: { columns: { id: true, name: true, color: true } },
+      assignee: { columns: { id: true, name: true, avatarUrl: true } },
+      requester: { columns: { id: true, name: true, avatarUrl: true } },
+      messages: {
+        where: (msg, { eq, isNull, and }) =>
+          and(eq(msg.type, "internal_note"), isNull(msg.deletedAt)),
+        orderBy: (msg, { desc }) => [desc(msg.createdAt)],
+        limit: 1,
+        with: {
+          author: { columns: { id: true, name: true, role: true } },
+        },
+      },
+    },
+  });
+
+  const formattedRooms = roomTickets.map((t) => {
+    const lastInternalMessage = t.messages?.[0];
+    return {
+      ticketId: t.id,
+      ticketNumber: t.ticketNumber,
+      title: t.title,
+      status: t.status,
+      priority: t.priority,
+      department: t.department || { name: "General", color: "#6366f1" },
+      assignee: t.assignee,
+      requester: t.requester,
+      reporterName: t.reporterName,
+      lastMessage: lastInternalMessage
+        ? {
+            content: lastInternalMessage.content,
+            authorName: lastInternalMessage.author?.name || "Staff",
+            authorRole: lastInternalMessage.author?.role || "agent",
+            createdAt: lastInternalMessage.createdAt,
+          }
+        : null,
+      updatedAt: t.updatedAt,
+      createdAt: t.createdAt,
+    };
+  });
+
+  return NextResponse.json(formattedRooms);
+}

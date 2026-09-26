@@ -31,6 +31,7 @@ import {
   MapPin,
   ExternalLink,
   Info,
+  MessagesSquare,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -167,6 +168,19 @@ export default function TicketDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {isAgentOrAdmin && (
+            <Link href="/chat">
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<MessagesSquare className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />}
+                className="text-xs text-indigo-700 bg-indigo-50/50 border-indigo-200 hover:bg-indigo-100 dark:bg-slate-800 dark:text-indigo-300 dark:border-slate-700"
+              >
+                Department Chat
+              </Button>
+            </Link>
+          )}
+
           {/* Share Ticket Button */}
           <Button
             variant="outline"
