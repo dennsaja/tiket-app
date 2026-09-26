@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import * as schema from "../src/lib/db/schema";
 
 dotenv.config({ path: ".env.local" });
+dotenv.config({ path: ".env" });
 
 async function seed() {
   const connectionString = process.env.DATABASE_URL;
