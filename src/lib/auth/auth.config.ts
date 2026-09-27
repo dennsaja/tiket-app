@@ -59,6 +59,13 @@ export const authConfig: NextAuthConfig = {
 
       return isLoggedIn;
     },
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      try {
+        if (new URL(url).origin === baseUrl) return url;
+      } catch {}
+      return baseUrl;
+    },
   },
   providers: [], // Configured in index.ts with full node/db adapter
 };

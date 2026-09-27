@@ -4,6 +4,23 @@ import { NextResponse } from "next/server";
 
 const { auth } = NextAuth(authConfig);
 
+/**
+ * Construct public redirect URLs respecting Cloudflare Tunnel / Reverse Proxy headers (x-forwarded-host, x-forwarded-proto)
+ */
+function getPublicUrl(targetPath: string, req: any): URL {
+  const forwardedHost = req.headers.get("x-forwarded-host") || req.headers.get("host");
+  const forwardedProto = req.headers.get("x-forwarded-proto") || (req.url.startsWith("https") ? "https" : "http");
+
+  if (forwardedHost) {
+    return new URL(targetPath, `${forwardedProto}://${forwardedHost}`);
+  }
+
+  const url = req.nextUrl.clone();
+  url.pathname = targetPath;
+  url.search = "";
+  return url;
+}
+
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const session = req.auth;
@@ -26,7 +43,7 @@ export default auth((req) => {
   if (isPublicRoute) {
     // Redirect logged-in users away from auth pages
     if (session?.user && (pathname === "/login" || pathname === "/register")) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      return NextResponse.redirect(getPublicUrl("/dashboard", req));
     }
     return NextResponse.next();
   }
@@ -36,7 +53,7 @@ export default auth((req) => {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const loginUrl = new URL("/login", req.url);
+    const loginUrl = getPublicUrl("/login", req);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -49,7 +66,7 @@ export default auth((req) => {
 
   // System updates route protection (ONLY NOC allowed)
   if (pathname.startsWith("/admin/updates") && !isNoc) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return NextResponse.redirect(getPublicUrl("/dashboard", req));
   }
   if (pathname.startsWith("/api/admin/system/update") && !isNoc) {
     return NextResponse.json({ error: "Forbidden: Hanya NOC Administrator yang dapat melakukan pembaruan sistem" }, { status: 403 });
@@ -57,7 +74,7 @@ export default auth((req) => {
 
   // Admin panel routes (NOC and Owner allowed)
   if (pathname.startsWith("/admin") && !canAccessAdmin) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return NextResponse.redirect(getPublicUrl("/dashboard", req));
   }
 
   // Admin API routes (NOC and Owner allowed)
@@ -68,7 +85,7 @@ export default auth((req) => {
   // Ticket creation route protection (Strictly restricted to NOC, Owner, Admin)
   const canCreateTicket = isNoc || isOwner || userRole === "admin";
   if (pathname === "/tickets/new" && !canCreateTicket) {
-    return NextResponse.redirect(new URL("/tickets", req.url));
+    return NextResponse.redirect(getPublicUrl("/tickets", req));
   }
 
   return NextResponse.next();
