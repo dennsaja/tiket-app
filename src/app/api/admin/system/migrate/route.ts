@@ -28,6 +28,20 @@ async function runMigration() {
     END $$;
   `);
 
+  // 1b. audit_action enum: add new values
+  await run("audit_action enum: add category/subcategory actions", `
+    DO $$
+    BEGIN
+      ALTER TYPE audit_action ADD VALUE IF NOT EXISTS 'category_deleted';
+      ALTER TYPE audit_action ADD VALUE IF NOT EXISTS 'subcategory_created';
+      ALTER TYPE audit_action ADD VALUE IF NOT EXISTS 'subcategory_updated';
+      ALTER TYPE audit_action ADD VALUE IF NOT EXISTS 'subcategory_deleted';
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+      WHEN undefined_object THEN null;
+    END $$;
+  `);
+
   // 2. ticket_type enum
   await run("Create ticket_type enum", `
     DO $$

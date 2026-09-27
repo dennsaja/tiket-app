@@ -14,14 +14,22 @@ export async function GET(req: NextRequest) {
 
   const searchParams = req.nextUrl.searchParams;
   const departmentId = searchParams.get("departmentId");
+  const showAll = searchParams.get("all") === "true";
+  const userRole = (session.user as any).role;
+  const isAdmin = ["noc", "owner", "admin"].includes(userRole);
+
+  let whereClause: any;
+  if (departmentId) {
+    whereClause = eq(categories.departmentId, departmentId);
+  } else if (!showAll || !isAdmin) {
+    whereClause = eq(categories.isActive, true);
+  }
 
   const categoryList = await db.query.categories.findMany({
-    where: departmentId
-      ? eq(categories.departmentId, departmentId)
-      : eq(categories.isActive, true),
+    where: whereClause,
     with: {
+      department: true,
       subcategories: {
-        where: eq(subcategories.isActive, true),
         orderBy: [asc(subcategories.name)],
       },
     },
