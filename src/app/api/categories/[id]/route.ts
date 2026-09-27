@@ -21,8 +21,9 @@ const createSubcategorySchema = z.object({
 // PATCH /api/categories/[id] — edit category
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
@@ -44,14 +45,14 @@ export async function PATCH(
   }
 
   const existing = await db.query.categories.findFirst({
-    where: eq(categories.id, params.id),
+    where: eq(categories.id, id),
   });
   if (!existing) return errorResponse("Kategori tidak ditemukan", 404);
 
   const [updated] = await db
     .update(categories)
     .set({ ...parsed.data, updatedAt: new Date() })
-    .where(eq(categories.id, params.id))
+    .where(eq(categories.id, id))
     .returning();
 
   await createAuditLog({
@@ -59,7 +60,7 @@ export async function PATCH(
     actorEmail: session.user.email,
     action: "category_updated",
     targetType: "category",
-    targetId: params.id,
+    targetId: id,
     metadata: { name: updated.name, changes: parsed.data },
     ipAddress: getClientIp(req),
   });
@@ -67,11 +68,12 @@ export async function PATCH(
   return NextResponse.json(updated);
 }
 
-// DELETE /api/categories/[id] — delete or deactivate category
+// DELETE /api/categories/[id] — soft-delete category
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
@@ -81,7 +83,7 @@ export async function DELETE(
   }
 
   const existing = await db.query.categories.findFirst({
-    where: eq(categories.id, params.id),
+    where: eq(categories.id, id),
     with: { subcategories: true },
   });
   if (!existing) return errorResponse("Kategori tidak ditemukan", 404);
@@ -90,20 +92,20 @@ export async function DELETE(
   await db
     .update(categories)
     .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(categories.id, params.id));
+    .where(eq(categories.id, id));
 
   // Also deactivate all subcategories
   await db
     .update(subcategories)
     .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(subcategories.categoryId, params.id));
+    .where(eq(subcategories.categoryId, id));
 
   await createAuditLog({
     actorId: session.user.id,
     actorEmail: session.user.email,
     action: "category_deleted",
     targetType: "category",
-    targetId: params.id,
+    targetId: id,
     metadata: { name: existing.name },
     ipAddress: getClientIp(req),
   });
@@ -114,8 +116,9 @@ export async function DELETE(
 // POST /api/categories/[id] — add subcategory to category
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   const session = await auth();
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
@@ -137,13 +140,13 @@ export async function POST(
   }
 
   const existing = await db.query.categories.findFirst({
-    where: eq(categories.id, params.id),
+    where: eq(categories.id, id),
   });
   if (!existing) return errorResponse("Kategori tidak ditemukan", 404);
 
   const [sub] = await db
     .insert(subcategories)
-    .values({ name: parsed.data.name, categoryId: params.id })
+    .values({ name: parsed.data.name, categoryId: id })
     .returning();
 
   await createAuditLog({
@@ -152,7 +155,7 @@ export async function POST(
     action: "subcategory_created",
     targetType: "subcategory",
     targetId: sub.id,
-    metadata: { name: sub.name, categoryId: params.id },
+    metadata: { name: sub.name, categoryId: id },
     ipAddress: getClientIp(req),
   });
 

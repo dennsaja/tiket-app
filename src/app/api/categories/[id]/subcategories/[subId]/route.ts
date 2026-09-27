@@ -15,8 +15,9 @@ const updateSubSchema = z.object({
 // PATCH /api/categories/[id]/subcategories/[subId]
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string; subId: string } }
+  { params }: { params: Promise<{ id: string; subId: string }> }
 ) {
+  const { id, subId } = await params;
   const session = await auth();
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
@@ -38,16 +39,16 @@ export async function PATCH(
   }
 
   const existing = await db.query.subcategories.findFirst({
-    where: eq(subcategories.id, params.subId),
+    where: eq(subcategories.id, subId),
   });
-  if (!existing || existing.categoryId !== params.id) {
+  if (!existing || existing.categoryId !== id) {
     return errorResponse("Subkategori tidak ditemukan", 404);
   }
 
   const [updated] = await db
     .update(subcategories)
     .set({ ...parsed.data, updatedAt: new Date() })
-    .where(eq(subcategories.id, params.subId))
+    .where(eq(subcategories.id, subId))
     .returning();
 
   await createAuditLog({
@@ -55,7 +56,7 @@ export async function PATCH(
     actorEmail: session.user.email,
     action: "subcategory_updated",
     targetType: "subcategory",
-    targetId: params.subId,
+    targetId: subId,
     metadata: { name: updated.name, changes: parsed.data },
     ipAddress: getClientIp(req),
   });
@@ -66,8 +67,9 @@ export async function PATCH(
 // DELETE /api/categories/[id]/subcategories/[subId]
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string; subId: string } }
+  { params }: { params: Promise<{ id: string; subId: string }> }
 ) {
+  const { id, subId } = await params;
   const session = await auth();
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
@@ -77,9 +79,9 @@ export async function DELETE(
   }
 
   const existing = await db.query.subcategories.findFirst({
-    where: eq(subcategories.id, params.subId),
+    where: eq(subcategories.id, subId),
   });
-  if (!existing || existing.categoryId !== params.id) {
+  if (!existing || existing.categoryId !== id) {
     return errorResponse("Subkategori tidak ditemukan", 404);
   }
 
@@ -87,15 +89,15 @@ export async function DELETE(
   await db
     .update(subcategories)
     .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(subcategories.id, params.subId));
+    .where(eq(subcategories.id, subId));
 
   await createAuditLog({
     actorId: session.user.id,
     actorEmail: session.user.email,
     action: "subcategory_deleted",
     targetType: "subcategory",
-    targetId: params.subId,
-    metadata: { name: existing.name, categoryId: params.id },
+    targetId: subId,
+    metadata: { name: existing.name, categoryId: id },
     ipAddress: getClientIp(req),
   });
 
