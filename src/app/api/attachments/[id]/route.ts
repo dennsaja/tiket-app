@@ -49,15 +49,16 @@ export async function GET(
     
     // Safe content disposition — sanitize filename
     const safeFilename = attachment.originalName.replace(/[^\w.-]/g, "_");
+    const isImage = attachment.mimeType.startsWith("image/");
+    const isPdf = attachment.mimeType === "application/pdf";
+    const dispositionType = isImage || isPdf ? "inline" : "attachment";
 
     return new NextResponse(fileBuffer, {
       headers: {
         "Content-Type": attachment.mimeType,
-        "Content-Disposition": `attachment; filename="${safeFilename}"`,
+        "Content-Disposition": `${dispositionType}; filename="${safeFilename}"`,
         "Content-Length": String(fileBuffer.length),
-        // Prevent browsers from executing the file
-        "X-Content-Type-Options": "nosniff",
-        "Content-Security-Policy": "default-src 'none'",
+        "Cache-Control": "public, max-age=31536000, immutable",
       },
     });
   } catch {

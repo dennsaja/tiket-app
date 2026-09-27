@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { tickets, ticketStatusHistory, ticketTags, auditLogs } from "@/lib/db/schema";
+import {
+  tickets,
+  ticketAssignees,
+  ticketWorkReports,
+  ticketStatusHistory,
+  ticketAssignmentHistory,
+  ticketTags,
+  auditLogs,
+} from "@/lib/db/schema";
 import { eq, desc, asc, and, or, ilike, inArray, count, sql, isNull } from "drizzle-orm";
 import { createTicketSchema, ticketFiltersSchema } from "@/lib/validations";
 import { errorResponse, successResponse, paginatedResponse } from "@/lib/api/helpers";
@@ -26,13 +34,38 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search") || undefined;
   const sortBy = (searchParams.get("sortBy") || "createdAt") as string;
   const sortOrder = (searchParams.get("sortOrder") || "desc") as "asc" | "desc";
+  const isMine = searchParams.get("mine") === "true";
 
   // Build WHERE conditions
   const conditions: any[] = [isNull(tickets.deletedAt)];
 
-  // Role-based filtering: users only see their own tickets
+  // Role-based filtering: regular users only see their own tickets
   if (userRole === "user") {
     conditions.push(eq(tickets.requesterId, userId));
+  } else if (isMine && userRole === "agent") {
+    // For technician "Tiket Saya": find where they are primary assignee OR in ticket_assignees
+    const myAssignments = await db
+      .select({ ticketId: ticketAssignees.ticketId })
+      .from(ticketAssignees)
+      .where(eq(ticketAssignees.userId, userId));
+    const assignedIds = myAssignments.map((a) => a.ticketId);
+
+    if (assignedIds.length > 0) {
+      conditions.push(
+        or(
+          eq(tickets.assigneeId, userId),
+          inArray(tickets.id, assignedIds)
+        )
+      );
+    } else {
+      conditions.push(eq(tickets.assigneeId, userId));
+    }
+  }
+
+  // Ticket type filter
+  const typeFilter = searchParams.getAll("ticketType");
+  if (typeFilter.length > 0) {
+    conditions.push(inArray(tickets.ticketType, typeFilter as any[]));
   }
 
   // Status filter
@@ -53,7 +86,23 @@ export async function GET(req: NextRequest) {
     if (assigneeId === "unassigned") {
       conditions.push(isNull(tickets.assigneeId));
     } else {
-      conditions.push(eq(tickets.assigneeId, assigneeId));
+      // Check primary or assigned team
+      const teamAssigned = await db
+        .select({ ticketId: ticketAssignees.ticketId })
+        .from(ticketAssignees)
+        .where(eq(ticketAssignees.userId, assigneeId));
+      const teamIds = teamAssigned.map((a) => a.ticketId);
+
+      if (teamIds.length > 0) {
+        conditions.push(
+          or(
+            eq(tickets.assigneeId, assigneeId),
+            inArray(tickets.id, teamIds)
+          )
+        );
+      } else {
+        conditions.push(eq(tickets.assigneeId, assigneeId));
+      }
     }
   }
 
@@ -76,6 +125,7 @@ export async function GET(req: NextRequest) {
         ilike(tickets.title, `%${search}%`),
         ilike(tickets.description, `%${search}%`),
         ilike(tickets.reporterName, `%${search}%`),
+        ilike(tickets.reporterPhone, `%${search}%`),
         sql`${tickets.ticketNumber}::text ILIKE ${`%${search}%`}`
       )
     );
@@ -88,6 +138,7 @@ export async function GET(req: NextRequest) {
     priority: tickets.priority,
     status: tickets.status,
     ticketNumber: tickets.ticketNumber,
+    ticketType: tickets.ticketType,
   };
   const orderBy = sortOrder === "asc"
     ? asc(sortColumn[sortBy] || tickets.createdAt)
@@ -114,7 +165,21 @@ export async function GET(req: NextRequest) {
       assignee: {
         columns: { id: true, name: true, email: true, avatarUrl: true },
       },
-      department: { columns: { id: true, name: true } },
+      assignees: {
+        with: {
+          user: {
+            columns: { id: true, name: true, email: true, avatarUrl: true, role: true },
+          },
+        },
+      },
+      workReports: {
+        with: {
+          technician: {
+            columns: { id: true, name: true, avatarUrl: true },
+          },
+        },
+      },
+      department: { columns: { id: true, name: true, color: true } },
       category: { columns: { id: true, name: true } },
       tags: { with: { tag: true } },
     },
@@ -123,15 +188,26 @@ export async function GET(req: NextRequest) {
   return paginatedResponse(results, Number(total), page, perPage);
 }
 
-// POST /api/tickets — create a new ticket
+// POST /api/tickets — create a new ticket (Strictly NOC, Owner, Admin)
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
-  // Rate limit: 10 tickets per minute
-  const limitResult = rateLimit(`ticket_create:${session.user.id}`, {
+  const userRole = (session.user as any).role;
+  const userId = session.user.id!;
+
+  // 1. Permission check: Strictly NOC, Owner, and Admin
+  if (!["noc", "owner", "admin"].includes(userRole)) {
+    return errorResponse(
+      "Forbidden: Pembuatan tiket hanya dapat dilakukan oleh NOC, Owner, atau Admin (1 arah). Teknisi bertugas menerima dan mengerjakan tiket.",
+      403
+    );
+  }
+
+  // Rate limit: 20 tickets per minute for staff
+  const limitResult = rateLimit(`ticket_create:${userId}`, {
     windowMs: 60000,
-    max: 10,
+    max: 20,
   });
   if (!limitResult.success) {
     return rateLimitResponse(limitResult.reset);
@@ -153,24 +229,65 @@ export async function POST(req: NextRequest) {
   }
 
   const data = parsed.data;
-  const userId = session.user.id!;
+
+  // Determine primary assignee and assigned team
+  const rawAssignees = Array.isArray(data.assigneeIds) ? data.assigneeIds.filter(Boolean) : [];
+  const primaryAssigneeId = data.leadAssigneeId || (rawAssignees.length > 0 ? rawAssignees[0] : null);
+  const initialStatus = primaryAssigneeId || rawAssignees.length > 0 ? "assigned" : "open";
 
   // Create the ticket
   const [ticket] = await db
     .insert(tickets)
     .values({
+      ticketType: data.ticketType || "psb",
       title: data.title,
       description: data.description,
       priority: data.priority,
+      status: initialStatus,
       requesterId: userId,
+      assigneeId: primaryAssigneeId,
       departmentId: data.departmentId || null,
       categoryId: data.categoryId || null,
       subcategoryId: data.subcategoryId || null,
+      specData: data.specData || null,
       reporterName: data.reporterName?.trim() || null,
+      reporterPhone: data.reporterPhone?.trim() || null,
       reporterAddress: data.reporterAddress?.trim() || null,
       reporterMapUrl: data.reporterMapUrl?.trim() || null,
     })
     .returning();
+
+  // Multi-technician assignment
+  if (rawAssignees.length > 0) {
+    const assigneeRows = rawAssignees.map((techId) => ({
+      ticketId: ticket.id,
+      userId: techId,
+      isLead: techId === primaryAssigneeId,
+    }));
+
+    await db.insert(ticketAssignees).values(assigneeRows).catch((e) => {
+      console.warn("[TicketAssignees] Insert error:", e);
+    });
+
+    // Record assignment history
+    await db.insert(ticketAssignmentHistory).values({
+      ticketId: ticket.id,
+      fromAgentId: null,
+      toAgentId: primaryAssigneeId,
+      assignedById: userId,
+      reason: "Initial assignment at ticket creation",
+    });
+
+    // Notify all assigned technicians
+    for (const techId of rawAssignees) {
+      notifyTicketAssigned(
+        ticket.id,
+        ticket.ticketNumber,
+        ticket.title,
+        techId
+      ).catch(() => {});
+    }
+  }
 
   // Add tags if provided
   if (data.tagIds && data.tagIds.length > 0) {
@@ -179,13 +296,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Record initial status
+  // Record initial status in history
   await db.insert(ticketStatusHistory).values({
     ticketId: ticket.id,
     fromStatus: null,
-    toStatus: "open",
+    toStatus: initialStatus,
     changedById: userId,
-    reason: "Ticket created",
+    reason: initialStatus === "assigned" ? "Ticket created with assigned technicians" : "Ticket created",
   });
 
   // Apply SLA policy
@@ -205,12 +322,31 @@ export async function POST(req: NextRequest) {
     targetId: ticket.id,
     metadata: {
       ticketNumber: ticket.ticketNumber,
+      ticketType: ticket.ticketType,
       title: ticket.title,
       priority: ticket.priority,
+      assigneeCount: rawAssignees.length,
     },
     ipAddress: getClientIp(req),
     userAgent: req.headers.get("user-agent") || undefined,
   });
 
-  return NextResponse.json(ticket, { status: 201 });
+  // Fetch created ticket with complete relations
+  const completeTicket = await db.query.tickets.findFirst({
+    where: eq(tickets.id, ticket.id),
+    with: {
+      requester: { columns: { id: true, name: true, email: true, avatarUrl: true } },
+      assignee: { columns: { id: true, name: true, email: true, avatarUrl: true } },
+      assignees: {
+        with: {
+          user: { columns: { id: true, name: true, email: true, avatarUrl: true, role: true } },
+        },
+      },
+      department: true,
+      category: true,
+    },
+  });
+
+  return NextResponse.json(completeTicket || ticket, { status: 201 });
 }
+

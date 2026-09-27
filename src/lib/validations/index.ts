@@ -42,21 +42,49 @@ export const resetPasswordSchema = z
 
 // ─── Tickets ──────────────────────────────────────────────────────────────────
 
+export const ticketTypes = [
+  "psb",
+  "perbaikan_infrastruktur",
+  "pemasangan_cctv",
+  "perbaikan_cctv",
+  "maintenance",
+] as const;
+
+export const ticketStatuses = [
+  "open",
+  "assigned",
+  "accepted",
+  "on_site",
+  "in_progress",
+  "pending",
+  "waiting_for_user",
+  "waiting_for_third_party",
+  "resolved",
+  "closed",
+  "reopened",
+  "cancelled",
+] as const;
+
 export const createTicketSchema = z.object({
+  ticketType: z.enum(ticketTypes).default("psb"),
   title: z
     .string()
-    .min(5, "Title must be at least 5 characters")
-    .max(500, "Title is too long"),
+    .min(3, "Judul tiket minimal 3 karakter")
+    .max(500, "Judul tiket terlalu panjang"),
   description: z
     .string()
-    .min(10, "Description must be at least 10 characters")
-    .max(50000, "Description is too long"),
+    .min(5, "Deskripsi minimal 5 karakter")
+    .max(50000, "Deskripsi terlalu panjang"),
   priority: z.enum(["critical", "high", "medium", "low"]).default("medium"),
   departmentId: z.string().optional(),
   categoryId: z.string().optional(),
   subcategoryId: z.string().optional(),
   tagIds: z.array(z.string()).optional(),
+  assigneeIds: z.array(z.string()).optional(),
+  leadAssigneeId: z.string().optional(),
+  specData: z.record(z.any()).optional().nullable(),
   reporterName: z.string().max(255, "Nama pelapor terlalu panjang (maks. 255 karakter)").optional().nullable(),
+  reporterPhone: z.string().max(50, "Nomor telepon terlalu panjang (maks. 50 karakter)").optional().nullable(),
   reporterAddress: z.string().max(2000, "Alamat terlalu panjang (maks. 2000 karakter)").optional().nullable(),
   reporterMapUrl: z
     .string()
@@ -78,28 +106,20 @@ export const createTicketSchema = z.object({
 });
 
 export const updateTicketSchema = z.object({
-  title: z.string().min(5).max(500).optional(),
-  description: z.string().min(10).max(50000).optional(),
+  ticketType: z.enum(ticketTypes).optional(),
+  title: z.string().min(3).max(500).optional(),
+  description: z.string().min(5).max(50000).optional(),
   priority: z.enum(["critical", "high", "medium", "low"]).optional(),
-  status: z
-    .enum([
-      "open",
-      "assigned",
-      "in_progress",
-      "pending",
-      "waiting_for_user",
-      "waiting_for_third_party",
-      "resolved",
-      "closed",
-      "reopened",
-      "cancelled",
-    ])
-    .optional(),
+  status: z.enum(ticketStatuses).optional(),
   assigneeId: z.string().nullable().optional(),
+  assigneeIds: z.array(z.string()).optional(),
+  leadAssigneeId: z.string().optional(),
   departmentId: z.string().nullable().optional(),
   categoryId: z.string().nullable().optional(),
   subcategoryId: z.string().nullable().optional(),
+  specData: z.record(z.any()).nullable().optional(),
   reporterName: z.string().max(255).nullable().optional(),
+  reporterPhone: z.string().max(50).nullable().optional(),
   reporterAddress: z.string().max(2000).nullable().optional(),
   reporterMapUrl: z
     .string()
@@ -124,24 +144,32 @@ export const updateTicketSchema = z.object({
 
 export const assignTicketSchema = z.object({
   assigneeId: z.string().nullable(),
+  assigneeIds: z.array(z.string()).optional(),
+  leadAssigneeId: z.string().optional(),
   reason: z.string().max(1000).optional(),
 });
 
 export const changeStatusSchema = z.object({
-  status: z.enum([
-    "open",
-    "assigned",
-    "in_progress",
-    "pending",
-    "waiting_for_user",
-    "waiting_for_third_party",
-    "resolved",
-    "closed",
-    "reopened",
-    "cancelled",
-  ]),
+  status: z.enum(ticketStatuses),
   reason: z.string().max(1000).optional(),
   resolution: z.string().max(50000).optional(),
+});
+
+// ─── Work Reports (Laporan Kerja Teknisi) ───────────────────────────────────
+
+export const createWorkReportSchema = z.object({
+  summary: z
+    .string()
+    .min(3, "Ringkasan pekerjaan minimal 3 karakter")
+    .max(5000, "Ringkasan terlalu panjang"),
+  actionTaken: z
+    .string()
+    .min(3, "Tindakan penanganan minimal 3 karakter")
+    .max(10000, "Tindakan penanganan terlalu panjang"),
+  materialsUsed: z.string().max(5000).optional().nullable(),
+  finalResult: z.string().max(2000).optional().nullable(),
+  beforePhotos: z.array(z.string()).optional(),
+  afterPhotos: z.array(z.string()).optional(),
 });
 
 // ─── Messages ─────────────────────────────────────────────────────────────────
@@ -161,22 +189,8 @@ export const updateMessageSchema = z.object({
 // ─── Filters ──────────────────────────────────────────────────────────────────
 
 export const ticketFiltersSchema = z.object({
-  status: z
-    .array(
-      z.enum([
-        "open",
-        "assigned",
-        "in_progress",
-        "pending",
-        "waiting_for_user",
-        "waiting_for_third_party",
-        "resolved",
-        "closed",
-        "reopened",
-        "cancelled",
-      ])
-    )
-    .optional(),
+  ticketType: z.array(z.enum(ticketTypes)).optional(),
+  status: z.array(z.enum(ticketStatuses)).optional(),
   priority: z.array(z.enum(["critical", "high", "medium", "low"])).optional(),
   assigneeId: z.string().optional(),
   requesterId: z.string().optional(),

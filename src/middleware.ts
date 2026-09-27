@@ -65,6 +65,12 @@ export default auth((req) => {
     return NextResponse.json({ error: "Forbidden: Akses ditolak" }, { status: 403 });
   }
 
+  // Ticket creation route protection (Strictly restricted to NOC, Owner, Admin)
+  const canCreateTicket = isNoc || isOwner || userRole === "admin";
+  if (pathname === "/tickets/new" && !canCreateTicket) {
+    return NextResponse.redirect(new URL("/tickets", req.url));
+  }
+
   return NextResponse.next();
 });
 

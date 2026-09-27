@@ -15,17 +15,18 @@ async function canUserAccessDepartmentChat(
   if (userRole === "noc" || userRole === "owner" || userRole === "admin") return true;
   if (userRole !== "agent") return false;
 
-  const currentUser = await db.query.users.findFirst({
-    where: eq(users.id, userId),
-    columns: { id: true, departmentId: true },
+  // Allowed only if the agent is assigned as primary lead or in ticket_assignees team
+  if (ticket.assigneeId === userId) return true;
+
+  const { ticketAssignees } = await import("@/lib/db/schema");
+  const assigned = await db.query.ticketAssignees.findFirst({
+    where: and(
+      eq(ticketAssignees.ticketId, ticket.id),
+      eq(ticketAssignees.userId, userId)
+    ),
   });
 
-  const userDeptId = currentUser?.departmentId;
-
-  // Allowed if agent belongs to same department, is assigned, or ticket/agent is general
-  if (ticket.assigneeId === userId) return true;
-  if (!ticket.departmentId || !userDeptId) return true;
-  return ticket.departmentId === userDeptId;
+  return Boolean(assigned);
 }
 
 // GET /api/chat/rooms/[ticketId] — Get all department chat messages

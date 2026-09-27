@@ -10,6 +10,8 @@ const badgeVariants = cva(
         // Status variants
         open: "status-open",
         assigned: "status-assigned",
+        accepted: "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800",
+        on_site: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800",
         in_progress: "status-in_progress",
         pending: "status-pending",
         waiting_for_user: "status-waiting_for_user",
@@ -53,6 +55,8 @@ function Badge({ className, variant, dot, children, ...props }: BadgeProps) {
           className={cn("inline-block h-1.5 w-1.5 rounded-full shrink-0", {
             "bg-zinc-500": variant === "open" || variant === "closed",
             "bg-blue-500": variant === "assigned" || variant === "info",
+            "bg-cyan-500": variant === "accepted",
+            "bg-indigo-500": variant === "on_site",
             "bg-purple-500": variant === "in_progress" || variant === "purple",
             "bg-amber-500": variant === "pending" || variant === "warning" || variant === "reopened",
             "bg-orange-500":

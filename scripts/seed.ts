@@ -23,6 +23,8 @@ async function seed() {
       BEGIN
         ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'noc';
         ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'owner';
+        ALTER TYPE ticket_status ADD VALUE IF NOT EXISTS 'accepted';
+        ALTER TYPE ticket_status ADD VALUE IF NOT EXISTS 'on_site';
       EXCEPTION
         WHEN duplicate_object THEN null;
       END $$;
@@ -157,7 +159,7 @@ async function seed() {
   const agentHash = await bcrypt.hash("Agent@123456", 12);
   const userHash = await bcrypt.hash("User@123456", 12);
 
-  const [nocUser, ownerUser, adminUser, agentUser, demoUser] = await db
+  const [nocUser, ownerUser, adminUser, agentUser, agent2User, demoUser] = await db
     .insert(schema.users)
     .values([
       {
@@ -185,8 +187,17 @@ async function seed() {
         isActive: true,
       },
       {
-        name: "Agent Smith",
+        name: "Agent Smith (Teknisi Lead)",
         email: "agent@helpdesk.local",
+        passwordHash: agentHash,
+        role: "agent",
+        departmentId: techDept?.id,
+        emailVerified: new Date(),
+        isActive: true,
+      },
+      {
+        name: "Budi Santoso (Teknisi)",
+        email: "agent2@helpdesk.local",
         passwordHash: agentHash,
         role: "agent",
         departmentId: techDept?.id,
@@ -300,7 +311,8 @@ async function seed() {
   console.log("  NOC Admin: noc@helpdesk.local    /  Noc@123456");
   console.log("  Owner:     owner@helpdesk.local  /  Owner@123456");
   console.log("  Admin:     admin@helpdesk.local  /  Admin@123456");
-  console.log("  Agent:     agent@helpdesk.local  /  Agent@123456");
+  console.log("  Teknisi 1: agent@helpdesk.local  /  Agent@123456");
+  console.log("  Teknisi 2: agent2@helpdesk.local /  Agent@123456");
   console.log("  User:      user@helpdesk.local   /  User@123456");
 
   await pool.end();

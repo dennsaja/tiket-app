@@ -38,7 +38,22 @@ export async function GET(
           },
         },
         assignee: {
-          columns: { id: true, name: true, email: true, avatarUrl: true },
+          columns: { id: true, name: true, email: true, avatarUrl: true, role: true, phone: true },
+        },
+        assignees: {
+          with: {
+            user: {
+              columns: { id: true, name: true, email: true, avatarUrl: true, role: true, phone: true },
+            },
+          },
+        },
+        workReports: {
+          with: {
+            technician: {
+              columns: { id: true, name: true, avatarUrl: true, phone: true },
+            },
+          },
+          orderBy: (wr, { desc }) => [desc(wr.createdAt)],
         },
         department: true,
         category: true,
@@ -140,23 +155,66 @@ export async function PATCH(
   const data = parsed.data;
   const updates: Record<string, any> = { updatedAt: new Date() };
 
+  if (data.ticketType !== undefined) updates.ticketType = data.ticketType;
   if (data.title !== undefined) updates.title = data.title;
   if (data.description !== undefined) updates.description = data.description;
   if (data.priority !== undefined) updates.priority = data.priority;
   if (data.departmentId !== undefined) updates.departmentId = data.departmentId;
   if (data.categoryId !== undefined) updates.categoryId = data.categoryId;
   if (data.subcategoryId !== undefined) updates.subcategoryId = data.subcategoryId;
+  if (data.specData !== undefined) updates.specData = data.specData;
   if (data.reporterName !== undefined) updates.reporterName = data.reporterName?.trim() || null;
+  if (data.reporterPhone !== undefined) updates.reporterPhone = data.reporterPhone?.trim() || null;
   if (data.reporterAddress !== undefined) updates.reporterAddress = data.reporterAddress?.trim() || null;
   if (data.reporterMapUrl !== undefined) updates.reporterMapUrl = data.reporterMapUrl?.trim() || null;
 
-  // Handle assignment
-  if (data.assigneeId !== undefined) {
+  // Handle multi-assignee update if provided
+  if (data.assigneeIds !== undefined) {
+    const rawAssignees = Array.isArray(data.assigneeIds) ? data.assigneeIds.filter(Boolean) : [];
+    const leadId = data.leadAssigneeId || (rawAssignees.length > 0 ? rawAssignees[0] : null);
+    
+    // Replace assignees in DB
+    const { ticketAssignees } = await import("@/lib/db/schema");
+    await db.delete(ticketAssignees).where(eq(ticketAssignees.ticketId, id));
+
+    if (rawAssignees.length > 0) {
+      await db.insert(ticketAssignees).values(
+        rawAssignees.map((techId) => ({
+          ticketId: id,
+          userId: techId,
+          isLead: techId === leadId,
+        }))
+      );
+    }
+
+    updates.assigneeId = leadId;
+    if (leadId && (ticket.status === "open" || !ticket.assigneeId)) {
+      updates.status = "assigned";
+    }
+
+    if (leadId !== ticket.assigneeId) {
+      await db.insert(ticketAssignmentHistory).values({
+        ticketId: id,
+        fromAgentId: ticket.assigneeId,
+        toAgentId: leadId,
+        assignedById: userId,
+        reason: data.reason || "Technicians team updated",
+      });
+
+      for (const techId of rawAssignees) {
+        notifyTicketAssigned(
+          id,
+          ticket.ticketNumber,
+          ticket.title,
+          techId
+        ).catch(() => {});
+      }
+    }
+  } else if (data.assigneeId !== undefined) {
     const prevAssigneeId = ticket.assigneeId;
     updates.assigneeId = data.assigneeId;
 
     if (data.assigneeId !== prevAssigneeId) {
-      // Auto-set status to assigned
       if (data.assigneeId && ticket.status === "open") {
         updates.status = "assigned";
       }
@@ -169,7 +227,6 @@ export async function PATCH(
         reason: data.reason,
       });
 
-      // Notify new assignee
       if (data.assigneeId) {
         await notifyTicketAssigned(
           id,
@@ -212,7 +269,7 @@ export async function PATCH(
       reason: data.reason,
     });
 
-    // Notify requester of status change
+    // Notify requester and team of status change
     await notifyStatusChange(
       id,
       ticket.ticketNumber,
@@ -220,7 +277,7 @@ export async function PATCH(
       data.status,
       ticket.requesterId,
       session.user.name || "Agent"
-    );
+    ).catch(() => {});
 
     await createAuditLog({
       actorId: userId,
@@ -235,7 +292,6 @@ export async function PATCH(
 
   // Handle priority change
   if (data.priority !== undefined && data.priority !== ticket.priority) {
-    // Re-apply SLA for new priority
     await applySlaPolicyToTicket(id, data.priority, updates.departmentId ?? ticket.departmentId, ticket.createdAt);
 
     await createAuditLog({

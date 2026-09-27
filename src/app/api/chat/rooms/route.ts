@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { tickets, users, departments, ticketMessages } from "@/lib/db/schema";
-import { eq, desc, and, or, isNull, sql } from "drizzle-orm";
+import { eq, desc, and, or, isNull, sql, inArray } from "drizzle-orm";
 import { errorResponse } from "@/lib/api/helpers";
 
 // GET /api/chat/rooms — List all ticket chat channels for Admin and matching Department Agents
@@ -29,24 +29,24 @@ export async function GET(req: NextRequest) {
   // Build query conditions
   const conditions: any[] = [isNull(tickets.deletedAt)];
 
-  // If Agent (not Admin), restrict to their department or assigned tickets
+  // If Agent (not Admin/NOC/Owner), strictly restrict to tickets they are assigned to
   if (userRole === "agent") {
-    if (userDeptId) {
+    const { ticketAssignees } = await import("@/lib/db/schema");
+    const myAssignments = await db
+      .select({ ticketId: ticketAssignees.ticketId })
+      .from(ticketAssignees)
+      .where(eq(ticketAssignees.userId, userId));
+    const assignedTicketIds = myAssignments.map((a) => a.ticketId);
+
+    if (assignedTicketIds.length > 0) {
       conditions.push(
         or(
-          eq(tickets.departmentId, userDeptId),
           eq(tickets.assigneeId, userId),
-          isNull(tickets.departmentId)
+          inArray(tickets.id, assignedTicketIds)
         )
       );
     } else {
-      // Agent without assigned department can see unassigned department tickets or assigned to them
-      conditions.push(
-        or(
-          eq(tickets.assigneeId, userId),
-          isNull(tickets.departmentId)
-        )
-      );
+      conditions.push(eq(tickets.assigneeId, userId));
     }
   }
 

@@ -154,6 +154,7 @@ interface ModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl" | "full";
+  className?: string;
 }
 
 function Modal({
@@ -164,10 +165,11 @@ function Modal({
   children,
   footer,
   size = "md",
+  className,
 }: ModalProps) {
   return (
     <ModalRoot open={open} onOpenChange={onOpenChange}>
-      <ModalContent size={size}>
+      <ModalContent size={size} className={className}>
         <ModalHeader
           title={title}
           description={description}

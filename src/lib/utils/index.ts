@@ -41,16 +41,42 @@ export function getTicketStatusLabel(status: string): string {
   const labels: Record<string, string> = {
     open: "Baru",
     assigned: "Ditugaskan",
+    accepted: "Tugas Diterima",
+    on_site: "Tiba di Lokasi",
     in_progress: "Sedang Dikerjakan",
     pending: "Tertunda",
     waiting_for_user: "Menunggu Respons User",
     waiting_for_third_party: "Menunggu Pihak Ketiga",
-    resolved: "Selesai",
+    resolved: "Laporan Selesai",
     closed: "Ditutup",
     reopened: "Dibuka Kembali",
     cancelled: "Dibatalkan",
   };
   return labels[status] || status;
+}
+
+export function getTicketTypeLabel(type: string | null | undefined): string {
+  if (!type) return "PSB";
+  const labels: Record<string, string> = {
+    psb: "PSB (Pemasangan Baru)",
+    perbaikan_infrastruktur: "Perbaikan Jaringan Internet",
+    pemasangan_cctv: "Pemasangan CCTV",
+    perbaikan_cctv: "Perbaikan CCTV",
+    maintenance: "Maintenance Berkala",
+  };
+  return labels[type] || type;
+}
+
+export function getTicketTypeShortLabel(type: string | null | undefined): string {
+  if (!type) return "PSB";
+  const labels: Record<string, string> = {
+    psb: "PSB",
+    perbaikan_infrastruktur: "Perbaikan FO",
+    pemasangan_cctv: "Pasang CCTV",
+    perbaikan_cctv: "Perbaikan CCTV",
+    maintenance: "Maintenance",
+  };
+  return labels[type] || type.toUpperCase();
 }
 
 export function getTicketPriorityLabel(priority: string): string {

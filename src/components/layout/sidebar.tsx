@@ -157,16 +157,18 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Quick Create Ticket Action */}
-      <div className="p-2.5 pb-0">
-        <Link
-          href="/tickets/new"
-          onClick={onLinkClick}
-          className="flex items-center justify-center gap-1.5 w-full rounded-md bg-black text-white py-1.5 px-3 text-xs font-medium hover:bg-zinc-800 transition-colors shadow-xs dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-        >
-          <span>+ Buat Tiket Baru</span>
-        </Link>
-      </div>
+      {/* Quick Create Ticket Action (NOC, Owner, Admin only) */}
+      {canAccessAdmin || isAdmin ? (
+        <div className="p-2.5 pb-0">
+          <Link
+            href="/tickets/new"
+            onClick={onLinkClick}
+            className="flex items-center justify-center gap-1.5 w-full rounded-md bg-black text-white py-1.5 px-3 text-xs font-medium hover:bg-zinc-800 transition-colors shadow-xs dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+          >
+            <span>+ Buat Tiket Baru</span>
+          </Link>
+        </div>
+      ) : null}
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-2.5 space-y-0.5">

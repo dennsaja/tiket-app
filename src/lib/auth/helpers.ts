@@ -90,6 +90,11 @@ export function canModifyTicket(
   return false;
 }
 
+// Check if user can create tickets (Strictly restricted to NOC, Owner, Admin)
+export function canCreateTicket(userRole: string): boolean {
+  return ["noc", "owner", "admin"].includes(userRole);
+}
+
 // Check if user can write internal notes
 export function canWriteInternalNotes(userRole: string): boolean {
   return ["noc", "owner", "admin", "agent"].includes(userRole);

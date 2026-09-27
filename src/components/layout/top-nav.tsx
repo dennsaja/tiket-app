@@ -177,16 +177,18 @@ export function TopNav({ breadcrumbs, title }: TopNavProps) {
           </button>
         )}
 
-        {/* New ticket */}
-        <Button
-          size="sm"
-          onClick={() => router.push("/tickets/new")}
-          leftIcon={<Plus className="h-3.5 w-3.5" />}
-          className="text-xs shrink-0"
-        >
-          <span className="hidden sm:inline">Buat Tiket</span>
-          <span className="sm:hidden">Tiket</span>
-        </Button>
+        {/* New ticket (NOC, Owner, Admin only) */}
+        {["noc", "owner", "admin"].includes((session?.user as any)?.role) && (
+          <Button
+            size="sm"
+            onClick={() => router.push("/tickets/new")}
+            leftIcon={<Plus className="h-3.5 w-3.5" />}
+            className="text-xs shrink-0"
+          >
+            <span className="hidden sm:inline">Buat Tiket</span>
+            <span className="sm:hidden">Tiket</span>
+          </Button>
+        )}
 
         {/* Theme Toggle */}
         <ThemeToggle />

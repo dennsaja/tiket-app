@@ -29,9 +29,19 @@ function generateUuid(): string {
 
 export const userRoleEnum = pgEnum("user_role", ["noc", "owner", "admin", "agent", "user"]);
 
+export const ticketTypeEnum = pgEnum("ticket_type", [
+  "psb",
+  "perbaikan_infrastruktur",
+  "pemasangan_cctv",
+  "perbaikan_cctv",
+  "maintenance",
+]);
+
 export const ticketStatusEnum = pgEnum("ticket_status", [
   "open",
   "assigned",
+  "accepted",
+  "on_site",
   "in_progress",
   "pending",
   "waiting_for_user",
@@ -309,6 +319,7 @@ export const tickets = pgTable(
   {
     id: text("id").primaryKey().$defaultFn(() => generateUuid()),
     ticketNumber: serial("ticket_number").notNull(),
+    ticketType: ticketTypeEnum("ticket_type").notNull().default("psb"),
     title: varchar("title", { length: 500 }).notNull(),
     description: text("description").notNull(),
     status: ticketStatusEnum("status").notNull().default("open"),
@@ -319,7 +330,7 @@ export const tickets = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
 
-    // Assignment
+    // Assignment (Lead Assignee kept for primary reference)
     assigneeId: text("assignee_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -332,6 +343,9 @@ export const tickets = pgTable(
     subcategoryId: text("subcategory_id").references(() => subcategories.id, {
       onDelete: "set null",
     }),
+
+    // Dynamic Specifications / Fields per Ticket Type
+    specData: jsonb("spec_data"),
 
     // SLA
     slaPolicyId: text("sla_policy_id").references(() => slaPolicies.id, {
@@ -349,6 +363,7 @@ export const tickets = pgTable(
 
     // Reporter Information (Optional)
     reporterName: varchar("reporter_name", { length: 255 }),
+    reporterPhone: varchar("reporter_phone", { length: 50 }),
     reporterAddress: text("reporter_address"),
     reporterMapUrl: text("reporter_map_url"),
 
@@ -365,6 +380,7 @@ export const tickets = pgTable(
   },
   (table) => ({
     ticketNumberIdx: uniqueIndex("tickets_number_idx").on(table.ticketNumber),
+    ticketTypeIdx: index("tickets_type_idx").on(table.ticketType),
     requesterIdx: index("tickets_requester_idx").on(table.requesterId),
     assigneeIdx: index("tickets_assignee_idx").on(table.assigneeId),
     statusIdx: index("tickets_status_idx").on(table.status),
@@ -376,6 +392,59 @@ export const tickets = pgTable(
       table.slaResolutionDue
     ),
     deletedAtIdx: index("tickets_deleted_at_idx").on(table.deletedAt),
+  })
+);
+
+// ─── Ticket Assignees (Multi-Technician Assignment) ───────────────────────────
+
+export const ticketAssignees = pgTable(
+  "ticket_assignees",
+  {
+    id: text("id").primaryKey().$defaultFn(() => generateUuid()),
+    ticketId: text("ticket_id")
+      .notNull()
+      .references(() => tickets.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    isLead: boolean("is_lead").notNull().default(false),
+    assignedAt: timestamp("assigned_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    ticketUserIdx: uniqueIndex("ticket_assignees_ticket_user_idx").on(
+      table.ticketId,
+      table.userId
+    ),
+    ticketIdx: index("ticket_assignees_ticket_idx").on(table.ticketId),
+    userIdx: index("ticket_assignees_user_idx").on(table.userId),
+  })
+);
+
+// ─── Ticket Work Reports (Laporan Kerja & Dokumentasi Foto Teknisi) ─────────
+
+export const ticketWorkReports = pgTable(
+  "ticket_work_reports",
+  {
+    id: text("id").primaryKey().$defaultFn(() => generateUuid()),
+    ticketId: text("ticket_id")
+      .notNull()
+      .references(() => tickets.id, { onDelete: "cascade" }),
+    technicianId: text("technician_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    summary: text("summary").notNull(),
+    actionTaken: text("action_taken").notNull(),
+    materialsUsed: text("materials_used"),
+    finalResult: text("final_result"),
+    beforePhotos: jsonb("before_photos").$type<string[]>().default([]),
+    afterPhotos: jsonb("after_photos").$type<string[]>().default([]),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    ticketIdx: index("ticket_work_reports_ticket_idx").on(table.ticketId),
+    technicianIdx: index("ticket_work_reports_technician_idx").on(table.technicianId),
+    createdAtIdx: index("ticket_work_reports_created_at_idx").on(table.createdAt),
   })
 );
 
@@ -642,6 +711,8 @@ export const usersRelations = relations(users, ({ many, one }) => ({
   }),
   requestedTickets: many(tickets, { relationName: "requester" }),
   assignedTickets: many(tickets, { relationName: "assignee" }),
+  assignedTeamTickets: many(ticketAssignees),
+  workReports: many(ticketWorkReports),
   messages: many(ticketMessages),
   notifications: many(notifications),
   auditLogs: many(auditLogs),
@@ -685,6 +756,8 @@ export const ticketsRelations = relations(tickets, ({ one, many }) => ({
     references: [users.id],
     relationName: "assignee",
   }),
+  assignees: many(ticketAssignees),
+  workReports: many(ticketWorkReports),
   department: one(departments, {
     fields: [tickets.departmentId],
     references: [departments.id],
@@ -708,6 +781,28 @@ export const ticketsRelations = relations(tickets, ({ one, many }) => ({
   assignmentHistory: many(ticketAssignmentHistory),
   notifications: many(notifications),
   slaEvents: many(slaEvents),
+}));
+
+export const ticketAssigneesRelations = relations(ticketAssignees, ({ one }) => ({
+  ticket: one(tickets, {
+    fields: [ticketAssignees.ticketId],
+    references: [tickets.id],
+  }),
+  user: one(users, {
+    fields: [ticketAssignees.userId],
+    references: [users.id],
+  }),
+}));
+
+export const ticketWorkReportsRelations = relations(ticketWorkReports, ({ one }) => ({
+  ticket: one(tickets, {
+    fields: [ticketWorkReports.ticketId],
+    references: [tickets.id],
+  }),
+  technician: one(users, {
+    fields: [ticketWorkReports.technicianId],
+    references: [users.id],
+  }),
 }));
 
 export const ticketStatusHistoryRelations = relations(
@@ -834,6 +929,11 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Ticket = typeof tickets.$inferSelect;
 export type NewTicket = typeof tickets.$inferInsert;
+export type TicketType = "psb" | "perbaikan_infrastruktur" | "pemasangan_cctv" | "perbaikan_cctv" | "maintenance";
+export type TicketAssignee = typeof ticketAssignees.$inferSelect;
+export type NewTicketAssignee = typeof ticketAssignees.$inferInsert;
+export type TicketWorkReport = typeof ticketWorkReports.$inferSelect;
+export type NewTicketWorkReport = typeof ticketWorkReports.$inferInsert;
 export type TicketMessage = typeof ticketMessages.$inferSelect;
 export type NewTicketMessage = typeof ticketMessages.$inferInsert;
 export type Attachment = typeof attachments.$inferSelect;

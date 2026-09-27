@@ -50,7 +50,23 @@ export default async function TicketsPage({ searchParams }: TicketsPageProps) {
   if (userRole === "user") {
     conditions.push(eq(tickets.requesterId, userId));
   } else if (params.mine === "true") {
-    conditions.push(eq(tickets.assigneeId, userId));
+    const { ticketAssignees } = await import("@/lib/db/schema");
+    const myAssignments = await db
+      .select({ ticketId: ticketAssignees.ticketId })
+      .from(ticketAssignees)
+      .where(eq(ticketAssignees.userId, userId));
+    const assignedIds = myAssignments.map((a) => a.ticketId);
+
+    if (assignedIds.length > 0) {
+      conditions.push(
+        or(
+          eq(tickets.assigneeId, userId),
+          inArray(tickets.id, assignedIds)
+        )
+      );
+    } else {
+      conditions.push(eq(tickets.assigneeId, userId));
+    }
   }
 
   // Search filter
@@ -59,6 +75,7 @@ export default async function TicketsPage({ searchParams }: TicketsPageProps) {
       or(
         ilike(tickets.title, `%${params.search}%`),
         ilike(tickets.description, `%${params.search}%`),
+        ilike(tickets.reporterName, `%${params.search}%`),
         sql`${tickets.ticketNumber}::text ILIKE ${`%${params.search}%`}`
       )
     );
@@ -120,6 +137,11 @@ export default async function TicketsPage({ searchParams }: TicketsPageProps) {
         with: {
           requester: { columns: { id: true, name: true, email: true, avatarUrl: true } },
           assignee: { columns: { id: true, name: true, avatarUrl: true } },
+          assignees: {
+            with: {
+              user: { columns: { id: true, name: true, avatarUrl: true, role: true } },
+            },
+          },
           department: { columns: { id: true, name: true } },
           category: { columns: { id: true, name: true } },
         },
@@ -148,6 +170,7 @@ export default async function TicketsPage({ searchParams }: TicketsPageProps) {
   }
 
   const totalPages = Math.ceil(totalCount / perPage);
+  const canCreate = ["noc", "owner", "admin"].includes(userRole);
 
   return (
     <div className="space-y-4">
@@ -161,11 +184,13 @@ export default async function TicketsPage({ searchParams }: TicketsPageProps) {
             Menampilkan {ticketList.length} dari {totalCount} total tiket
           </p>
         </div>
-        <Link href="/tickets/new">
-          <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />}>
-            Buat Tiket Baru
-          </Button>
-        </Link>
+        {canCreate && (
+          <Link href="/tickets/new">
+            <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />}>
+              Buat Tiket Baru
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Filter Component */}

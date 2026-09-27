@@ -10,10 +10,14 @@ import { formatRelativeTime, truncate } from "@/lib/utils";
 import { SlaIndicator } from "@/components/ui/sla-indicator";
 import { ChevronRight } from "lucide-react";
 
+import { TicketTypeBadge } from "@/components/tickets/ticket-type-badge";
+import { Users } from "lucide-react";
+
 interface TicketRowProps {
   ticket: {
     id: string;
     ticketNumber: number;
+    ticketType?: string;
     title: string;
     status: string;
     priority: string;
@@ -30,6 +34,15 @@ interface TicketRowProps {
       name: string;
       avatarUrl?: string | null;
     } | null;
+    assignees?: Array<{
+      user: {
+        id: string;
+        name: string;
+        avatarUrl?: string | null;
+        role?: string;
+      };
+      isLead?: boolean;
+    }>;
     department?: {
       id: string;
       name: string;
@@ -50,6 +63,9 @@ export function TicketRow({
   onSelect,
   showCheckbox,
 }: TicketRowProps) {
+  const teamAssignees = ticket.assignees || [];
+  const hasMultipleTechs = teamAssignees.length > 1;
+
   return (
     <TableRow className="group hover:bg-zinc-50/80 dark:hover:bg-zinc-900/50 cursor-pointer transition-colors">
       {showCheckbox && (
@@ -69,14 +85,15 @@ export function TicketRow({
         </Link>
       </TableCell>
 
-      <TableCell className="min-w-[240px] max-w-md">
+      <TableCell className="min-w-[260px] max-w-md">
         <Link href={`/tickets/${ticket.id}`} className="block py-1">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <TicketTypeBadge type={ticket.ticketType} size="sm" />
             <span className="font-medium text-zinc-900 group-hover:text-black dark:text-zinc-100 dark:group-hover:text-white transition-colors text-xs line-clamp-1">
               {ticket.title}
             </span>
           </div>
-          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-zinc-400">
+          <div className="flex items-center gap-2 mt-1 text-[11px] text-zinc-400">
             {ticket.department && (
               <span className="text-zinc-500 font-medium dark:text-zinc-400">{ticket.department.name}</span>
             )}
@@ -112,8 +129,28 @@ export function TicketRow({
         </div>
       </TableCell>
 
-      <TableCell className="w-36">
-        {ticket.assignee ? (
+      <TableCell className="w-40">
+        {teamAssignees.length > 0 ? (
+          <div className="flex items-center gap-1.5">
+            <div className="flex -space-x-2 overflow-hidden">
+              {teamAssignees.slice(0, 3).map((item, i) => (
+                <Avatar
+                  key={item.user?.id || i}
+                  name={item.user?.name || "Tech"}
+                  src={item.user?.avatarUrl}
+                  size="sm"
+                  className="h-5 w-5 text-[9px] border-2 border-white dark:border-black"
+                />
+              ))}
+            </div>
+            <div className="text-[11px] text-zinc-700 dark:text-zinc-300 truncate max-w-[110px]" title={teamAssignees.map((a) => a.user?.name).join(", ")}>
+              {teamAssignees[0]?.user?.name || "Teknisi"}
+              {teamAssignees.length > 1 && (
+                <span className="text-zinc-400 ml-1 font-mono">+{teamAssignees.length - 1}</span>
+              )}
+            </div>
+          </div>
+        ) : ticket.assignee ? (
           <div className="flex items-center gap-1.5 text-xs text-zinc-700 dark:text-zinc-300">
             <Avatar
               name={ticket.assignee.name}
@@ -121,7 +158,7 @@ export function TicketRow({
               size="sm"
               className="h-5 w-5 text-[9px] border border-zinc-200 dark:border-zinc-800"
             />
-            <span className="truncate max-w-[100px]" title={ticket.assignee.name}>
+            <span className="truncate max-w-[110px]" title={ticket.assignee.name}>
               {ticket.assignee.name}
             </span>
           </div>
