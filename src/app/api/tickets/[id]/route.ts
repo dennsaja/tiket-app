@@ -206,7 +206,15 @@ export async function PATCH(
           id,
           ticket.ticketNumber,
           ticket.title,
-          techId
+          techId,
+          {
+            ticketType: ticket.ticketType,
+            priority: ticket.priority,
+            reporterName: ticket.reporterName,
+            reporterPhone: ticket.reporterPhone,
+            reporterAddress: ticket.reporterAddress,
+            isLead: techId === leadId,
+          }
         ).catch(() => {});
       }
     }
@@ -232,7 +240,15 @@ export async function PATCH(
           id,
           ticket.ticketNumber,
           ticket.title,
-          data.assigneeId
+          data.assigneeId,
+          {
+            ticketType: ticket.ticketType,
+            priority: ticket.priority,
+            reporterName: ticket.reporterName,
+            reporterPhone: ticket.reporterPhone,
+            reporterAddress: ticket.reporterAddress,
+            isLead: true,
+          }
         );
       }
 

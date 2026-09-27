@@ -19,6 +19,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { canCreateTicket } from "@/lib/auth/helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -134,13 +135,15 @@ export default async function DashboardPage() {
               : "Daftar Permintaan Bantuan & Tiket Anda"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/tickets/new">
-            <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />}>
-              Buat Tiket Baru
-            </Button>
-          </Link>
-        </div>
+        {canCreateTicket(userRole) && (
+          <div className="flex items-center gap-2">
+            <Link href="/tickets/new">
+              <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />}>
+                Buat Tiket Baru
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* KPI Cards (Vercel Style) */}
@@ -217,7 +220,9 @@ export default async function DashboardPage() {
 
         {recentTickets.length === 0 ? (
           <div className="py-12 text-center text-xs text-zinc-400 dark:text-zinc-500">
-            Belum ada tiket ditemukan. Buat tiket pertama Anda untuk memulai.
+            {canCreateTicket(userRole)
+              ? "Belum ada tiket ditemukan. Buat tiket pertama Anda untuk memulai."
+              : "Belum ada tiket yang ditugaskan kepada Anda saat ini."}
           </div>
         ) : (
           <div className="divide-y divide-zinc-100 dark:divide-zinc-800/80">

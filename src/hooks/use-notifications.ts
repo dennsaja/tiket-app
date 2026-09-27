@@ -48,8 +48,14 @@ export function useNotifications(): UseNotificationsReturn {
         if (!cancelled) setLoading(false);
       });
 
+    const handleCustomRefresh = () => {
+      setRefreshKey((k) => k + 1);
+    };
+    window.addEventListener("refresh-notifications", handleCustomRefresh);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("refresh-notifications", handleCustomRefresh);
     };
   }, [refreshKey]);
 

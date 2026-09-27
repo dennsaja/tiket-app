@@ -211,13 +211,15 @@ export default async function TicketsPage({ searchParams }: TicketsPageProps) {
             <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400 max-w-sm">
               Tidak ada tiket yang sesuai dengan kriteria filter atau kata kunci pencarian Anda.
             </p>
-            <div className="mt-4">
-              <Link href="/tickets/new">
-                <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />}>
-                  Buat Tiket Baru
-                </Button>
-              </Link>
-            </div>
+            {canCreate && (
+              <div className="mt-4">
+                <Link href="/tickets/new">
+                  <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />}>
+                    Buat Tiket Baru
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">

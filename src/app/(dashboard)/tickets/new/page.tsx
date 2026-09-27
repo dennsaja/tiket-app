@@ -189,9 +189,14 @@ export default function NewTicketPage() {
       }
     }
     if (authStatus === "authenticated") {
+      if (!["noc", "owner", "admin"].includes(userRole)) {
+        toast.error("Akses Ditolak: Pembuatan tiket hanya dapat dilakukan oleh NOC, Owner, dan Admin.");
+        router.replace("/tickets");
+        return;
+      }
       loadMeta();
     }
-  }, [authStatus]);
+  }, [authStatus, userRole, router]);
 
   // Auto-fill suggested title when type or reporterName changes (if title not custom edited)
   React.useEffect(() => {

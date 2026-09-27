@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
-import { notifications, users, tickets } from "@/lib/db/schema";
+import { notifications } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { notificationBus } from "./bus";
 
 interface CreateNotificationInput {
   userId: string;
@@ -11,38 +12,82 @@ interface CreateNotificationInput {
   data?: Record<string, any>;
 }
 
+export interface TicketAssignedDetails {
+  ticketType?: string;
+  priority?: string;
+  reporterName?: string | null;
+  reporterPhone?: string | null;
+  reporterAddress?: string | null;
+  isLead?: boolean;
+}
+
 /**
- * Create a notification for a user
+ * Create a notification for a user (DB + Realtime Bus)
  */
 export async function createNotification(
   input: CreateNotificationInput
 ): Promise<void> {
-  await db.insert(notifications).values({
+  const [created] = await db.insert(notifications).values({
     userId: input.userId,
     type: input.type,
     title: input.title,
     message: input.message,
     ticketId: input.ticketId,
     data: input.data,
+  }).returning();
+
+  // Push to realtime event bus
+  notificationBus.emitNotification({
+    userId: input.userId,
+    type: input.type,
+    title: input.title,
+    message: input.message,
+    ticketId: input.ticketId,
+    data: input.data,
+    createdAt: (created?.createdAt || new Date()).toISOString(),
   });
 }
 
 /**
- * Create notifications for ticket assignment
+ * Create notification for ticket assignment with rich metadata
  */
 export async function notifyTicketAssigned(
   ticketId: string,
   ticketNumber: number,
   ticketTitle: string,
-  assigneeId: string
+  assigneeId: string,
+  details?: TicketAssignedDetails
 ): Promise<void> {
+  const typeLabelMap: Record<string, string> = {
+    psb: "PSB (Pasang Baru)",
+    perbaikan_infrastruktur: "Perbaikan Jaringan",
+    pemasangan_cctv: "Pasang CCTV",
+    perbaikan_cctv: "Perbaikan CCTV",
+    maintenance: "Maintenance",
+  };
+
+  const typeName = details?.ticketType ? (typeLabelMap[details.ticketType] || details.ticketType) : "Penugasan";
+  const title = `🚨 Penugasan Baru #${ticketNumber} [${typeName}]`;
+  const reporterInfo = details?.reporterName ? ` | Pelapor: ${details.reporterName}` : "";
+  const addressInfo = details?.reporterAddress ? ` (${details.reporterAddress})` : "";
+  const message = `Tiket baru ditugaskan ke Anda: "${ticketTitle}"${reporterInfo}${addressInfo}`;
+
   await createNotification({
     userId: assigneeId,
     type: "ticket_assigned",
-    title: `Ticket #${ticketNumber} assigned to you`,
-    message: `You have been assigned ticket: "${ticketTitle}"`,
+    title,
+    message,
     ticketId,
-    data: { ticketNumber, ticketTitle },
+    data: {
+      ticketNumber,
+      ticketTitle,
+      ticketType: details?.ticketType,
+      priority: details?.priority,
+      reporterName: details?.reporterName,
+      reporterPhone: details?.reporterPhone,
+      reporterAddress: details?.reporterAddress,
+      isLead: details?.isLead,
+    },
   });
 }
 
@@ -58,11 +103,11 @@ export async function notifyNewMessage(
   isInternalNote: boolean = false
 ): Promise<void> {
   const title = isInternalNote
-    ? `New internal note on #${ticketNumber}`
-    : `New reply on #${ticketNumber}`;
+    ? `💬 Catatan Internal baru pada #${ticketNumber}`
+    : `💬 Balasan baru pada #${ticketNumber}`;
   const message = isInternalNote
-    ? `${authorName} left an internal note on "${ticketTitle}"`
-    : `${authorName} replied to "${ticketTitle}"`;
+    ? `${authorName} menambahkan catatan internal pada "${ticketTitle}"`
+    : `${authorName} membalas tiket "${ticketTitle}"`;
 
   for (const userId of recipientIds) {
     await createNotification({
@@ -88,10 +133,12 @@ export async function notifyStatusChange(
   changedByName: string
 ): Promise<void> {
   const statusLabels: Record<string, string> = {
-    resolved: "Resolved",
-    closed: "Closed",
-    reopened: "Reopened",
-    in_progress: "In Progress",
+    accepted: "Diterima Teknisi",
+    on_site: "Teknisi di Lokasi",
+    in_progress: "Sedang Dikerjakan",
+    resolved: "Selesai (Menunggu Verifikasi)",
+    closed: "Ditutup",
+    reopened: "Dibuka Kembali",
     pending: "Pending",
   };
 
@@ -107,8 +154,8 @@ export async function notifyStatusChange(
         : newStatus === "reopened"
         ? "ticket_reopened"
         : "ticket_updated",
-    title: `Ticket #${ticketNumber} is now ${statusLabel}`,
-    message: `${changedByName} changed status of "${ticketTitle}" to ${statusLabel}`,
+    title: `Tiket #${ticketNumber} status: ${statusLabel}`,
+    message: `${changedByName} mengubah status "${ticketTitle}" menjadi ${statusLabel}`,
     ticketId,
     data: { ticketNumber, ticketTitle, newStatus, changedByName },
   });
@@ -124,9 +171,7 @@ export async function markNotificationRead(
   await db
     .update(notifications)
     .set({ isRead: true, readAt: new Date() })
-    .where(
-      eq(notifications.id, notificationId)
-    );
+    .where(eq(notifications.id, notificationId));
 }
 
 /**

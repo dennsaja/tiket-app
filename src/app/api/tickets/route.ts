@@ -284,7 +284,15 @@ export async function POST(req: NextRequest) {
         ticket.id,
         ticket.ticketNumber,
         ticket.title,
-        techId
+        techId,
+        {
+          ticketType: ticket.ticketType,
+          priority: ticket.priority,
+          reporterName: ticket.reporterName,
+          reporterPhone: ticket.reporterPhone,
+          reporterAddress: ticket.reporterAddress,
+          isLead: techId === primaryAssigneeId,
+        }
       ).catch(() => {});
     }
   }
