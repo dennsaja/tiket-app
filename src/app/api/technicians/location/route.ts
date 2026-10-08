@@ -57,16 +57,28 @@ export async function POST(req: NextRequest) {
   const mobileUser = !session?.user ? await getMobileUserFromRequest(req) : null;
   const currentUser = session?.user || mobileUser;
 
-  if (!currentUser) return errorResponse("Unauthorized", 401);
+  if (!currentUser) {
+    console.warn(
+      `[TECH_LOCATION] 401 Unauthorized - No valid session or Bearer token. Auth header: ${
+        req.headers.get("authorization") ? "present" : "missing"
+      }`
+    );
+    return errorResponse("Unauthorized", 401);
+  }
 
   const userRole = (currentUser as any).role;
-  if (userRole !== "agent" && userRole !== "admin") {
-    return errorResponse("Hanya teknisi yang dapat mengirim lokasi", 403);
+  if (!["agent", "admin", "noc", "owner"].includes(userRole)) {
+    console.warn(`[TECH_LOCATION] 403 Forbidden for role ${userRole} (${currentUser.name})`);
+    return errorResponse("Hanya staf teknis yang dapat mengirim lokasi", 403);
   }
 
   let body: any;
   try { body = await req.json(); }
   catch { return errorResponse("Invalid JSON body", 400); }
+
+  console.log(
+    `[TECH_LOCATION] Ping GPS diterima dari ${currentUser.name} (${currentUser.id}, role: ${userRole})`
+  );
 
   const parsed = locationSchema.safeParse(body);
   if (!parsed.success) {
@@ -173,7 +185,13 @@ export async function GET() {
     })
     .from(users)
     .leftJoin(technicianLocations, eq(technicianLocations.userId, users.id))
-    .where(and(eq(users.role, "agent"), eq(users.isActive, true), isNull(users.deletedAt)));
+    .where(
+      and(
+        or(eq(users.role, "agent"), eq(technicianLocations.isTracking, true)),
+        eq(users.isActive, true),
+        isNull(users.deletedAt)
+      )
+    );
 
   // Active tickets (to plot customer destinations)
   const ticketRows = await db.query.tickets.findMany({

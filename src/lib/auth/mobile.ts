@@ -40,7 +40,8 @@ export async function verifyMobileToken(token: string): Promise<MobileUserPayloa
       name: payload.name as string,
       role: payload.role as string,
     };
-  } catch {
+  } catch (err: any) {
+    console.warn(`[MOBILE_AUTH] Token verification failed: ${err?.message}`);
     return null;
   }
 }

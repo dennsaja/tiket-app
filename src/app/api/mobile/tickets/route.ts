@@ -12,11 +12,19 @@ export async function GET(req: NextRequest) {
   const currentUser = session?.user || mobileUser;
 
   if (!currentUser) {
+    console.warn(
+      `[MOBILE_TICKETS] 401 Unauthorized - No valid session or Bearer token. Auth header: ${
+        req.headers.get("authorization") ? "present" : "missing"
+      }`
+    );
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const userId = currentUser.id!;
   const userRole = (currentUser as any).role;
+  console.log(
+    `[MOBILE_TICKETS] Berhasil autentikasi: ${currentUser.name} (${userId}, role: ${userRole}) memuat tiket`
+  );
 
   // Find all tickets where technician is primary assignee OR in ticketAssignees team
   const myAssignments = await db

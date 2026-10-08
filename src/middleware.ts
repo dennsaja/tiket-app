@@ -25,7 +25,13 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
   const session = req.auth;
 
-  // Public routes that don't require auth
+  // Allow mobile requests with Authorization Bearer header
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    return NextResponse.next();
+  }
+
+  // Public routes that don't require session auth
   const publicRoutes = [
     "/login",
     "/register",
@@ -33,6 +39,11 @@ export default auth((req) => {
     "/reset-password",
     "/api/health",
     "/api/auth",
+    "/api/mobile",
+    "/api/technicians/location",
+    "/mobile-auth",
+    "/download",
+    "/downloads",
   ];
 
   const isPublicRoute = publicRoutes.some((route) =>
