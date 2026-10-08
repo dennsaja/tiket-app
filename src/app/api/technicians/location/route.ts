@@ -6,6 +6,7 @@ import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { errorResponse } from "@/lib/api/helpers";
 import { notificationBus } from "@/lib/notifications/bus";
 import { parseCoordinates } from "@/lib/utils/geo";
+import { getMobileUserFromRequest } from "@/lib/auth/mobile";
 import { z } from "zod";
 
 const ACTIVE_STATUSES = ["assigned", "accepted", "on_site", "in_progress"] as const;
@@ -53,10 +54,13 @@ async function findActiveTicketId(userId: string): Promise<string | null> {
 // POST /api/technicians/location — technician pushes a GPS ping
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const mobileUser = !session?.user ? await getMobileUserFromRequest(req) : null;
+  const currentUser = session?.user || mobileUser;
 
-  const userRole = (session.user as any).role;
-  if (userRole !== "agent") {
+  if (!currentUser) return errorResponse("Unauthorized", 401);
+
+  const userRole = (currentUser as any).role;
+  if (userRole !== "agent" && userRole !== "admin") {
     return errorResponse("Hanya teknisi yang dapat mengirim lokasi", 403);
   }
 
@@ -72,7 +76,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const userId = session.user.id!;
+  const userId = currentUser.id!;
   const data = parsed.data;
   const activeTicketId = await findActiveTicketId(userId);
   const now = new Date();
@@ -97,8 +101,8 @@ export async function POST(req: NextRequest) {
 
   notificationBus.emitLocation({
     ...values,
-    name: session.user.name || "Teknisi",
-    avatarUrl: (session.user as any).image ?? null,
+    name: currentUser.name || "Teknisi",
+    avatarUrl: (currentUser as any).image ?? (currentUser as any).avatarUrl ?? null,
     updatedAt: now.toISOString(),
   });
 
@@ -106,11 +110,14 @@ export async function POST(req: NextRequest) {
 }
 
 // DELETE /api/technicians/location — technician stops sharing location
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
   const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const mobileUser = !session?.user ? await getMobileUserFromRequest(req) : null;
+  const currentUser = session?.user || mobileUser;
 
-  const userId = session.user.id!;
+  if (!currentUser) return errorResponse("Unauthorized", 401);
+
+  const userId = currentUser.id!;
   const [row] = await db
     .update(technicianLocations)
     .set({ isTracking: false, updatedAt: new Date() })
@@ -120,8 +127,8 @@ export async function DELETE() {
   if (row) {
     notificationBus.emitLocation({
       userId,
-      name: session.user.name || "Teknisi",
-      avatarUrl: (session.user as any).image ?? null,
+      name: currentUser.name || "Teknisi",
+      avatarUrl: (currentUser as any).image ?? (currentUser as any).avatarUrl ?? null,
       latitude: row.latitude,
       longitude: row.longitude,
       accuracy: row.accuracy,

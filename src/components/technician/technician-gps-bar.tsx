@@ -117,6 +117,14 @@ export function TechnicianGpsBar() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <a
+                href="/download"
+                className="inline-flex items-center gap-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 text-xs font-semibold shadow-xs transition-colors"
+                title="Pasang aplikasi Android untuk pelacakan latar belakang"
+              >
+                <Smartphone className="h-3.5 w-3.5" />
+                <span>Download APK Android</span>
+              </a>
               <Button
                 variant="outline"
                 size="sm"
@@ -292,6 +300,26 @@ export function TechnicianGpsBar() {
           <p className="text-zinc-600 dark:text-zinc-400">
             Browser telah memblokir akses lokasi untuk domain HelpDesk. Ikuti langkah mudah di bawah ini untuk membuka izin:
           </p>
+
+          {/* Mobile APK Callout */}
+          <div className="bg-sky-50 dark:bg-sky-950/40 p-3 rounded-xl border border-sky-200 dark:border-sky-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="min-w-0">
+              <strong className="text-sky-950 dark:text-sky-100 block font-semibold text-xs">
+                💡 Rekomendasi: Pasang Aplikasi Android Teknisi
+              </strong>
+              <span className="text-[11px] text-sky-800 dark:text-sky-300">
+                GPS otomatis aktif di latar belakang saat HP di saku tanpa kendala izin browser.
+              </span>
+            </div>
+            <a
+              href="/downloads/helpdesk-teknisi.apk"
+              download="helpdesk-teknisi.apk"
+              className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 font-bold text-xs shadow-xs transition-colors"
+            >
+              <Smartphone className="h-3.5 w-3.5" />
+              <span>Unduh APK (.apk)</span>
+            </a>
+          </div>
 
           {/* Device Tab Switcher */}
           <div className="flex rounded-lg bg-zinc-100 dark:bg-zinc-900 p-1 border border-zinc-200 dark:border-zinc-800">

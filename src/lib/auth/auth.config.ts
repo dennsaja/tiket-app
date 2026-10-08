@@ -47,6 +47,8 @@ export const authConfig: NextAuthConfig = {
         "/reset-password",
         "/api/health",
         "/api/auth",
+        "/api/mobile",
+        "/api/technicians/location",
       ];
       if (publicPaths.some((p) => pathname.startsWith(p))) {
         return true;

@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">HelpDesk Teknisi</string>
+    <string name="title_login">Masuk Teknisi</string>
+    <string name="subtitle_login">Pantau dan kelola tiket tugas lapangan secara realtime</string>
+    <string name="server_url">URL Server</string>
+    <string name="email">Email Teknisi</string>
+    <string name="password">Kata Sandi</string>
+    <string name="btn_login">Masuk Sekarang</string>
+    <string name="duty_active">Sedang Dinas (GPS Aktif)</string>
+    <string name="duty_inactive">Selesai Dinas (GPS Mati)</string>
+    <string name="location_channel_name">Pelacakan Lokasi Tugas</string>
+    <string name="location_channel_desc">Menampilkan notifikasi aktif saat GPS sedang melacak posisi teknisi</string>
+</resources>
