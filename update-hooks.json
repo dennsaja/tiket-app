@@ -2,5 +2,7 @@
   "version": "1.0",
   "name": "HelpDesk Custom Update Hook",
   "description": "Daftar perintah khusus yang otomatis dijalankan oleh fitur Update System di web app HelpDesk setelah Git pull dan sebelum build Next.js.",
-  "commands": []
+  "commands": [
+    "npm install --prefer-offline --no-audit"
+  ]
 }

@@ -520,6 +520,24 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // Step 7.5: Ensure npm packages are installed
+        const leafletModule = path.join(cwd, "node_modules", "leaflet");
+        if (!fs.existsSync(leafletModule)) {
+          log("NPM", "Memeriksa dan menginstal package dependencies (npm install)...");
+          send({ type: "status", message: "Menginstal dependencies (npm install)...", progress: 65 });
+          const npmRes = await spawnStreamingCmd(
+            "npm install --prefer-offline --no-audit",
+            cwd,
+            (line) => log("NPM", line),
+            180000
+          );
+          if (npmRes.exitCode !== 0) {
+            log("NPM_WARN", `npm install selesai dengan exit code ${npmRes.exitCode}`);
+          } else {
+            log("NPM", "Dependencies berhasil diverifikasi.");
+          }
+        }
+
         // Step 8: Next.js Production Build
         log("BUILD", "Memulai kompilasi Next.js (npm run build)...");
         send({ type: "status", message: "Mengompilasi Next.js bundle...", progress: 70 });

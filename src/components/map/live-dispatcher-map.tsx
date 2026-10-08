@@ -29,8 +29,7 @@ import { formatRelativeTime } from "@/lib/utils";
 import { formatDistance, distanceMeters, LOCATION_STALE_MS } from "@/lib/utils/geo";
 import toast from "react-hot-toast";
 
-// Leaflet CSS & JS types
-import "leaflet/dist/leaflet.css";
+// Leaflet types only (CSS loaded dynamically to avoid build-time errors when node_modules is updating)
 import type * as LType from "leaflet";
 
 interface TechnicianItem {
@@ -130,8 +129,33 @@ export function LiveDispatcherMap() {
     async function initMap() {
       if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-      const L = await import("leaflet");
-      if (isCancelled) return;
+      // Dynamically load Leaflet CSS
+      if (typeof document !== "undefined" && !document.getElementById("leaflet-css-bundle")) {
+        const link = document.createElement("link");
+        link.id = "leaflet-css-bundle";
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        document.head.appendChild(link);
+      }
+
+      // Load Leaflet library (local node_modules or CDN fallback)
+      let L: typeof LType | null = null;
+      try {
+        const mod = await import("leaflet");
+        L = ((mod as any).default || mod) as typeof LType;
+      } catch {
+        L = await new Promise<typeof LType | null>((resolve) => {
+          if ((window as any).L) return resolve((window as any).L);
+          const script = document.createElement("script");
+          script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+          script.async = true;
+          script.onload = () => resolve((window as any).L || null);
+          script.onerror = () => resolve(null);
+          document.head.appendChild(script);
+        });
+      }
+
+      if (isCancelled || !L || !mapContainerRef.current) return;
       LRef.current = L;
 
       // Default center: Indonesia (Jakarta / Center coordinate)
