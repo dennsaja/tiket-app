@@ -14,15 +14,19 @@ export interface GeoLocationState {
   updatedAt: string;
 }
 
+export type GpsPermissionState = "prompt" | "granted" | "denied" | "unsupported";
+
 interface UseTechnicianTrackerReturn {
   isSupported: boolean;
   isTracking: boolean;
   isLocating: boolean;
+  permissionStatus: GpsPermissionState;
   error: string | null;
   lastLocation: GeoLocationState | null;
   battery: number | null;
   activeTicketId: string | null;
   toggleTracking: (val?: boolean) => void;
+  requestPermission: () => Promise<boolean>;
   forceSendLocation: () => Promise<boolean>;
 }
 
@@ -36,6 +40,7 @@ export function useTechnicianTracker(): UseTechnicianTrackerReturn {
   const isTechnician = userRole === "agent";
 
   const [isSupported, setIsSupported] = React.useState(true);
+  const [permissionStatus, setPermissionStatus] = React.useState<GpsPermissionState>("prompt");
   const [isTracking, setIsTracking] = React.useState<boolean>(true);
   const [isLocating, setIsLocating] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -51,13 +56,49 @@ export function useTechnicianTracker(): UseTechnicianTrackerReturn {
 
   const isSendingRef = React.useRef(false);
 
-  // Load user preference from localStorage
+  // Check browser support and initial permission status
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    setIsSupported("geolocation" in navigator);
+
+    if (!("geolocation" in navigator)) {
+      setIsSupported(false);
+      setPermissionStatus("unsupported");
+      return;
+    }
+
+    if (
+      !window.isSecureContext &&
+      window.location.hostname !== "localhost" &&
+      window.location.hostname !== "127.0.0.1"
+    ) {
+      setIsSupported(false);
+      setPermissionStatus("unsupported");
+      setError("Fitur GPS memerlukan HTTPS. Buka via https://helpdesk.infinityteknik.net");
+      return;
+    }
+
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved !== null) {
       setIsTracking(saved === "true");
+    }
+
+    // Query Permissions API if supported
+    if ("permissions" in navigator && navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: "geolocation" as PermissionName })
+        .then((perm) => {
+          setPermissionStatus(perm.state as GpsPermissionState);
+          perm.onchange = () => {
+            setPermissionStatus(perm.state as GpsPermissionState);
+            if (perm.state === "granted") {
+              setError(null);
+            }
+          };
+        })
+        .catch(() => {
+          // Fallback if query not allowed
+          setPermissionStatus("prompt");
+        });
     }
   }, []);
 
@@ -146,37 +187,56 @@ export function useTechnicianTracker(): UseTechnicianTrackerReturn {
     []
   );
 
-  // Manual one-shot force update
-  const forceSendLocation = React.useCallback(async (): Promise<boolean> => {
-    if (!navigator.geolocation) return false;
+  // User-gesture triggered permission request & immediate GPS fix
+  const requestPermission = React.useCallback(async (): Promise<boolean> => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setError("Browser tidak mendukung geolokasi GPS");
+      return false;
+    }
+
     setIsLocating(true);
+    setError(null);
 
     return new Promise((resolve) => {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           setIsLocating(false);
+          setPermissionStatus("granted");
+          setError(null);
           const ok = await sendCoordinates(pos.coords, battery);
           resolve(ok);
         },
         (err) => {
           setIsLocating(false);
-          setError(
-            err.code === 1
-              ? "Izin akses lokasi ditolak oleh browser."
-              : err.code === 2
-              ? "Posisi GPS tidak tersedia saat ini."
-              : "Timeout saat mencari sinyal GPS."
-          );
+          if (err.code === 1) {
+            setPermissionStatus("denied");
+            setError("Izin akses lokasi ditolak oleh browser.");
+          } else if (err.code === 2) {
+            setError("Sinyal GPS lemah atau tidak tersedia di perangkat Anda.");
+          } else {
+            setError("Waktu pencarian sinyal GPS habis. Coba lagi.");
+          }
           resolve(false);
         },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
     });
   }, [battery, sendCoordinates]);
 
-  // Main watchPosition effect
+  // Manual one-shot force update
+  const forceSendLocation = React.useCallback(async (): Promise<boolean> => {
+    return requestPermission();
+  }, [requestPermission]);
+
+  // Only run background watchPosition if permission is already granted and tracking is active
   React.useEffect(() => {
-    if (!isTechnician || !isTracking || typeof window === "undefined" || !navigator.geolocation) {
+    if (
+      !isTechnician ||
+      !isTracking ||
+      permissionStatus !== "granted" ||
+      typeof window === "undefined" ||
+      !navigator.geolocation
+    ) {
       return;
     }
 
@@ -226,7 +286,8 @@ export function useTechnicianTracker(): UseTechnicianTrackerReturn {
     const handleError = (err: GeolocationPositionError) => {
       setIsLocating(false);
       if (err.code === 1) {
-        setError("Izin akses lokasi ditolak. Buka pengaturan browser untuk mengizinkan.");
+        setPermissionStatus("denied");
+        setError("Izin akses lokasi ditolak oleh browser.");
       } else if (err.code === 2) {
         setError("Sinyal GPS lemah atau tidak tersedia.");
       } else if (err.code === 3) {
@@ -249,7 +310,7 @@ export function useTechnicianTracker(): UseTechnicianTrackerReturn {
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [isTechnician, isTracking, battery, sendCoordinates]);
+  }, [isTechnician, isTracking, permissionStatus, battery, sendCoordinates]);
 
   // Toggle tracking on/off
   const toggleTracking = React.useCallback(
@@ -264,22 +325,24 @@ export function useTechnicianTracker(): UseTechnicianTrackerReturn {
           await fetch("/api/technicians/location", { method: "DELETE" });
         } catch {}
       } else {
-        // Trigger immediate position fix
-        forceSendLocation();
+        // If turning on, trigger permission/update
+        requestPermission();
       }
     },
-    [isTracking, forceSendLocation]
+    [isTracking, requestPermission]
   );
 
   return {
     isSupported,
     isTracking,
     isLocating,
+    permissionStatus,
     error,
     lastLocation,
     battery,
     activeTicketId,
     toggleTracking,
+    requestPermission,
     forceSendLocation,
   };
 }
