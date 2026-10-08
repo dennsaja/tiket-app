@@ -91,6 +91,7 @@ export function TopNav({ breadcrumbs, title }: TopNavProps) {
       else if (seg === "audit") label = "Audit";
       else if (seg === "updates") label = "Pembaruan";
       else if (seg === "settings") label = "Pengaturan";
+      else if (seg === "map") label = "Peta Teknisi Live";
 
       return {
         label,

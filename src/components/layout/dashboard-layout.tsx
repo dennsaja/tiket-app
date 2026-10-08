@@ -2,6 +2,7 @@ import * as React from "react";
 import { Sidebar } from "./sidebar";
 import { TopNav } from "./top-nav";
 import { TechnicianNotificationManager } from "@/components/notifications/technician-notification-manager";
+import { TechnicianGpsBar } from "@/components/technician/technician-gps-bar";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ export function DashboardLayout({
         <Sidebar />
         <div className="flex flex-1 flex-col min-w-0">
           <TopNav breadcrumbs={breadcrumbs} title={title} />
+          <TechnicianGpsBar />
           <main className="flex-1 p-3 sm:p-5 lg:p-7 max-w-7xl w-full mx-auto">{children}</main>
         </div>
       </div>

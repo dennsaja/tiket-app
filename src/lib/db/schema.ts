@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   jsonb,
   bigint,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -449,6 +450,29 @@ export const ticketWorkReports = pgTable(
     ticketIdx: index("ticket_work_reports_ticket_idx").on(table.ticketId),
     technicianIdx: index("ticket_work_reports_technician_idx").on(table.technicianId),
     createdAtIdx: index("ticket_work_reports_created_at_idx").on(table.createdAt),
+  })
+);
+
+// ─── Technician Live Locations (GPS Tracking) ────────────────────────────────
+
+export const technicianLocations = pgTable(
+  "technician_locations",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    latitude: doublePrecision("latitude").notNull(),
+    longitude: doublePrecision("longitude").notNull(),
+    accuracy: doublePrecision("accuracy"),
+    heading: doublePrecision("heading"),
+    speed: doublePrecision("speed"),
+    battery: integer("battery"),
+    isTracking: boolean("is_tracking").notNull().default(true),
+    activeTicketId: text("active_ticket_id").references(() => tickets.id, { onDelete: "set null" }),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    updatedAtIdx: index("technician_locations_updated_at_idx").on(table.updatedAt),
   })
 );
 

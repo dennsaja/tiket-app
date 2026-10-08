@@ -72,8 +72,11 @@ export default auth((req) => {
     return NextResponse.json({ error: "Forbidden: Hanya NOC Administrator yang dapat melakukan pembaruan sistem" }, { status: 403 });
   }
 
-  // Admin panel routes (NOC and Owner allowed)
-  if (pathname.startsWith("/admin") && !canAccessAdmin) {
+  // Admin panel routes (NOC, Owner allowed; /admin/map allowed for Admin as well)
+  if (pathname.startsWith("/admin/map") && !(isNoc || isOwner || userRole === "admin")) {
+    return NextResponse.redirect(getPublicUrl("/dashboard", req));
+  }
+  if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/map") && !canAccessAdmin) {
     return NextResponse.redirect(getPublicUrl("/dashboard", req));
   }
 

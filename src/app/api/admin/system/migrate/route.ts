@@ -149,6 +149,23 @@ async function runMigration() {
     CREATE INDEX IF NOT EXISTS ticket_work_reports_created_at_idx ON ticket_work_reports (created_at);
   `);
 
+  // 9. technician_locations table (live GPS tracking)
+  await run("Create technician_locations table", `
+    CREATE TABLE IF NOT EXISTS technician_locations (
+      user_id text PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      latitude double precision NOT NULL,
+      longitude double precision NOT NULL,
+      accuracy double precision,
+      heading double precision,
+      speed double precision,
+      battery integer,
+      is_tracking boolean NOT NULL DEFAULT true,
+      active_ticket_id text REFERENCES tickets(id) ON DELETE SET NULL,
+      updated_at timestamp NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS technician_locations_updated_at_idx ON technician_locations (updated_at);
+  `);
+
   await pool.end();
   return steps;
 }
@@ -173,6 +190,7 @@ export async function GET(req: NextRequest) {
       pool.query(`SELECT to_regclass('ticket_assignees')`),
       pool.query(`SELECT to_regclass('ticket_work_reports')`),
       pool.query(`SELECT typname FROM pg_type WHERE typname = 'ticket_type'`),
+      pool.query(`SELECT to_regclass('technician_locations')`),
     ]);
 
     await pool.end();
@@ -184,6 +202,7 @@ export async function GET(req: NextRequest) {
       "ticket_assignees table",
       "ticket_work_reports table",
       "ticket_type enum",
+      "technician_locations table",
     ];
 
     const statuses = checks.map((c, i) => {

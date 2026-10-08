@@ -62,6 +62,12 @@ run_sql "ticket_work_reports table" "CREATE TABLE IF NOT EXISTS ticket_work_repo
 
 run_sql "ticket_work_reports indexes" "CREATE INDEX IF NOT EXISTS ticket_work_reports_ticket_idx ON ticket_work_reports (ticket_id); CREATE INDEX IF NOT EXISTS ticket_work_reports_technician_idx ON ticket_work_reports (technician_id); CREATE INDEX IF NOT EXISTS ticket_work_reports_created_at_idx ON ticket_work_reports (created_at);"
 
+# 9. audit_action enum values
+run_sql "audit_action enum" "DO \$\$ BEGIN ALTER TYPE audit_action ADD VALUE IF NOT EXISTS 'category_deleted'; ALTER TYPE audit_action ADD VALUE IF NOT EXISTS 'subcategory_created'; ALTER TYPE audit_action ADD VALUE IF NOT EXISTS 'subcategory_updated'; ALTER TYPE audit_action ADD VALUE IF NOT EXISTS 'subcategory_deleted'; EXCEPTION WHEN duplicate_object THEN null; WHEN undefined_object THEN null; END \$\$;"
+
+# 10. technician_locations table (live GPS tracking)
+run_sql "technician_locations table" "CREATE TABLE IF NOT EXISTS technician_locations (user_id text PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, latitude double precision NOT NULL, longitude double precision NOT NULL, accuracy double precision, heading double precision, speed double precision, battery integer, is_tracking boolean NOT NULL DEFAULT true, active_ticket_id text REFERENCES tickets(id) ON DELETE SET NULL, updated_at timestamp NOT NULL DEFAULT now()); CREATE INDEX IF NOT EXISTS technician_locations_updated_at_idx ON technician_locations (updated_at);"
+
 echo ""
 echo "✅ Migrasi selesai!"
 echo ""

@@ -33,6 +33,7 @@ import {
   X,
   ArrowUpCircle,
   MessagesSquare,
+  MapPin,
 } from "lucide-react";
 
 interface NavItem {
@@ -41,6 +42,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
   agentOnly?: boolean;
+  adminStaffOnly?: boolean;
   exact?: boolean;
 }
 
@@ -53,11 +55,13 @@ const mainNavItems: NavItem[] = [
   },
   { href: "/tickets", label: "Semua Tiket", icon: Ticket },
   { href: "/tickets?mine=true", label: "Tiket Saya", icon: ClipboardList, agentOnly: true },
+  { href: "/admin/map", label: "Peta Teknisi Live", icon: MapPin, adminStaffOnly: true },
   { href: "/chat", label: "Chat Tim", icon: MessagesSquare, agentOnly: true },
   { href: "/knowledge-base", label: "Pusat Bantuan", icon: BookOpen },
 ];
 
 const adminNavItems: NavItem[] = [
+  { href: "/admin/map", label: "Peta Teknisi Live", icon: MapPin },
   { href: "/admin/users", label: "Pengguna", icon: Users },
   { href: "/admin/departments", label: "Departemen", icon: Building2 },
   { href: "/admin/categories", label: "Kategori", icon: FolderOpen },
@@ -132,8 +136,11 @@ export function Sidebar() {
       ? "Teknisi"
       : "Pelapor";
 
+  const canViewMap = isNoc || isOwner || isAdmin;
+
   const filteredMain = mainNavItems.filter((item) => {
     if (item.agentOnly && !isStaff) return false;
+    if (item.adminStaffOnly && !canViewMap) return false;
     return true;
   });
 

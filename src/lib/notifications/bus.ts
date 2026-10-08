@@ -10,10 +10,25 @@ export interface RealtimeNotificationPayload {
   createdAt?: string;
 }
 
+export interface TechnicianLocationPayload {
+  userId: string;
+  name: string;
+  avatarUrl?: string | null;
+  latitude: number;
+  longitude: number;
+  accuracy?: number | null;
+  heading?: number | null;
+  speed?: number | null;
+  battery?: number | null;
+  isTracking: boolean;
+  activeTicketId?: string | null;
+  updatedAt: string;
+}
+
 class NotificationBus extends EventEmitter {
   constructor() {
     super();
-    this.setMaxListeners(200);
+    this.setMaxListeners(500);
   }
 
   emitNotification(payload: RealtimeNotificationPayload) {
@@ -28,6 +43,17 @@ class NotificationBus extends EventEmitter {
       this.off(channel, callback);
     };
   }
+
+  emitLocation(payload: TechnicianLocationPayload) {
+    this.emit("location", payload);
+  }
+
+  subscribeLocations(callback: (payload: TechnicianLocationPayload) => void) {
+    this.on("location", callback);
+    return () => {
+      this.off("location", callback);
+    };
+  }
 }
 
 // Global singleton across serverless/Node lifecycle
@@ -38,6 +64,5 @@ const globalForNotification = globalThis as unknown as {
 export const notificationBus =
   globalForNotification.notificationBus ?? new NotificationBus();
 
-if (process.env.NODE_ENV !== "production") {
-  globalForNotification.notificationBus = notificationBus;
-}
+// Pin to globalThis in all environments so separate route bundles share one emitter
+globalForNotification.notificationBus = notificationBus;
