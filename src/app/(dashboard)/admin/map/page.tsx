@@ -2,15 +2,12 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { Navigation, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 
-// Dynamically import Leaflet view with SSR disabled to prevent window object errors
+// Dynamically import Leaflet view from local sibling file with SSR disabled
 const LiveDispatcherMap = dynamic(
-  () =>
-    import("@/components/map/live-dispatcher-map").then(
-      (mod) => mod.LiveDispatcherMap
-    ),
+  () => import("./live-dispatcher-map"),
   {
     ssr: false,
     loading: () => (
