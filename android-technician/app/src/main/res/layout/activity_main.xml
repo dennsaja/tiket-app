@@ -4,19 +4,25 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/background">
+    android:background="#FAFAFA">
 
-    <!-- Top App Bar -->
+    <!-- Top App Bar (Black Web Style) -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/primary"
+        android:layout_height="60dp"
+        android:background="#09090B"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="12dp"
-        android:paddingBottom="12dp">
+        android:paddingEnd="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="▲"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:layout_marginEnd="10dp" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -28,8 +34,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="HelpDesk Teknisi"
-                android:textColor="@color/white"
-                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -37,8 +43,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Teknisi Lapangan"
-                android:textColor="@color/primary_light"
-                android:textSize="13sp" />
+                android:textColor="#A1A1AA"
+                android:textSize="12sp" />
         </LinearLayout>
 
         <ImageButton
@@ -48,17 +54,20 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Logout"
             android:src="@android:drawable/ic_lock_power_off"
-            app:tint="@color/white" />
+            app:tint="#A1A1AA" />
     </LinearLayout>
 
     <!-- Duty & GPS Tracking Card -->
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="12dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="2dp"
-        app:cardBackgroundColor="@color/surface">
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="14dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginBottom="8dp"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="1dp"
+        app:cardBackgroundColor="#FFFFFF">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -83,11 +92,11 @@
                     android:id="@+id/tvDutyStatus"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="10dp"
                     android:layout_weight="1"
                     android:text="@string/duty_active"
-                    android:textColor="@color/text_primary"
-                    android:textSize="15sp"
+                    android:textColor="#09090B"
+                    android:textSize="14sp"
                     android:textStyle="bold" />
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
@@ -100,14 +109,15 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="10dp"
-                android:background="@color/card_border" />
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp"
+                android:background="#F4F4F5" />
 
             <!-- Location Coordinates & Accuracy -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center_vertical"
                 android:orientation="horizontal">
 
                 <LinearLayout
@@ -121,7 +131,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="GPS: Menunggu sinyal..."
-                        android:textColor="@color/text_secondary"
+                        android:textColor="#52525B"
                         android:textSize="12sp"
                         android:fontFamily="monospace" />
 
@@ -131,7 +141,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
                         android:text="Update: -"
-                        android:textColor="@color/text_muted"
+                        android:textColor="#A1A1AA"
                         android:textSize="11sp" />
                 </LinearLayout>
 
@@ -143,8 +153,10 @@
                     android:paddingStart="12dp"
                     android:paddingEnd="12dp"
                     android:text="Kirim GPS"
+                    android:textColor="#18181B"
                     android:textSize="11sp"
-                    app:cornerRadius="6dp" />
+                    app:strokeColor="#E4E4E7"
+                    app:cornerRadius="8dp" />
             </LinearLayout>
         </LinearLayout>
     </androidx.cardview.widget.CardView>
@@ -157,7 +169,7 @@
         android:orientation="horizontal"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
-        android:paddingTop="4dp"
+        android:paddingTop="8dp"
         android:paddingBottom="8dp">
 
         <TextView
@@ -166,8 +178,8 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Daftar Tugas Saya"
-            android:textColor="@color/text_primary"
-            android:textSize="16sp"
+            android:textColor="#09090B"
+            android:textSize="15sp"
             android:textStyle="bold" />
 
         <TextView
@@ -175,13 +187,13 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/badge_bg"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
             android:text="0 Tiket"
-            android:textColor="@color/primary"
-            android:textSize="12sp"
+            android:textColor="#09090B"
+            android:textSize="11sp"
             android:textStyle="bold" />
     </LinearLayout>
 
@@ -200,9 +212,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:paddingBottom="16dp" />
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:paddingBottom="20dp" />
 
             <TextView
                 android:id="@+id/tvEmptyState"
@@ -213,7 +225,7 @@
                 android:drawablePadding="8dp"
                 android:gravity="center"
                 android:text="Tidak ada tiket tugas lapangan saat ini\nTarik ke bawah untuk memuat ulang"
-                android:textColor="@color/text_secondary"
+                android:textColor="#71717A"
                 android:textSize="13sp"
                 android:visibility="gone" />
         </FrameLayout>

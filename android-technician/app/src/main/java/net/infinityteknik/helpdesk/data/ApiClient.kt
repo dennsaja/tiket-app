@@ -19,6 +19,12 @@ object ApiClient {
 
     private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
+    private fun JSONObject.optNullableString(key: String): String? {
+        if (!has(key) || isNull(key)) return null
+        val v = optString(key)
+        return if (v.isEmpty() || v == "null") null else v
+    }
+
     suspend fun login(serverUrl: String, email: String, pass: String): Result<LoginResponse> =
         withContext(Dispatchers.IO) {
             try {
@@ -44,8 +50,8 @@ object ApiClient {
                             name = uObj.getString("name"),
                             email = uObj.getString("email"),
                             role = uObj.getString("role"),
-                            phone = uObj.optString("phone", null),
-                            avatarUrl = uObj.optString("avatarUrl", null)
+                            phone = uObj.optNullableString("phone"),
+                            avatarUrl = uObj.optNullableString("avatarUrl")
                         )
                         Result.success(LoginResponse(true, token, user, null))
                     } else {
@@ -78,8 +84,8 @@ object ApiClient {
                             name = uObj.getString("name"),
                             email = uObj.getString("email"),
                             role = uObj.getString("role"),
-                            phone = uObj.optString("phone", null),
-                            avatarUrl = uObj.optString("avatarUrl", null),
+                            phone = uObj.optNullableString("phone"),
+                            avatarUrl = uObj.optNullableString("avatarUrl"),
                             activeTicketsCount = uObj.optInt("activeTicketsCount", 0)
                         )
                         Result.success(user)
@@ -162,14 +168,14 @@ object ApiClient {
                                     id = o.getString("id"),
                                     ticketNumber = o.getInt("ticketNumber"),
                                     title = o.getString("title"),
-                                    description = o.optString("description", null),
+                                    description = o.optNullableString("description"),
                                     status = o.getString("status"),
                                     priority = o.getString("priority"),
-                                    ticketType = o.optString("ticketType", null),
-                                    reporterName = o.optString("reporterName", null),
-                                    reporterPhone = o.optString("reporterPhone", null),
-                                    reporterAddress = o.optString("reporterAddress", null),
-                                    reporterMapUrl = o.optString("reporterMapUrl", null),
+                                    ticketType = o.optNullableString("ticketType"),
+                                    reporterName = o.optNullableString("reporterName"),
+                                    reporterPhone = o.optNullableString("reporterPhone"),
+                                    reporterAddress = o.optNullableString("reporterAddress"),
+                                    reporterMapUrl = o.optNullableString("reporterMapUrl"),
                                     latitude = if (o.isNull("latitude")) null else o.optDouble("latitude"),
                                     longitude = if (o.isNull("longitude")) null else o.optDouble("longitude"),
                                     isLead = o.optBoolean("isLead", false),

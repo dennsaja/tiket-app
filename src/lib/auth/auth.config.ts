@@ -49,6 +49,8 @@ export const authConfig: NextAuthConfig = {
         "/api/auth",
         "/api/mobile",
         "/api/technicians/location",
+        "/mobile-auth",
+        "/download",
       ];
       if (publicPaths.some((p) => pathname.startsWith(p))) {
         return true;

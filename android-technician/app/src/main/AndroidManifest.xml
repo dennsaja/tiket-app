@@ -38,6 +38,26 @@
             android:windowSoftInputMode="adjustResize" />
 
         <activity
+            android:name=".ui.WebLoginActivity"
+            android:exported="false"
+            android:theme="@style/Theme.HelpDesk.NoActionBar" />
+
+        <!-- Deep Link Intent Filter for helpdesk://auth -->
+        <activity
+            android:name=".ui.AuthCallbackActivity"
+            android:exported="true"
+            android:theme="@style/Theme.HelpDesk.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="helpdesk"
+                    android:host="auth" />
+            </intent-filter>
+        </activity>
+
+        <activity
             android:name=".ui.MainActivity"
             android:exported="false"
             android:theme="@style/Theme.HelpDesk.NoActionBar" />

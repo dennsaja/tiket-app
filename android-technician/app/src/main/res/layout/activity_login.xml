@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background"
+    android:background="#FAFAFA"
     android:fillViewport="true">
 
     <LinearLayout
@@ -13,112 +13,214 @@
         android:orientation="vertical"
         android:padding="24dp">
 
+        <!-- Vercel-style Black Logo -->
+        <FrameLayout
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="@drawable/logo_square_bg">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="▲"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp" />
+        </FrameLayout>
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="📍 HelpDesk"
-            android:textColor="@color/primary"
-            android:textSize="28sp"
+            android:layout_marginTop="12dp"
+            android:text="Masuk ke HelpDesk"
+            android:textColor="#09090B"
+            android:textSize="22sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="Portal Teknisi Lapangan"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp" />
+            android:text="Aplikasi Khusus Teknisi Lapangan"
+            android:textColor="#71717A"
+            android:textSize="13sp" />
 
+        <!-- Login Card -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
+            android:layout_marginTop="24dp"
             app:cardCornerRadius="16dp"
-            app:cardElevation="3dp"
-            app:cardBackgroundColor="@color/surface">
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="#FFFFFF">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="20dp">
+                android:padding="22dp">
 
+                <!-- 1. BUTTON: LOGIN VIA WEB BROWSER (SSO) -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnWebLogin"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:backgroundTint="#09090B"
+                    android:text="🌐 Masuk Lewat Web Browser"
+                    android:textColor="#FFFFFF"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    app:cornerRadius="12dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center"
+                    android:text="Login langsung via web &amp; otomatis dilempar ke aplikasi"
+                    android:textColor="#71717A"
+                    android:textSize="11sp" />
+
+                <!-- Divider OR -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:layout_marginBottom="18dp"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1"
+                        android:background="#E4E4E7" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:layout_marginEnd="12dp"
+                        android:text="ATAU LOGIN MANUAL"
+                        android:textColor="#A1A1AA"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1"
+                        android:background="#E4E4E7" />
+                </LinearLayout>
+
+                <!-- Server URL -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Masuk ke Akun Anda"
-                    android:textColor="@color/text_primary"
-                    android:textSize="18sp"
+                    android:text="URL Server"
+                    android:textColor="#18181B"
+                    android:textSize="12sp"
                     android:textStyle="bold" />
 
-                <!-- Server URL Input -->
-                <com.google.android.material.textfield.TextInputLayout
+                <EditText
+                    android:id="@+id/etServerUrl"
                     android:layout_width="match_parent"
+                    android:layout_height="46dp"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/input_field_bg"
+                    android:inputType="textUri"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:text="https://helpdesk.infinityteknik.net"
+                    android:textColor="#09090B"
+                    android:textColorHint="#A1A1AA"
+                    android:textSize="13sp" />
+
+                <!-- Email -->
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:hint="@string/server_url"
-                    app:boxBackgroundMode="outline">
+                    android:layout_marginTop="14dp"
+                    android:text="Email Teknisi"
+                    android:textColor="#18181B"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etServerUrl"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="textUri"
-                        android:text="https://helpdesk.infinityteknik.net"
-                        android:textSize="14sp" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <!-- Email Input -->
-                <com.google.android.material.textfield.TextInputLayout
+                <EditText
+                    android:id="@+id/etEmail"
                     android:layout_width="match_parent"
+                    android:layout_height="46dp"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/input_field_bg"
+                    android:hint="teknisi@infinityteknik.net"
+                    android:inputType="textEmailAddress"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:textColor="#09090B"
+                    android:textColorHint="#A1A1AA"
+                    android:textSize="13sp" />
+
+                <!-- Password -->
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:hint="@string/email"
-                    app:boxBackgroundMode="outline">
+                    android:layout_marginTop="14dp"
+                    android:text="Kata Sandi"
+                    android:textColor="#18181B"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etEmail"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="textEmailAddress"
-                        android:textSize="14sp" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <!-- Password Input -->
-                <com.google.android.material.textfield.TextInputLayout
+                <RelativeLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:hint="@string/password"
-                    app:passwordToggleEnabled="true"
-                    app:boxBackgroundMode="outline">
+                    android:layout_height="46dp"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/input_field_bg">
 
-                    <com.google.android.material.textfield.TextInputEditText
+                    <EditText
                         android:id="@+id/etPassword"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_toStartOf="@+id/ivTogglePassword"
+                        android:background="@null"
+                        android:hint="Masukkan kata sandi"
                         android:inputType="textPassword"
-                        android:textSize="14sp" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:paddingStart="14dp"
+                        android:paddingEnd="8dp"
+                        android:textColor="#09090B"
+                        android:textColorHint="#A1A1AA"
+                        android:textSize="13sp" />
+
+                    <ImageButton
+                        android:id="@+id/ivTogglePassword"
+                        android:layout_width="44dp"
+                        android:layout_height="match_parent"
+                        android:layout_alignParentEnd="true"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Toggle password"
+                        android:src="@android:drawable/ic_menu_view"
+                        android:tint="#71717A" />
+                </RelativeLayout>
 
                 <!-- Error Message -->
                 <TextView
                     android:id="@+id/tvError"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:textColor="@color/status_red"
+                    android:layout_marginTop="10dp"
+                    android:textColor="#EF4444"
                     android:textSize="12sp"
                     android:visibility="gone" />
 
-                <!-- Login Button -->
+                <!-- Manual Login Button -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnLogin"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:layout_marginTop="20dp"
-                    android:text="@string/btn_login"
-                    android:textSize="15sp"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="18dp"
+                    android:backgroundTint="#27272A"
+                    android:text="Masuk Manual"
+                    android:textColor="#FFFFFF"
+                    android:textSize="13sp"
                     android:textStyle="bold"
                     app:cornerRadius="10dp" />
 
@@ -138,8 +240,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="Infinity Teknik &amp; IT HelpDesk"
-            android:textColor="@color/text_muted"
+            android:text="Infinity Teknik &amp; IT HelpDesk Portal"
+            android:textColor="#A1A1AA"
             android:textSize="12sp" />
 
     </LinearLayout>

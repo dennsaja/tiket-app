@@ -4,15 +4,16 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:background="#FFFFFF"
+    android:padding="22dp">
 
     <TextView
         android:id="@+id/tvDialogTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Perbarui Status Tiket"
-        android:textColor="@color/text_primary"
-        android:textSize="18sp"
+        android:textColor="#09090B"
+        android:textSize="17sp"
         android:textStyle="bold" />
 
     <TextView
@@ -21,16 +22,16 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:text="#1001 - Judul Tiket"
-        android:textColor="@color/text_secondary"
+        android:textColor="#71717A"
         android:textSize="13sp" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="Pilih Status Baru:"
-        android:textColor="@color/text_primary"
-        android:textSize="13sp"
+        android:text="PILIH STATUS:"
+        android:textColor="#71717A"
+        android:textSize="11sp"
         android:textStyle="bold" />
 
     <RadioGroup
@@ -44,6 +45,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Sedang Dikerjakan (In Progress)"
+            android:textColor="#09090B"
             android:textSize="13sp" />
 
         <RadioButton
@@ -51,6 +53,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Tiba di Lokasi (On Site)"
+            android:textColor="#09090B"
             android:textSize="13sp" />
 
         <RadioButton
@@ -58,25 +61,32 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Pekerjaan Selesai (Resolved)"
+            android:textColor="#09090B"
             android:textSize="13sp" />
     </RadioGroup>
 
-    <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
+    <TextView
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:hint="Catatan / Laporan Pekerjaan"
-        app:boxBackgroundMode="outline">
+        android:layout_marginTop="14dp"
+        android:text="CATATAN / TINDAKAN LAPANGAN:"
+        android:textColor="#71717A"
+        android:textSize="11sp"
+        android:textStyle="bold" />
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etStatusNotes"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="top"
-            android:inputType="textMultiLine"
-            android:lines="3"
-            android:textSize="13sp" />
-    </com.google.android.material.textfield.TextInputLayout>
+    <EditText
+        android:id="@+id/etStatusNotes"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/input_field_bg"
+        android:gravity="top"
+        android:hint="Tuliskan tindakan yang dilakukan..."
+        android:inputType="textMultiLine"
+        android:padding="12dp"
+        android:textColor="#09090B"
+        android:textColorHint="#A1A1AA"
+        android:textSize="13sp" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -89,16 +99,19 @@
             android:id="@+id/btnCancelDialog"
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="44dp"
             android:text="Batal"
-            android:textColor="@color/text_secondary" />
+            android:textColor="#71717A" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSaveDialog"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="44dp"
             android:layout_marginStart="8dp"
+            android:backgroundTint="#09090B"
             android:text="Simpan Status"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
             app:cornerRadius="8dp" />
     </LinearLayout>
 
