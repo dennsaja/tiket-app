@@ -162,12 +162,31 @@ export function LiveDispatcherMap() {
         zoomControl: true,
       });
 
-      // CartoDB Voyager modern clean map tiles
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      // 100% Free Base Layers — No API Key Required!
+      const osmStandard = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19,
-        subdomains: "abcd",
-      }).addTo(map);
+      });
+
+      const esriSatellite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP',
+        maxZoom: 19,
+      });
+
+      // Default active layer: OpenStreetMap Standard
+      osmStandard.addTo(map);
+
+      // Layer selector control (Peta Jalan vs Satelit)
+      L.control
+        .layers(
+          {
+            "🗺️ Peta Jalan (OpenStreetMap)": osmStandard,
+            "🛰️ Citra Satelit (Esri Satellite)": esriSatellite,
+          },
+          undefined,
+          { position: "topright" }
+        )
+        .addTo(map);
 
       mapInstanceRef.current = map;
     }
