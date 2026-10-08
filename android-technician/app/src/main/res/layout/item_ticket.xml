@@ -87,7 +87,7 @@
                 android:id="@+id/tvCustomerName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="👤 Pelapor: Bpk. Ahmad"
+                android:text="Pelapor: Bpk. Ahmad"
                 android:textColor="#52525B"
                 android:textSize="12sp" />
 
@@ -96,7 +96,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
-                android:text="📞 Telepon: 08123456789"
+                android:text="Telepon: 08123456789"
                 android:textColor="#52525B"
                 android:textSize="12sp" />
 
@@ -105,7 +105,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="3dp"
-                android:text="📍 Alamat: Jl. Merdeka No. 45"
+                android:text="Alamat: Jl. Merdeka No. 45"
                 android:textColor="#52525B"
                 android:textSize="12sp"
                 android:maxLines="2"
@@ -153,13 +153,27 @@
                 app:cornerRadius="8dp" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnUpdateStatus"
+                android:id="@+id/btnDetail"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="0dp"
                 android:layout_height="38dp"
                 android:layout_weight="1.2"
                 android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:text="Detail / Chat"
+                android:textColor="#18181B"
+                android:textSize="11sp"
+                app:strokeColor="#E4E4E7"
+                app:cornerRadius="8dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUpdateStatus"
+                android:layout_width="0dp"
+                android:layout_height="38dp"
+                android:layout_weight="1.1"
+                android:layout_marginStart="2dp"
                 android:backgroundTint="#09090B"
-                android:text="Update"
+                android:text="Status"
                 android:textColor="#FFFFFF"
                 android:textSize="11sp"
                 android:textStyle="bold"

@@ -20,6 +20,7 @@ class SessionManager(context: Context) {
         private const val KEY_LAST_LNG = "last_lng"
         private const val KEY_LAST_ACC = "last_acc"
         private const val KEY_LAST_UPDATE = "last_update"
+        private const val KEY_ACTIVE_TICKETS_COUNT = "active_tickets_count"
 
         const val DEFAULT_SERVER_URL = "https://helpdesk.infinityteknik.net"
     }
@@ -67,6 +68,10 @@ class SessionManager(context: Context) {
     var lastUpdateTime: Long
         get() = prefs.getLong(KEY_LAST_UPDATE, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_UPDATE, value).apply()
+
+    var activeTicketsCount: Int
+        get() = prefs.getInt(KEY_ACTIVE_TICKETS_COUNT, 0)
+        set(value) = prefs.edit().putInt(KEY_ACTIVE_TICKETS_COUNT, value).apply()
 
     val isLoggedIn: Boolean
         get() = !token.isNullOrBlank()

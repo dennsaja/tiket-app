@@ -34,8 +34,8 @@ export async function PUT(
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
   const userRole = (session.user as any).role;
-  if (userRole !== "noc" && userRole !== "owner") {
-    return errorResponse("Forbidden: Akses khusus NOC dan Owner", 403);
+  if (!["noc", "owner", "admin"].includes(userRole)) {
+    return errorResponse("Forbidden: Akses khusus NOC, Owner, dan Admin", 403);
   }
 
   const { id } = await params;
@@ -92,8 +92,8 @@ export async function DELETE(
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
   const userRole = (session.user as any).role;
-  if (userRole !== "noc" && userRole !== "owner") {
-    return errorResponse("Forbidden: Akses khusus NOC dan Owner", 403);
+  if (!["noc", "owner", "admin"].includes(userRole)) {
+    return errorResponse("Forbidden: Akses khusus NOC, Owner, dan Admin", 403);
   }
 
   const { id } = await params;

@@ -23,9 +23,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:text="▲"
+                android:text="H"
                 android:textColor="#FFFFFF"
-                android:textSize="22sp" />
+                android:textSize="22sp"
+                android:textStyle="bold" />
         </FrameLayout>
 
         <TextView
@@ -66,20 +67,11 @@
                     android:layout_width="match_parent"
                     android:layout_height="50dp"
                     android:backgroundTint="#09090B"
-                    android:text="🌐 Masuk Lewat Web Browser"
+                    android:text="Masuk Akun Web"
                     android:textColor="#FFFFFF"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     app:cornerRadius="12dp" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:gravity="center"
-                    android:text="Login langsung via web &amp; otomatis dilempar ke aplikasi"
-                    android:textColor="#71717A"
-                    android:textSize="11sp" />
 
                 <!-- Divider OR -->
                 <LinearLayout

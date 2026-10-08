@@ -73,14 +73,15 @@ export default auth((req) => {
   const userRole = (session.user as any).role;
   const isNoc = userRole === "noc";
   const isOwner = userRole === "owner";
-  const canAccessAdmin = isNoc || isOwner;
+  const isAdmin = userRole === "admin";
+  const canAccessAdmin = isNoc || isOwner || isAdmin;
 
-  // System updates route protection (ONLY NOC allowed)
-  if (pathname.startsWith("/admin/updates") && !isNoc) {
+  // System updates route protection (NOC, Owner, Admin allowed)
+  if (pathname.startsWith("/admin/updates") && !canAccessAdmin) {
     return NextResponse.redirect(getPublicUrl("/dashboard", req));
   }
-  if (pathname.startsWith("/api/admin/system/update") && !isNoc) {
-    return NextResponse.json({ error: "Forbidden: Hanya NOC Administrator yang dapat melakukan pembaruan sistem" }, { status: 403 });
+  if (pathname.startsWith("/api/admin/system/update") && !canAccessAdmin) {
+    return NextResponse.json({ error: "Forbidden: Hanya Administrator yang dapat melakukan pembaruan sistem" }, { status: 403 });
   }
 
   // Admin panel routes (NOC, Owner allowed; /admin/map allowed for Admin as well)

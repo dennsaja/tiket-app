@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { attachments, tickets } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -38,12 +39,12 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const currentUser = await getAuthUser(req);
+  if (!currentUser) return errorResponse("Unauthorized", 401);
 
   const { id } = await params;
-  const userRole = (session.user as any).role;
-  const userId = session.user.id!;
+  const userRole = currentUser.role;
+  const userId = currentUser.id;
 
   const ticket = await db.query.tickets.findFirst({
     where: eq(tickets.id, id),
@@ -116,7 +117,7 @@ export async function POST(
 
   await createAuditLog({
     actorId: userId,
-    actorEmail: session.user.email,
+    actorEmail: currentUser.email,
     action: "attachment_uploaded",
     targetType: "ticket",
     targetId: id,

@@ -11,7 +11,7 @@ import { PriorityBadge } from "@/components/tickets/priority-badge";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDuration } from "@/lib/utils";
-import { Plus, Timer, Pencil } from "lucide-react";
+import { Plus, Timer, Pencil, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function AdminSlaPage() {
@@ -22,6 +22,9 @@ export default function AdminSlaPage() {
   const [editModalOpen, setEditModalOpen] = React.useState(false);
   const [selectedPolicy, setSelectedPolicy] = React.useState<any>(null);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
+  const [deleteTargetPolicy, setDeleteTargetPolicy] = React.useState<any>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const [formData, setFormData] = React.useState({
     name: "",
@@ -168,6 +171,28 @@ export default function AdminSlaPage() {
     }
   };
 
+  const handleDeletePolicy = async () => {
+    if (!deleteTargetPolicy) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/sla-policies/${deleteTargetPolicy.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Gagal menghapus kebijakan SLA");
+      }
+      toast.success("Kebijakan SLA berhasil dinonaktifkan / dihapus");
+      setDeleteModalOpen(false);
+      setDeleteTargetPolicy(null);
+      fetchPolicies();
+    } catch (err: any) {
+      toast.error(err.message || "Terjadi kesalahan");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-200 pb-4 dark:border-zinc-800">
@@ -246,14 +271,27 @@ export default function AdminSlaPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenEdit(p)}
-                        className="h-7 px-2 text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-                      >
-                        <Pencil className="h-3 w-3 mr-1" /> Edit
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenEdit(p)}
+                          className="h-7 px-2 text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                        >
+                          <Pencil className="h-3 w-3 mr-1" /> Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setDeleteTargetPolicy(p);
+                            setDeleteModalOpen(true);
+                          }}
+                          className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" /> Hapus
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -466,6 +504,45 @@ export default function AdminSlaPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={deleteModalOpen}
+        onOpenChange={(open) => {
+          if (!isDeleting) setDeleteModalOpen(open);
+        }}
+        title="Hapus Kebijakan SLA"
+      >
+        <div className="space-y-4 pt-2">
+          <p className="text-sm text-zinc-700 dark:text-zinc-300">
+            Apakah Anda yakin ingin menonaktifkan / menghapus kebijakan SLA{" "}
+            <strong className="text-zinc-900 dark:text-zinc-100">
+              &quot;{deleteTargetPolicy?.name}&quot;
+            </strong>
+            ? Tiket yang sudah berjalan dengan SLA ini tidak akan terpengaruh.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteModalOpen(false)}
+              disabled={isDeleting}
+            >
+              Batal
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleDeletePolicy}
+              isLoading={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+            >
+              Ya, Hapus Kebijakan
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

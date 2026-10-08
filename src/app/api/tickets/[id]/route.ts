@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import {
   tickets,
@@ -20,12 +21,12 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const currentUser = await getAuthUser(req);
+  if (!currentUser) return errorResponse("Unauthorized", 401);
 
   const { id } = await params;
-  const userRole = (session.user as any).role;
-  const userId = session.user.id!;
+  const userRole = currentUser.role;
+  const userId = currentUser.id;
 
   try {
     const ticket = await db.query.tickets.findFirst({
@@ -119,12 +120,12 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const currentUser = await getAuthUser(req);
+  if (!currentUser) return errorResponse("Unauthorized", 401);
 
   const { id } = await params;
-  const userRole = (session.user as any).role;
-  const userId = session.user.id!;
+  const userRole = currentUser.role;
+  const userId = currentUser.id;
 
   const ticket = await db.query.tickets.findFirst({
     where: eq(tickets.id, id),
@@ -254,7 +255,7 @@ export async function PATCH(
 
       await createAuditLog({
         actorId: userId,
-        actorEmail: session.user.email,
+        actorEmail: currentUser.email,
         action: prevAssigneeId ? "ticket_reassigned" : "ticket_assigned",
         targetType: "ticket",
         targetId: id,
@@ -292,12 +293,12 @@ export async function PATCH(
       ticket.title,
       data.status,
       ticket.requesterId,
-      session.user.name || "Agent"
+      currentUser.name || "Agent"
     ).catch(() => {});
 
     await createAuditLog({
       actorId: userId,
-      actorEmail: session.user.email,
+      actorEmail: currentUser.email,
       action: "ticket_status_changed",
       targetType: "ticket",
       targetId: id,
@@ -312,7 +313,7 @@ export async function PATCH(
 
     await createAuditLog({
       actorId: userId,
-      actorEmail: session.user.email,
+      actorEmail: currentUser.email,
       action: "ticket_priority_changed",
       targetType: "ticket",
       targetId: id,
@@ -329,7 +330,7 @@ export async function PATCH(
 
   await createAuditLog({
     actorId: userId,
-    actorEmail: session.user.email,
+    actorEmail: currentUser.email,
     action: "ticket_updated",
     targetType: "ticket",
     targetId: id,
@@ -345,11 +346,11 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const currentUser = await getAuthUser(req);
+  if (!currentUser) return errorResponse("Unauthorized", 401);
 
-  const userRole = (session.user as any).role;
-  if (userRole !== "noc" && userRole !== "owner" && userRole !== "admin") {
+  const userRole = currentUser.role;
+  if (!["noc", "owner", "admin"].includes(userRole)) {
     return errorResponse("Forbidden", 403);
   }
 
@@ -367,8 +368,8 @@ export async function DELETE(
     .where(eq(tickets.id, id));
 
   await createAuditLog({
-    actorId: session.user.id,
-    actorEmail: session.user.email,
+    actorId: currentUser.id,
+    actorEmail: currentUser.email,
     action: "ticket_updated",
     targetType: "ticket",
     targetId: id,

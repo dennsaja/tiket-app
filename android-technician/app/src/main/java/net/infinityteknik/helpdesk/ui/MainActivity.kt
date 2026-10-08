@@ -27,6 +27,7 @@ import net.infinityteknik.helpdesk.data.ApiClient
 import net.infinityteknik.helpdesk.data.SessionManager
 import net.infinityteknik.helpdesk.data.TicketItem
 import net.infinityteknik.helpdesk.service.LocationTrackingService
+import net.infinityteknik.helpdesk.util.TrackingScheduleManager
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -48,6 +49,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvEmptyState: TextView
 
     private lateinit var ticketAdapter: TicketAdapter
+
+    private val detailLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            loadTickets()
+        }
+    }
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -89,6 +98,7 @@ class MainActivity : AppCompatActivity() {
         setupRecyclerView()
         checkAndRequestPermissions()
 
+        evaluateTrackingRules(session.activeTicketsCount)
         if (session.isDutyActive) {
             startTrackingService()
         } else {
@@ -117,6 +127,17 @@ class MainActivity : AppCompatActivity() {
 
         switchDuty.isChecked = session.isDutyActive
         switchDuty.setOnCheckedChangeListener { _, isChecked ->
+            // Enforce smart tracking rules: cannot turn OFF if during 08:00-16:00 WIB or active tasks exist
+            if (!isChecked && TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
+                switchDuty.isChecked = true
+                Toast.makeText(
+                    this,
+                    TrackingScheduleManager.getLockedReasonMessage(),
+                    Toast.LENGTH_LONG
+                ).show()
+                return@setOnCheckedChangeListener
+            }
+
             session.isDutyActive = isChecked
             updateDutyUi(isChecked)
             if (isChecked) {
@@ -158,11 +179,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        ticketAdapter = TicketAdapter(this) { ticket ->
-            showUpdateStatusDialog(ticket)
-        }
+        ticketAdapter = TicketAdapter(
+            context = this,
+            onUpdateClick = { ticket -> showUpdateStatusDialog(ticket) },
+            onDetailClick = { ticket -> openTicketDetail(ticket) }
+        )
         rvTickets.layoutManager = LinearLayoutManager(this)
         rvTickets.adapter = ticketAdapter
+    }
+
+    private fun openTicketDetail(ticket: TicketItem) {
+        val intent = Intent(this, TicketDetailActivity::class.java).apply {
+            putExtra(TicketDetailActivity.EXTRA_TICKET_ID, ticket.id)
+            putExtra(TicketDetailActivity.EXTRA_TICKET_NUMBER, ticket.ticketNumber)
+            putExtra(TicketDetailActivity.EXTRA_TITLE, ticket.title)
+            putExtra(TicketDetailActivity.EXTRA_STATUS, ticket.status)
+            putExtra(TicketDetailActivity.EXTRA_PRIORITY, ticket.priority)
+            putExtra(TicketDetailActivity.EXTRA_TYPE, ticket.ticketType ?: "")
+            putExtra(TicketDetailActivity.EXTRA_REPORTER_NAME, ticket.reporterName ?: "")
+            putExtra(TicketDetailActivity.EXTRA_REPORTER_PHONE, ticket.reporterPhone ?: "")
+            putExtra(TicketDetailActivity.EXTRA_REPORTER_ADDRESS, ticket.reporterAddress ?: "")
+            putExtra(TicketDetailActivity.EXTRA_LATITUDE, ticket.latitude ?: 0.0)
+            putExtra(TicketDetailActivity.EXTRA_LONGITUDE, ticket.longitude ?: 0.0)
+            putExtra(TicketDetailActivity.EXTRA_DESCRIPTION, ticket.description ?: "")
+        }
+        detailLauncher.launch(intent)
     }
 
     private fun checkAndRequestPermissions() {
@@ -239,6 +280,14 @@ class MainActivity : AppCompatActivity() {
                 ticketAdapter.submitList(tickets)
                 tvTicketCount.text = "${tickets.size} Tiket"
 
+                // Calculate active tasks count
+                val activeCount = tickets.count { t ->
+                    val s = t.status.lowercase()
+                    s != "resolved" && s != "closed" && s != "cancelled"
+                }
+                session.activeTicketsCount = activeCount
+                evaluateTrackingRules(activeCount)
+
                 if (tickets.isEmpty()) {
                     tvEmptyState.visibility = View.VISIBLE
                     rvTickets.visibility = View.GONE
@@ -248,6 +297,25 @@ class MainActivity : AppCompatActivity() {
                 }
             }.onFailure { err ->
                 Toast.makeText(this@MainActivity, "Gagal memuat tiket: ${err.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun evaluateTrackingRules(activeCount: Int) {
+        if (TrackingScheduleManager.isTrackingMandatory(activeCount)) {
+            // Auto ON & Locked
+            if (!session.isDutyActive) {
+                session.isDutyActive = true
+                switchDuty.isChecked = true
+                checkAndRequestPermissions()
+                startTrackingService()
+            }
+        } else if (TrackingScheduleManager.shouldAutoTurnOff(activeCount)) {
+            // Auto OFF (outside work hours and no active tasks left)
+            if (session.isDutyActive) {
+                session.isDutyActive = false
+                switchDuty.isChecked = false
+                stopTrackingService()
             }
         }
     }
@@ -331,6 +399,7 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Keluar Aplikasi")
             .setMessage("Apakah Anda yakin ingin keluar? Pelacakan lokasi akan dihentikan.")
             .setPositiveButton("Keluar") { _, _ ->
+                session.activeTicketsCount = 0
                 stopTrackingService()
                 session.logout()
                 startActivity(Intent(this, LoginActivity::class.java))
@@ -342,6 +411,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        evaluateTrackingRules(session.activeTicketsCount)
         val filter = IntentFilter(LocationTrackingService.ACTION_LOCATION_UPDATED)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(locationReceiver, filter, Context.RECEIVER_NOT_EXPORTED)

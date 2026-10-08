@@ -121,8 +121,8 @@ export async function GET(req: NextRequest) {
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
   const userRole = (session.user as any).role;
-  if (userRole !== "noc") {
-    return errorResponse("Forbidden: Hanya NOC Administrator yang dapat mengakses pembaruan sistem", 403);
+  if (!["noc", "owner", "admin"].includes(userRole)) {
+    return errorResponse("Forbidden: Hanya Administrator / NOC yang dapat mengakses pembaruan sistem", 403);
   }
 
   const git = getGitCommand();
@@ -219,8 +219,8 @@ export async function POST(req: NextRequest) {
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
   const userRole = (session.user as any).role;
-  if (userRole !== "noc") {
-    return errorResponse("Forbidden: Hanya NOC Administrator yang dapat melakukan pembaruan sistem", 403);
+  if (!["noc", "owner", "admin"].includes(userRole)) {
+    return errorResponse("Forbidden: Hanya Administrator / NOC yang dapat melakukan pembaruan sistem", 403);
   }
 
   const clientIp = getClientIp(req);
@@ -311,6 +311,11 @@ export async function POST(req: NextRequest) {
         if (resetRes.exitCode !== 0) {
           throw new Error(`Git reset gagal dengan exit code ${resetRes.exitCode}`);
         }
+
+        // Clean untracked files
+        try {
+          await runCmd(`${git} clean -fd`, cwd, 15000);
+        } catch {}
 
         // Step 5: Read active commit
         let newCommit = "unknown";

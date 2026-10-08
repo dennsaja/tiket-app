@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { tickets, ticketMessages, attachments } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
@@ -15,12 +16,12 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const currentUser = await getAuthUser(req);
+  if (!currentUser) return errorResponse("Unauthorized", 401);
 
   const { id } = await params;
-  const userRole = (session.user as any).role;
-  const userId = session.user.id!;
+  const userRole = currentUser.role;
+  const userId = currentUser.id;
 
   const ticket = await db.query.tickets.findFirst({
     where: eq(tickets.id, id),
@@ -59,19 +60,19 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const currentUser = await getAuthUser(req);
+  if (!currentUser) return errorResponse("Unauthorized", 401);
 
   // Rate limit: 30 messages per minute
-  const limitResult = rateLimit(`message_create:${session.user.id}`, {
+  const limitResult = rateLimit(`message_create:${currentUser.id}`, {
     windowMs: 60000,
     max: 30,
   });
   if (!limitResult.success) return rateLimitResponse(limitResult.reset);
 
   const { id } = await params;
-  const userRole = (session.user as any).role;
-  const userId = session.user.id!;
+  const userRole = currentUser.role;
+  const userId = currentUser.id;
 
   const ticket = await db.query.tickets.findFirst({
     where: eq(tickets.id, id),
@@ -173,7 +174,7 @@ export async function POST(
       id,
       ticket.ticketNumber,
       ticket.title,
-      session.user.name || "User",
+      currentUser.name || "User",
       Array.from(recipientIds),
       type === "internal_note"
     );
@@ -181,7 +182,7 @@ export async function POST(
 
   await createAuditLog({
     actorId: userId,
-    actorEmail: session.user.email,
+    actorEmail: currentUser.email,
     action: type === "internal_note" ? "internal_note_created" : "message_created",
     targetType: "ticket",
     targetId: id,

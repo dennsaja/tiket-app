@@ -3,11 +3,14 @@ package net.infinityteknik.helpdesk.data
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
@@ -222,6 +225,145 @@ object ApiClient {
                     } else {
                         val err = response.body?.string() ?: ""
                         Result.failure(Exception("Gagal update status: $err"))
+                    }
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getTicketMessages(serverUrl: String, token: String, ticketId: String): Result<List<TicketMessage>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val request = Request.Builder()
+                    .url("$serverUrl/api/tickets/$ticketId/messages")
+                    .addHeader("Authorization", "Bearer $token")
+                    .get()
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val bodyStr = response.body?.string() ?: ""
+                    if (!response.isSuccessful) {
+                        return@withContext Result.failure(Exception("HTTP ${response.code}"))
+                    }
+
+                    val arr = JSONArray(bodyStr)
+                    val list = ArrayList<TicketMessage>()
+                    for (i in 0 until arr.length()) {
+                        val o = arr.getJSONObject(i)
+                        val author = o.optJSONObject("author")
+                        list.add(
+                            TicketMessage(
+                                id = o.getString("id"),
+                                ticketId = o.getString("ticketId"),
+                                authorId = o.getString("authorId"),
+                                content = o.getString("content"),
+                                type = o.optString("type", "public"),
+                                createdAt = o.optString("createdAt", ""),
+                                authorName = author?.optNullableString("name"),
+                                authorRole = author?.optNullableString("role")
+                            )
+                        )
+                    }
+                    Result.success(list)
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun sendTicketMessage(
+        serverUrl: String,
+        token: String,
+        ticketId: String,
+        content: String,
+        type: String = "public"
+    ): Result<TicketMessage> =
+        withContext(Dispatchers.IO) {
+            try {
+                val json = JSONObject().apply {
+                    put("content", content.trim())
+                    put("type", type)
+                }
+
+                val request = Request.Builder()
+                    .url("$serverUrl/api/tickets/$ticketId/messages")
+                    .addHeader("Authorization", "Bearer $token")
+                    .post(json.toString().toRequestBody(JSON_MEDIA_TYPE))
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val bodyStr = response.body?.string() ?: ""
+                    if (!response.isSuccessful) {
+                        val errMsg = try { JSONObject(bodyStr).optString("error", bodyStr) } catch (e: Exception) { bodyStr }
+                        return@withContext Result.failure(Exception(errMsg))
+                    }
+
+                    val o = JSONObject(bodyStr)
+                    val author = o.optJSONObject("author")
+                    val msg = TicketMessage(
+                        id = o.getString("id"),
+                        ticketId = o.getString("ticketId"),
+                        authorId = o.getString("authorId"),
+                        content = o.getString("content"),
+                        type = o.optString("type", "public"),
+                        createdAt = o.optString("createdAt", ""),
+                        authorName = author?.optNullableString("name"),
+                        authorRole = author?.optNullableString("role")
+                    )
+                    Result.success(msg)
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun submitWorkReport(
+        serverUrl: String,
+        token: String,
+        ticketId: String,
+        summary: String,
+        actionTaken: String,
+        materialsUsed: String,
+        finalResult: String,
+        beforePhotos: List<File>,
+        afterPhotos: List<File>
+    ): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            try {
+                val builder = MultipartBody.Builder().setType(MultipartBody.FORM)
+                builder.addFormDataPart("summary", summary.trim())
+                builder.addFormDataPart("actionTaken", actionTaken.trim())
+                if (materialsUsed.isNotBlank()) builder.addFormDataPart("materialsUsed", materialsUsed.trim())
+                if (finalResult.isNotBlank()) builder.addFormDataPart("finalResult", finalResult.trim())
+
+                val mediaType = "image/jpeg".toMediaType()
+
+                beforePhotos.forEachIndexed { i, file ->
+                    if (file.exists() && file.length() > 0) {
+                        builder.addFormDataPart("beforePhoto_$i", file.name, file.asRequestBody(mediaType))
+                    }
+                }
+
+                afterPhotos.forEachIndexed { i, file ->
+                    if (file.exists() && file.length() > 0) {
+                        builder.addFormDataPart("afterPhoto_$i", file.name, file.asRequestBody(mediaType))
+                    }
+                }
+
+                val request = Request.Builder()
+                    .url("$serverUrl/api/tickets/$ticketId/work-report")
+                    .addHeader("Authorization", "Bearer $token")
+                    .post(builder.build())
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val bodyStr = response.body?.string() ?: ""
+                    if (response.isSuccessful) {
+                        Result.success(true)
+                    } else {
+                        val errMsg = try { JSONObject(bodyStr).optString("error", bodyStr) } catch (e: Exception) { bodyStr }
+                        Result.failure(Exception(errMsg))
                     }
                 }
             } catch (e: Exception) {

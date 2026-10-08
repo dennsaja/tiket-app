@@ -36,6 +36,17 @@ data class TicketItem(
     val updatedAt: String
 )
 
+data class TicketMessage(
+    val id: String,
+    val ticketId: String,
+    val authorId: String,
+    val content: String,
+    val type: String, // "public" or "internal_note"
+    val createdAt: String,
+    val authorName: String?,
+    val authorRole: String?
+)
+
 data class LocationPayload(
     val latitude: Double,
     val longitude: Double,

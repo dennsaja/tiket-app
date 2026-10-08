@@ -16,7 +16,8 @@ import net.infinityteknik.helpdesk.data.TicketItem
 
 class TicketAdapter(
     private val context: Context,
-    private val onUpdateClick: (TicketItem) -> Unit
+    private val onUpdateClick: (TicketItem) -> Unit,
+    private val onDetailClick: (TicketItem) -> Unit
 ) : RecyclerView.Adapter<TicketAdapter.TicketViewHolder>() {
 
     private val tickets = ArrayList<TicketItem>()
@@ -49,6 +50,7 @@ class TicketAdapter(
         private val tvCustomerAddress: TextView = itemView.findViewById(R.id.tvCustomerAddress)
         private val btnMap: MaterialButton = itemView.findViewById(R.id.btnNavigateMap)
         private val btnCall: MaterialButton = itemView.findViewById(R.id.btnCallCustomer)
+        private val btnDetail: MaterialButton = itemView.findViewById(R.id.btnDetail)
         private val btnUpdate: MaterialButton = itemView.findViewById(R.id.btnUpdateStatus)
 
         fun bind(ticket: TicketItem) {
@@ -90,16 +92,25 @@ class TicketAdapter(
                 }
             }
 
-            // Customer info
+            // Customer info (No emojis)
             val custName = ticket.reporterName?.ifBlank { "Pelanggan / Pelapor" } ?: "Pelanggan"
-            tvCustomerName.text = "👤 Pelapor: $custName"
+            tvCustomerName.text = "Pelapor: $custName"
 
             val phone = ticket.reporterPhone ?: "-"
-            tvCustomerPhone.text = "📞 Telepon: $phone"
+            tvCustomerPhone.text = "Telepon: $phone"
             btnCall.visibility = if (ticket.reporterPhone.isNullOrBlank()) View.GONE else View.VISIBLE
 
             val addr = ticket.reporterAddress ?: "-"
-            tvCustomerAddress.text = "📍 Alamat: $addr"
+            tvCustomerAddress.text = "Alamat: $addr"
+
+            // Card click & Detail button
+            itemView.setOnClickListener {
+                onDetailClick(ticket)
+            }
+
+            btnDetail.setOnClickListener {
+                onDetailClick(ticket)
+            }
 
             // Map button action
             btnMap.setOnClickListener {

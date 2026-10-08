@@ -2,17 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { subcategories } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { errorResponse } from "@/lib/api/helpers";
 import { createAuditLog, getClientIp } from "@/lib/audit";
 import { z } from "zod";
 
-const updateSubSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+const updateSubcategorySchema = z.object({
+  name: z.string().min(1).max(100),
   isActive: z.boolean().optional(),
 });
 
-// PATCH /api/categories/[id]/subcategories/[subId]
+// PATCH /api/categories/[id]/subcategories/[subId] — Edit subcategory
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; subId: string }> }
@@ -27,10 +27,13 @@ export async function PATCH(
   }
 
   let body: any;
-  try { body = await req.json(); }
-  catch { return errorResponse("Invalid JSON body", 400); }
+  try {
+    body = await req.json();
+  } catch {
+    return errorResponse("Invalid JSON body", 400);
+  }
 
-  const parsed = updateSubSchema.safeParse(body);
+  const parsed = updateSubcategorySchema.safeParse(body);
   if (!parsed.success) {
     return errorResponse(
       `Validation error: ${parsed.error.issues.map((i) => i.message).join(", ")}`,
@@ -39,15 +42,18 @@ export async function PATCH(
   }
 
   const existing = await db.query.subcategories.findFirst({
-    where: eq(subcategories.id, subId),
+    where: and(eq(subcategories.id, subId), eq(subcategories.categoryId, id)),
   });
-  if (!existing || existing.categoryId !== id) {
-    return errorResponse("Subkategori tidak ditemukan", 404);
-  }
+
+  if (!existing) return errorResponse("Subkategori tidak ditemukan", 404);
 
   const [updated] = await db
     .update(subcategories)
-    .set({ ...parsed.data, updatedAt: new Date() })
+    .set({
+      name: parsed.data.name,
+      ...(parsed.data.isActive !== undefined ? { isActive: parsed.data.isActive } : {}),
+      updatedAt: new Date(),
+    })
     .where(eq(subcategories.id, subId))
     .returning();
 
@@ -57,14 +63,14 @@ export async function PATCH(
     action: "subcategory_updated",
     targetType: "subcategory",
     targetId: subId,
-    metadata: { name: updated.name, changes: parsed.data },
+    metadata: { name: updated.name, categoryId: id },
     ipAddress: getClientIp(req),
   });
 
   return NextResponse.json(updated);
 }
 
-// DELETE /api/categories/[id]/subcategories/[subId]
+// DELETE /api/categories/[id]/subcategories/[subId] — Delete or deactivate subcategory
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; subId: string }> }
@@ -79,13 +85,12 @@ export async function DELETE(
   }
 
   const existing = await db.query.subcategories.findFirst({
-    where: eq(subcategories.id, subId),
+    where: and(eq(subcategories.id, subId), eq(subcategories.categoryId, id)),
   });
-  if (!existing || existing.categoryId !== id) {
-    return errorResponse("Subkategori tidak ditemukan", 404);
-  }
 
-  // Soft delete
+  if (!existing) return errorResponse("Subkategori tidak ditemukan", 404);
+
+  // Soft-delete: mark inactive
   await db
     .update(subcategories)
     .set({ isActive: false, updatedAt: new Date() })
@@ -101,5 +106,5 @@ export async function DELETE(
     ipAddress: getClientIp(req),
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, message: "Subkategori berhasil dinonaktifkan" });
 }

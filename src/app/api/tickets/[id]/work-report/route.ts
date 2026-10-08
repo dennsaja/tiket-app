@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import {
   tickets,
@@ -27,12 +28,12 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const currentUser = await getAuthUser(req);
+  if (!currentUser) return errorResponse("Unauthorized", 401);
 
   const { id } = await params;
-  const userRole = (session.user as any).role;
-  const userId = session.user.id!;
+  const userRole = currentUser.role;
+  const userId = currentUser.id;
 
   const ticket = await db.query.tickets.findFirst({
     where: and(eq(tickets.id, id), isNull(tickets.deletedAt)),
@@ -203,13 +204,13 @@ export async function POST(
     ticket.title,
     "resolved",
     ticket.requesterId,
-    session.user.name || "Teknisi"
+    currentUser.name || "Teknisi"
   ).catch(() => {});
 
   // 5. Audit Log
   await createAuditLog({
     actorId: userId,
-    actorEmail: session.user.email,
+    actorEmail: currentUser.email,
     action: "ticket_resolved",
     targetType: "ticket",
     targetId: id,

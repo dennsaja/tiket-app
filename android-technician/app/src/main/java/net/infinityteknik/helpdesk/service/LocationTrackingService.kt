@@ -26,6 +26,7 @@ import net.infinityteknik.helpdesk.data.ApiClient
 import net.infinityteknik.helpdesk.data.LocationPayload
 import net.infinityteknik.helpdesk.data.SessionManager
 import net.infinityteknik.helpdesk.ui.MainActivity
+import net.infinityteknik.helpdesk.util.TrackingScheduleManager
 
 class LocationTrackingService : Service(), LocationListener {
 
@@ -55,6 +56,11 @@ class LocationTrackingService : Service(), LocationListener {
         val action = intent?.action ?: ACTION_START
 
         if (action == ACTION_STOP) {
+            // Cannot stop if in working hours (08:00 - 16:00 WIB) or if there are still active tasks
+            if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
+                startForegroundTracking()
+                return START_STICKY
+            }
             stopTracking()
             stopSelf()
             return START_NOT_STICKY
@@ -157,6 +163,14 @@ class LocationTrackingService : Service(), LocationListener {
     }
 
     override fun onLocationChanged(loc: Location) {
+        // Auto turn off if outside work hours (past 16:00 WIB) and no active tasks left
+        if (TrackingScheduleManager.shouldAutoTurnOff(session.activeTicketsCount)) {
+            session.isDutyActive = false
+            stopTracking()
+            stopSelf()
+            return
+        }
+
         val now = System.currentTimeMillis()
         if (now - lastSentTime < MIN_INTERVAL_MS) {
             // Still update local session
