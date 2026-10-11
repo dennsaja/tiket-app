@@ -64,7 +64,8 @@ function spawnStreamingCmd(
   cmdString: string,
   cwd: string,
   onLine: (line: string, isErr?: boolean) => void,
-  timeoutMs = 300000
+  timeoutMs = 300000,
+  extraEnv: Record<string, string> = {}
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const isWindows = process.platform === "win32";
@@ -76,7 +77,7 @@ function spawnStreamingCmd(
 
     const proc = spawn(shell, shellArgs, {
       cwd,
-      env: getExecEnv(),
+      env: { ...getExecEnv(), ...extraEnv },
       windowsVerbatimArguments: isWindows,
     });
 
@@ -324,6 +325,34 @@ export async function POST(req: NextRequest) {
           newCommit = shaOut.trim();
           log("GIT", `Commit aktif saat ini: #${newCommit}`);
         } catch {}
+
+        // Step 5b: Install Node.js Dependencies (npm install)
+        log("NPM", "Memeriksa dan memperbarui dependensi Node.js (npm install)...");
+        send({ type: "status", message: "Menginstal paket dependensi (npm install)...", progress: 40 });
+        const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
+        try {
+          const installRes = await spawnStreamingCmd(
+            `${npmCmd} install --include=dev --prefer-offline --no-audit --legacy-peer-deps`,
+            cwd,
+            (line) => log("NPM_INSTALL", line),
+            300000,
+            { NODE_ENV: "development" }
+          );
+          if (installRes.exitCode !== 0) {
+            log("NPM_WARN", `npm install tahap 1 exit code ${installRes.exitCode}, mencoba fallback...`);
+            await spawnStreamingCmd(
+              `${npmCmd} install --legacy-peer-deps`,
+              cwd,
+              (line) => log("NPM_FALLBACK", line),
+              300000,
+              { NODE_ENV: "development" }
+            );
+          } else {
+            log("NPM", "Dependensi Node.js berhasil diverifikasi dan terinstal.");
+          }
+        } catch (npmErr: any) {
+          log("NPM_ERR", `npm install error: ${npmErr.message}`);
+        }
 
         // Step 6: Database Schema & Enum Sync
         log("DB", "Sinkronisasi tipe enum dan skema database PostgreSQL...");
