@@ -26,7 +26,7 @@ import { TicketTypeBadge } from "@/components/tickets/ticket-type-badge";
 import { PriorityBadge } from "@/components/tickets/priority-badge";
 import { useSSE } from "@/hooks/use-sse";
 import { formatRelativeTime } from "@/lib/utils";
-import { formatDistance, distanceMeters, LOCATION_STALE_MS } from "@/lib/utils/geo";
+import { formatDistance, distanceMeters, LOCATION_STALE_MS, getTechnicianColor } from "@/lib/utils/geo";
 import toast from "react-hot-toast";
 
 // Leaflet TypeScript types only (erased at compile time)
@@ -229,13 +229,15 @@ export function LiveDispatcherMap() {
         .join("")
         .toUpperCase();
 
+      const techColor = getTechnicianColor(tech.userId);
+
       const pulseHtml = isOnline
         ? `<div class="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white animate-pulse"></div>`
         : `<div class="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-zinc-400 border border-white"></div>`;
 
       const avatarHtml = tech.avatarUrl
-        ? `<img src="${tech.avatarUrl}" class="h-8 w-8 rounded-full object-cover border-2 border-zinc-900 bg-white" />`
-        : `<div class="h-8 w-8 rounded-full bg-zinc-900 text-white font-bold flex items-center justify-center text-[10px] border-2 border-white shadow-md">${initials}</div>`;
+        ? `<img src="${tech.avatarUrl}" class="h-8 w-8 rounded-full object-cover border-2 bg-white" style="border-color: ${techColor};" />`
+        : `<div class="h-8 w-8 rounded-full text-white font-bold flex items-center justify-center text-[10px] border-2 border-white shadow-md" style="background-color: ${techColor};">${initials}</div>`;
 
       const iconHtml = `
         <div class="relative flex flex-col items-center cursor-pointer group">
@@ -243,7 +245,7 @@ export function LiveDispatcherMap() {
             ${avatarHtml}
             ${pulseHtml}
           </div>
-          <div class="bg-black/90 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded shadow mt-0.5 whitespace-nowrap group-hover:scale-105 transition-transform">
+          <div class="text-white text-[10px] font-semibold px-1.5 py-0.5 rounded shadow mt-0.5 whitespace-nowrap group-hover:scale-105 transition-transform" style="background-color: ${techColor};">
             ${tech.name.split(" ")[0]}
           </div>
         </div>
@@ -407,7 +409,7 @@ export function LiveDispatcherMap() {
       }
     });
 
-    // 3. Draw Dotted Connecting Polylines from Technician to Assigned Ticket
+    // 3. Draw Connecting Polylines from Technician to Assigned Ticket with unique technician colors
     const activePolylineKeys = new Set<string>();
 
     technicians.forEach((tech) => {
@@ -415,6 +417,7 @@ export function LiveDispatcherMap() {
       const targetTicket = tickets.find((t) => t.id === tech.activeTicketId);
       if (!targetTicket || !targetTicket.latitude || !targetTicket.longitude) return;
 
+      const techColor = getTechnicianColor(tech.userId);
       const key = `${tech.userId}-${targetTicket.id}`;
       activePolylineKeys.add(key);
 
@@ -423,17 +426,47 @@ export function LiveDispatcherMap() {
         [targetTicket.latitude, targetTicket.longitude],
       ];
 
+      const dist = formatDistance(
+        distanceMeters(
+          { lat: tech.latitude, lng: tech.longitude },
+          { lat: targetTicket.latitude, lng: targetTicket.longitude }
+        )
+      );
+
       let line = polylinesRef.current.get(key);
       if (line) {
         line.setLatLngs(latlngs);
+        line.setStyle({ color: techColor });
       } else {
         line = L.polyline(latlngs, {
-          color: "#2563eb",
-          weight: 2.5,
+          color: techColor,
+          weight: 3.5,
           dashArray: "6, 8",
-          opacity: 0.75,
+          opacity: 0.85,
         }).addTo(map);
+
+        line.bindTooltip(
+          `<b>${tech.name}</b> ➔ #${targetTicket.ticketNumber} (${dist})`,
+          { sticky: true }
+        );
+
         polylinesRef.current.set(key, line);
+
+        // Try to fetch real driving road route from OSRM
+        fetch(
+          `https://router.project-osrm.org/route/v1/driving/${tech.longitude},${tech.latitude};${targetTicket.longitude},${targetTicket.latitude}?overview=full&geometries=geojson`
+        )
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.routes?.[0]?.geometry?.coordinates && line) {
+              const roadCoords = data.routes[0].geometry.coordinates.map(
+                (c: [number, number]) => [c[1], c[0]] as [number, number]
+              );
+              line.setLatLngs(roadCoords);
+              line.setStyle({ dashArray: undefined, weight: 4 });
+            }
+          })
+          .catch(() => {});
       }
     });
 
@@ -700,9 +733,16 @@ export function LiveDispatcherMap() {
                       </div>
 
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                          {tech.name}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className="h-2 w-2 rounded-full shrink-0 shadow-xs"
+                            style={{ backgroundColor: getTechnicianColor(tech.userId) }}
+                            title="Warna rute teknisi"
+                          />
+                          <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                            {tech.name}
+                          </p>
+                        </div>
                         <p className="text-[10px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                           {isOnline ? (
                             <span className="text-emerald-600 dark:text-emerald-400 font-medium">

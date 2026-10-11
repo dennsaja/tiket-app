@@ -2,6 +2,7 @@ package net.infinityteknik.helpdesk.ui
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.net.Uri
 import android.view.LayoutInflater
@@ -16,7 +17,7 @@ import net.infinityteknik.helpdesk.data.TicketItem
 
 class TicketAdapter(
     private val context: Context,
-    private val onUpdateClick: (TicketItem) -> Unit,
+    private val onPrimaryActionClick: (TicketItem) -> Unit,
     private val onDetailClick: (TicketItem) -> Unit
 ) : RecyclerView.Adapter<TicketAdapter.TicketViewHolder>() {
 
@@ -50,8 +51,7 @@ class TicketAdapter(
         private val tvCustomerAddress: TextView = itemView.findViewById(R.id.tvCustomerAddress)
         private val btnMap: MaterialButton = itemView.findViewById(R.id.btnNavigateMap)
         private val btnCall: MaterialButton = itemView.findViewById(R.id.btnCallCustomer)
-        private val btnDetail: MaterialButton = itemView.findViewById(R.id.btnDetail)
-        private val btnUpdate: MaterialButton = itemView.findViewById(R.id.btnUpdateStatus)
+        private val btnPrimaryAction: MaterialButton = itemView.findViewById(R.id.btnPrimaryAction)
 
         fun bind(ticket: TicketItem) {
             tvNumber.text = "#${ticket.ticketNumber}"
@@ -60,40 +60,24 @@ class TicketAdapter(
             // Priority styling
             tvPriority.text = ticket.priority.uppercase()
             when (ticket.priority.lowercase()) {
-                "critical" -> {
-                    tvPriority.setTextColor(Color.parseColor("#DC2626"))
-                }
-                "high" -> {
-                    tvPriority.setTextColor(Color.parseColor("#EA580C"))
-                }
-                "medium" -> {
-                    tvPriority.setTextColor(Color.parseColor("#D97706"))
-                }
-                else -> {
-                    tvPriority.setTextColor(Color.parseColor("#16A34A"))
-                }
+                "critical" -> tvPriority.setTextColor(Color.parseColor("#DC2626"))
+                "high" -> tvPriority.setTextColor(Color.parseColor("#EA580C"))
+                "medium" -> tvPriority.setTextColor(Color.parseColor("#D97706"))
+                else -> tvPriority.setTextColor(Color.parseColor("#16A34A"))
             }
 
             // Status styling
             val statusDisplay = ticket.status.replace("_", " ").uppercase()
             tvStatus.text = statusDisplay
             when (ticket.status.lowercase()) {
-                "resolved", "closed" -> {
-                    tvStatus.setTextColor(Color.parseColor("#16A34A"))
-                }
-                "in_progress", "on_site" -> {
-                    tvStatus.setTextColor(Color.parseColor("#9333EA"))
-                }
-                "assigned", "accepted" -> {
-                    tvStatus.setTextColor(Color.parseColor("#0284C7"))
-                }
-                else -> {
-                    tvStatus.setTextColor(Color.parseColor("#64748B"))
-                }
+                "resolved", "closed" -> tvStatus.setTextColor(Color.parseColor("#16A34A"))
+                "in_progress", "on_site" -> tvStatus.setTextColor(Color.parseColor("#9333EA"))
+                "assigned", "accepted" -> tvStatus.setTextColor(Color.parseColor("#0284C7"))
+                else -> tvStatus.setTextColor(Color.parseColor("#64748B"))
             }
 
-            // Customer info (No emojis)
-            val custName = ticket.reporterName?.ifBlank { "Pelanggan / Pelapor" } ?: "Pelanggan"
+            // Customer info
+            val custName = ticket.reporterName?.ifBlank { "Pelanggan" } ?: "Pelanggan"
             tvCustomerName.text = "Pelapor: $custName"
 
             val phone = ticket.reporterPhone ?: "-"
@@ -103,18 +87,50 @@ class TicketAdapter(
             val addr = ticket.reporterAddress ?: "-"
             tvCustomerAddress.text = "Alamat: $addr"
 
-            // Card click & Detail button
+            // Card click -> open detail
             itemView.setOnClickListener {
                 onDetailClick(ticket)
             }
 
-            btnDetail.setOnClickListener {
-                onDetailClick(ticket)
+            // Progressive Primary Button based on Web Workflow
+            when (ticket.status.lowercase()) {
+                "open", "assigned" -> {
+                    btnPrimaryAction.text = "Terima Tiket"
+                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#0284C7"))
+                    btnPrimaryAction.setOnClickListener { onPrimaryActionClick(ticket) }
+                }
+                "accepted" -> {
+                    btnPrimaryAction.text = "Tiba di Lokasi (On-Site)"
+                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#4F46E5"))
+                    btnPrimaryAction.setOnClickListener { onPrimaryActionClick(ticket) }
+                }
+                "on_site" -> {
+                    btnPrimaryAction.text = "Mulai Kerjakan (In-Progress)"
+                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#7C3AED"))
+                    btnPrimaryAction.setOnClickListener { onPrimaryActionClick(ticket) }
+                }
+                "in_progress" -> {
+                    btnPrimaryAction.text = "Selesaikan Tiket & Laporan"
+                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#059669"))
+                    btnPrimaryAction.setOnClickListener { onDetailClick(ticket) }
+                }
+                else -> {
+                    btnPrimaryAction.text = "Lihat Detail Tiket"
+                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#52525B"))
+                    btnPrimaryAction.setOnClickListener { onDetailClick(ticket) }
+                }
             }
 
-            // Map button action
+            // Map button action (Google Maps link or GPS coordinates)
             btnMap.setOnClickListener {
-                if (ticket.latitude != null && ticket.longitude != null) {
+                if (!ticket.reporterMapUrl.isNullOrBlank()) {
+                    val mapIntent = Intent(Intent.ACTION_VIEW, Uri.parse(ticket.reporterMapUrl))
+                    try {
+                        context.startActivity(mapIntent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Tidak dapat membuka link Google Maps", Toast.LENGTH_SHORT).show()
+                    }
+                } else if (ticket.latitude != null && ticket.longitude != null) {
                     val uri = Uri.parse("google.navigation:q=${ticket.latitude},${ticket.longitude}&mode=d")
                     val intent = Intent(Intent.ACTION_VIEW, uri).apply {
                         setPackage("com.google.android.apps.maps")
@@ -122,17 +138,14 @@ class TicketAdapter(
                     if (intent.resolveActivity(context.packageManager) != null) {
                         context.startActivity(intent)
                     } else {
-                        // Fallback to browser Google Maps
                         val webUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${ticket.latitude},${ticket.longitude}")
                         context.startActivity(Intent(Intent.ACTION_VIEW, webUri))
                     }
-                } else if (!ticket.reporterMapUrl.isNullOrBlank()) {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ticket.reporterMapUrl)))
                 } else if (!ticket.reporterAddress.isNullOrBlank()) {
                     val mapUri = Uri.parse("geo:0,0?q=${Uri.encode(ticket.reporterAddress)}")
                     context.startActivity(Intent(Intent.ACTION_VIEW, mapUri))
                 } else {
-                    Toast.makeText(context, "Alamat atau koordinat tiket tidak tersedia", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Lokasi atau link Google Maps tidak tersedia", Toast.LENGTH_SHORT).show()
                 }
             }
 
@@ -142,11 +155,6 @@ class TicketAdapter(
                     val dialUri = Uri.parse("tel:${ticket.reporterPhone}")
                     context.startActivity(Intent(Intent.ACTION_DIAL, dialUri))
                 }
-            }
-
-            // Update status button action
-            btnUpdate.setOnClickListener {
-                onUpdateClick(ticket)
             }
         }
     }

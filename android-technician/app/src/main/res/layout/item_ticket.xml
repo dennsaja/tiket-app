@@ -112,24 +112,18 @@
                 android:ellipsize="end" />
         </LinearLayout>
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="12dp"
-            android:background="#F4F4F5" />
-
-        <!-- Action Buttons -->
+        <!-- Secondary Action Buttons: Maps & Phone -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnNavigateMap"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="0dp"
-                android:layout_height="38dp"
+                android:layout_height="36dp"
                 android:layout_weight="1"
                 android:layout_marginEnd="4dp"
                 android:text="Rute Maps"
@@ -142,43 +136,27 @@
                 android:id="@+id/btnCallCustomer"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="0dp"
-                android:layout_height="38dp"
+                android:layout_height="36dp"
                 android:layout_weight="1"
                 android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"
                 android:text="Hubungi"
                 android:textColor="#18181B"
                 android:textSize="11sp"
                 app:strokeColor="#E4E4E7"
                 app:cornerRadius="8dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnDetail"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1.2"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"
-                android:text="Detail / Chat"
-                android:textColor="#18181B"
-                android:textSize="11sp"
-                app:strokeColor="#E4E4E7"
-                app:cornerRadius="8dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnUpdateStatus"
-                android:layout_width="0dp"
-                android:layout_height="38dp"
-                android:layout_weight="1.1"
-                android:layout_marginStart="2dp"
-                android:backgroundTint="#09090B"
-                android:text="Status"
-                android:textColor="#FFFFFF"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                app:cornerRadius="8dp" />
         </LinearLayout>
+
+        <!-- Primary Progressive Workflow Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnPrimaryAction"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="8dp"
+            android:text="Terima Tiket"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            app:cornerRadius="8dp" />
 
     </LinearLayout>
 </androidx.cardview.widget.CardView>

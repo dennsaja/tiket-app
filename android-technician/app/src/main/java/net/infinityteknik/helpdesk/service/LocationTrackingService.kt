@@ -43,7 +43,7 @@ class LocationTrackingService : Service(), LocationListener {
     private lateinit var session: SessionManager
 
     private var lastSentTime = 0L
-    private val MIN_INTERVAL_MS = 20000L // 20 seconds
+    private val MIN_INTERVAL_MS = 60000L // 60 seconds (1 minute interval to save battery and prevent heat)
 
     override fun onCreate() {
         super.onCreate()
@@ -117,22 +117,22 @@ class LocationTrackingService : Service(), LocationListener {
         }
 
         try {
-            // Register GPS Provider
+            // Register GPS Provider (60s interval, 25m distance to keep device cool)
             if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 locationManager.requestLocationUpdates(
                     LocationManager.GPS_PROVIDER,
-                    15000L,
-                    10f,
+                    60000L,
+                    25f,
                     this
                 )
             }
 
-            // Register Network Provider as fallback
+            // Register Network Provider as fallback (60s interval, 30m distance)
             if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
                 locationManager.requestLocationUpdates(
                     LocationManager.NETWORK_PROVIDER,
-                    20000L,
-                    15f,
+                    60000L,
+                    30f,
                     this
                 )
             }
@@ -193,7 +193,7 @@ class LocationTrackingService : Service(), LocationListener {
         val accuracyStr = if (loc.hasAccuracy()) "±${loc.accuracy.toInt()}m" else ""
         val speedStr = if (loc.hasSpeed() && loc.speed > 1) " • ${(loc.speed * 3.6f).toInt()} km/h" else ""
         val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notifManager.notify(NOTIFICATION_ID, buildNotification("Lokasi aktif ($accuracyStr$speedStr • Bat: $batteryLevel%)"))
+        notifManager.notify(NOTIFICATION_ID, buildNotification("GPS Aktif (1 mnt • $accuracyStr$speedStr • Bat: $batteryLevel%)"))
 
         // Send broadcast to update UI in MainActivity
         val broadcast = Intent(ACTION_LOCATION_UPDATED).apply {

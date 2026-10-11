@@ -77,6 +77,13 @@ export async function PATCH(
     updatedAt: now,
   };
 
+  if (
+    (newStatus === "accepted" || newStatus === "in_progress" || newStatus === "on_site") &&
+    !existingTicket.assigneeId
+  ) {
+    updatePayload.assigneeId = userId;
+  }
+
   if (newStatus === "resolved") {
     updatePayload.resolvedAt = now;
   }

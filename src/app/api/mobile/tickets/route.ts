@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { tickets, ticketAssignees, users } from "@/lib/db/schema";
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { getMobileUserFromRequest } from "@/lib/auth/mobile";
-import { parseCoordinates } from "@/lib/utils/geo";
+import { parseCoordinates, resolveCoordinatesAsync } from "@/lib/utils/geo";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -89,9 +89,12 @@ export async function GET(req: NextRequest) {
     limit: 100,
   });
 
-  const formatted = ticketRows.map((t) => {
-    const coords = parseCoordinates(t.reporterMapUrl) || parseCoordinates(t.reporterAddress);
-    const isLead = assignedMap.get(t.id) ?? (t.assigneeId === userId);
+  const formatted = await Promise.all(
+    ticketRows.map(async (t) => {
+      const coords =
+        (await resolveCoordinatesAsync(t.reporterMapUrl)) ||
+        (await resolveCoordinatesAsync(t.reporterAddress));
+      const isLead = assignedMap.get(t.id) ?? (t.assigneeId === userId);
 
     return {
       id: t.id,
@@ -117,7 +120,7 @@ export async function GET(req: NextRequest) {
       createdAt: t.createdAt.toISOString(),
       updatedAt: t.updatedAt.toISOString(),
     };
-  });
+  }));
 
   return NextResponse.json({
     success: true,

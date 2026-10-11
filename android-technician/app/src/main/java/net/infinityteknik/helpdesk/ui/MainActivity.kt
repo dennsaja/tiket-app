@@ -181,11 +181,50 @@ class MainActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         ticketAdapter = TicketAdapter(
             context = this,
-            onUpdateClick = { ticket -> showUpdateStatusDialog(ticket) },
+            onPrimaryActionClick = { ticket -> handlePrimaryAction(ticket) },
             onDetailClick = { ticket -> openTicketDetail(ticket) }
         )
         rvTickets.layoutManager = LinearLayoutManager(this)
         rvTickets.adapter = ticketAdapter
+    }
+
+    private fun handlePrimaryAction(ticket: TicketItem) {
+        val nextStatus = when (ticket.status.lowercase()) {
+            "open", "assigned" -> "accepted"
+            "accepted" -> "on_site"
+            "on_site" -> "in_progress"
+            else -> {
+                openTicketDetail(ticket)
+                return
+            }
+        }
+
+        val actionDesc = when (nextStatus) {
+            "accepted" -> "Menerima tiket #${ticket.ticketNumber}..."
+            "on_site" -> "Konfirmasi tiba di lokasi #${ticket.ticketNumber}..."
+            "in_progress" -> "Memulai pengerjaan #${ticket.ticketNumber}..."
+            else -> "Memperbarui status..."
+        }
+
+        val token = session.token ?: return
+        Toast.makeText(this, actionDesc, Toast.LENGTH_SHORT).show()
+
+        lifecycleScope.launch {
+            val result = ApiClient.updateTicketStatus(
+                session.serverUrl,
+                token,
+                ticket.id,
+                nextStatus,
+                "Diperbarui langsung dari aplikasi teknisi",
+                null
+            )
+            result.onSuccess {
+                Toast.makeText(this@MainActivity, "Status tiket #${ticket.ticketNumber} berhasil diperbarui!", Toast.LENGTH_SHORT).show()
+                loadTickets()
+            }.onFailure { err ->
+                Toast.makeText(this@MainActivity, "Gagal: ${err.message}", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun openTicketDetail(ticket: TicketItem) {
@@ -199,6 +238,7 @@ class MainActivity : AppCompatActivity() {
             putExtra(TicketDetailActivity.EXTRA_REPORTER_NAME, ticket.reporterName ?: "")
             putExtra(TicketDetailActivity.EXTRA_REPORTER_PHONE, ticket.reporterPhone ?: "")
             putExtra(TicketDetailActivity.EXTRA_REPORTER_ADDRESS, ticket.reporterAddress ?: "")
+            putExtra(TicketDetailActivity.EXTRA_REPORTER_MAP_URL, ticket.reporterMapUrl ?: "")
             putExtra(TicketDetailActivity.EXTRA_LATITUDE, ticket.latitude ?: 0.0)
             putExtra(TicketDetailActivity.EXTRA_LONGITUDE, ticket.longitude ?: 0.0)
             putExtra(TicketDetailActivity.EXTRA_DESCRIPTION, ticket.description ?: "")

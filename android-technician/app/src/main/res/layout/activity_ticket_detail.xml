@@ -4,9 +4,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#FAFAFA">
+    android:background="#F8FAFC">
 
-    <!-- Top App Bar -->
+    <!-- Top App Bar (Modern Vercel / HelpDesk Style) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="60dp"
@@ -81,7 +81,7 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center"
-            android:text="Detail Tiket"
+            android:text="Detail &amp; Alur"
             android:textColor="#09090B"
             android:textSize="13sp"
             android:textStyle="bold"
@@ -93,7 +93,7 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center"
-            android:text="Chat Tim"
+            android:text="Diskusi Tim"
             android:textColor="#71717A"
             android:textSize="13sp"
             android:background="?attr/selectableItemBackground" />
@@ -110,7 +110,6 @@
             android:background="?attr/selectableItemBackground" />
     </LinearLayout>
 
-    <!-- Tab Indicator Line -->
     <View
         android:id="@+id/tabIndicator"
         android:layout_width="match_parent"
@@ -122,7 +121,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- TAB 1: DETAIL TIKET -->
+        <!-- ============================================== -->
+        <!-- TAB 1: DETAIL & PROGRESSIVE WORKFLOW          -->
+        <!-- ============================================== -->
         <ScrollView
             android:id="@+id/viewTabDetail"
             android:layout_width="match_parent"
@@ -135,7 +136,7 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <!-- Ticket Info Card -->
+                <!-- Workflow Stepper Card -->
                 <androidx.cardview.widget.CardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -147,106 +148,155 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="16dp">
+                        android:padding="14dp">
 
                         <TextView
-                            android:id="@+id/tvInfoTitle"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Judul Tiket Lengkap"
-                            android:textColor="#09090B"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tvInfoType"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Tipe: Perbaikan Infrastruktur"
+                            android:text="ALUR KERJA PENUGASAN"
                             android:textColor="#71717A"
-                            android:textSize="12sp" />
-
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:layout_marginTop="12dp"
-                            android:layout_marginBottom="12dp"
-                            android:background="#F4F4F5" />
-
-                        <!-- Customer Info -->
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="INFORMASI PELAPOR / LOKASI"
-                            android:textColor="#A1A1AA"
                             android:textSize="11sp"
                             android:textStyle="bold" />
 
-                        <TextView
-                            android:id="@+id/tvInfoCustomerName"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="Pelapor: Bpk. Ahmad"
-                            android:textColor="#18181B"
-                            android:textSize="13sp" />
-
-                        <TextView
-                            android:id="@+id/tvInfoCustomerPhone"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Telepon: 08123456789"
-                            android:textColor="#18181B"
-                            android:textSize="13sp" />
-
-                        <TextView
-                            android:id="@+id/tvInfoCustomerAddress"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Alamat: Jl. Merdeka No. 45"
-                            android:textColor="#18181B"
-                            android:textSize="13sp" />
-
-                        <!-- Action Buttons -->
+                        <!-- Stepper Visualizer -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="14dp"
-                            android:orientation="horizontal">
+                            android:orientation="horizontal"
+                            android:layout_marginTop="10dp"
+                            android:gravity="center_vertical">
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnDetailCall"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            <!-- Step 1 -->
+                            <TextView
+                                android:id="@+id/step1Text"
                                 android:layout_width="0dp"
-                                android:layout_height="40dp"
+                                android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:layout_marginEnd="6dp"
-                                android:text="Hubungi Telepon"
-                                android:textColor="#18181B"
-                                android:textSize="12sp"
-                                app:strokeColor="#E4E4E7"
-                                app:cornerRadius="8dp" />
+                                android:gravity="center"
+                                android:text="1. Diterima"
+                                android:textColor="#0284C7"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnDetailMap"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            <View
+                                android:id="@+id/stepLine1"
+                                android:layout_width="14dp"
+                                android:layout_height="2dp"
+                                android:background="#E2E8F0" />
+
+                            <!-- Step 2 -->
+                            <TextView
+                                android:id="@+id/step2Text"
                                 android:layout_width="0dp"
-                                android:layout_height="40dp"
+                                android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:layout_marginStart="6dp"
-                                android:text="Buka Navigasi"
-                                android:textColor="#18181B"
-                                android:textSize="12sp"
-                                app:strokeColor="#E4E4E7"
-                                app:cornerRadius="8dp" />
+                                android:gravity="center"
+                                android:text="2. Lokasi"
+                                android:textColor="#94A3B8"
+                                android:textSize="11sp" />
+
+                            <View
+                                android:id="@+id/stepLine2"
+                                android:layout_width="14dp"
+                                android:layout_height="2dp"
+                                android:background="#E2E8F0" />
+
+                            <!-- Step 3 -->
+                            <TextView
+                                android:id="@+id/step3Text"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="3. Kerjakan"
+                                android:textColor="#94A3B8"
+                                android:textSize="11sp" />
+
+                            <View
+                                android:id="@+id/stepLine3"
+                                android:layout_width="14dp"
+                                android:layout_height="2dp"
+                                android:background="#E2E8F0" />
+
+                            <!-- Step 4 -->
+                            <TextView
+                                android:id="@+id/step4Text"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="center"
+                                android:text="4. Selesai"
+                                android:textColor="#94A3B8"
+                                android:textSize="11sp" />
                         </LinearLayout>
+
+                        <!-- Single Prominent Progressive Action Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnWorkflowPrimary"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:layout_marginTop="14dp"
+                            android:text="Terima Tiket"
+                            android:textColor="#FFFFFF"
+                            android:textSize="13sp"
+                            android:textStyle="bold"
+                            app:cornerRadius="10dp" />
+
+                        <TextView
+                            android:id="@+id/tvWorkflowSubtitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:gravity="center"
+                            android:text="Klik untuk mengambil penugasan dan mulai menangani tiket ini."
+                            android:textColor="#64748B"
+                            android:textSize="11sp" />
+
+                        <!-- Direct shortcut button if accepted -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnDirectStart"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="36dp"
+                            android:layout_marginTop="4dp"
+                            android:visibility="gone"
+                            android:text="Langsung Mulai Pengerjaan"
+                            android:textColor="#4F46E5"
+                            android:textSize="11sp" />
+
+                        <!-- Success completed banner -->
+                        <LinearLayout
+                            android:id="@+id/layoutResolvedBanner"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="vertical"
+                            android:background="#DCFCE7"
+                            android:padding="12dp"
+                            android:gravity="center"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="TIKET TELAH SELESAI"
+                                android:textColor="#166534"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="Laporan kerja dan dokumentasi foto telah berhasil diserahkan."
+                                android:textColor="#15803D"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
-                <!-- Description Card -->
+                <!-- Customer & Location Card -->
                 <androidx.cardview.widget.CardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -264,8 +314,120 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:text="PELANGGAN &amp; LOKASI"
+                            android:textColor="#71717A"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvInfoCustomerName"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="Pelapor: Bpk. Ahmad"
+                            android:textColor="#09090B"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvInfoCustomerPhone"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Telepon: 08123456789"
+                            android:textColor="#334155"
+                            android:textSize="13sp" />
+
+                        <TextView
+                            android:id="@+id/tvInfoCustomerAddress"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Alamat: Jl. Merdeka No. 45"
+                            android:textColor="#334155"
+                            android:textSize="13sp" />
+
+                        <!-- Action Buttons: Call & Google Maps -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnDetailCall"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="40dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                android:text="Hubungi Telepon"
+                                android:textColor="#18181B"
+                                android:textSize="12sp"
+                                app:strokeColor="#E2E8F0"
+                                app:cornerRadius="8dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnDetailMap"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="40dp"
+                                android:layout_weight="1.2"
+                                android:layout_marginStart="6dp"
+                                android:text="Rute Google Maps"
+                                android:textColor="#1E40AF"
+                                android:textSize="12sp"
+                                app:strokeColor="#BFDBFE"
+                                app:cornerRadius="8dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+                <!-- Ticket Details & Issue Description Card -->
+                <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    app:cardCornerRadius="14dp"
+                    app:cardElevation="1dp"
+                    app:cardBackgroundColor="#FFFFFF">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:id="@+id/tvInfoTitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Judul Tiket Lengkap"
+                            android:textColor="#09090B"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvInfoType"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Tipe: Perbaikan Infrastruktur"
+                            android:textColor="#64748B"
+                            android:textSize="12sp" />
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="10dp"
+                            android:layout_marginBottom="10dp"
+                            android:background="#F1F5F9" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
                             android:text="DESKRIPSI KENDALA"
-                            android:textColor="#A1A1AA"
+                            android:textColor="#71717A"
                             android:textSize="11sp"
                             android:textStyle="bold" />
 
@@ -273,31 +435,20 @@
                             android:id="@+id/tvInfoDescription"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
+                            android:layout_marginTop="6dp"
                             android:lineSpacingExtra="3dp"
-                            android:text="Deskripsi detail keluhan..."
-                            android:textColor="#27272A"
+                            android:text="Deskripsi keluhan..."
+                            android:textColor="#1E293B"
                             android:textSize="13sp" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
-                <!-- Update Status CTA Button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnQuickUpdateStatus"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="16dp"
-                    android:backgroundTint="#09090B"
-                    android:text="Perbarui Status Pengerjaan"
-                    android:textColor="#FFFFFF"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    app:cornerRadius="10dp" />
-
             </LinearLayout>
         </ScrollView>
 
-        <!-- TAB 2: CHAT TIM & PESAN -->
+        <!-- ============================================== -->
+        <!-- TAB 2: CHAT TIM & DISKUSI                      -->
+        <!-- ============================================== -->
         <LinearLayout
             android:id="@+id/viewTabChat"
             android:layout_width="match_parent"
@@ -316,49 +467,48 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:clipToPadding="false"
-                    android:padding="14dp" />
+                    android:padding="12dp" />
             </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-            <!-- Message Type Selector & Composer -->
+            <!-- Chat Compose Bar -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="#FFFFFF"
                 android:elevation="4dp"
                 android:orientation="vertical"
-                android:padding="10dp">
+                android:padding="12dp">
 
-                <!-- Type Selector -->
                 <RadioGroup
                     android:id="@+id/rgMessageType"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:gravity="center_vertical"
                     android:orientation="horizontal">
 
                     <RadioButton
-                        android:id="@+id/rbPublicMessage"
+                        android:id="@+id/rbPublicReply"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:checked="true"
-                        android:text="Balasan Publik"
-                        android:textColor="#27272A"
-                        android:textSize="11sp" />
+                        android:text="Balasan Umum"
+                        android:textColor="#334155"
+                        android:textSize="12sp" />
 
                     <RadioButton
                         android:id="@+id/rbInternalNote"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="14dp"
-                        android:text="Catatan Tim (Internal)"
+                        android:layout_marginStart="16dp"
+                        android:text="Catatan Internal (Tim)"
                         android:textColor="#D97706"
-                        android:textSize="11sp" />
+                        android:textSize="12sp" />
                 </RadioGroup>
 
-                <!-- Input Row -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
@@ -368,31 +518,29 @@
                         android:layout_height="44dp"
                         android:layout_weight="1"
                         android:background="@drawable/input_field_bg"
-                        android:hint="Tulis pesan atau catatan..."
-                        android:inputType="textMultiLine"
-                        android:maxLines="3"
+                        android:hint="Tulis pesan ke tim..."
                         android:paddingStart="12dp"
                         android:paddingEnd="12dp"
                         android:textColor="#09090B"
-                        android:textColorHint="#A1A1AA"
                         android:textSize="13sp" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSendMessage"
-                        android:layout_width="72dp"
+                        android:layout_width="wrap_content"
                         android:layout_height="44dp"
                         android:layout_marginStart="8dp"
                         android:backgroundTint="#09090B"
                         android:text="Kirim"
                         android:textColor="#FFFFFF"
                         android:textSize="12sp"
-                        android:textStyle="bold"
                         app:cornerRadius="8dp" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
-        <!-- TAB 3: LAPORAN KERJA (BEFORE / AFTER PHOTO) -->
+        <!-- ============================================== -->
+        <!-- TAB 3: LAPORAN KERJA & BEFORE/AFTER KAMERA/GALERI -->
+        <!-- ============================================== -->
         <ScrollView
             android:id="@+id/viewTabReport"
             android:layout_width="match_parent"
@@ -405,27 +553,9 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Laporan Selesai &amp; Dokumentasi Foto"
-                    android:textColor="#09090B"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="Kirim bukti foto before/after untuk menyelesaikan tiket ini."
-                    android:textColor="#71717A"
-                    android:textSize="12sp" />
-
-                <!-- Form Card -->
                 <androidx.cardview.widget.CardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
                     app:cardCornerRadius="14dp"
                     app:cardElevation="1dp"
                     app:cardBackgroundColor="#FFFFFF">
@@ -439,8 +569,32 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Ringkasan Pekerjaan *"
-                            android:textColor="#18181B"
+                            android:text="FORMULIR PENYELESAIAN TIKET"
+                            android:textColor="#71717A"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Isi ringkasan hasil pekerjaan dan lampirkan foto before &amp; after pengerjaan."
+                            android:textColor="#64748B"
+                            android:textSize="12sp" />
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="12dp"
+                            android:layout_marginBottom="12dp"
+                            android:background="#F1F5F9" />
+
+                        <!-- Summary -->
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Ringkasan Hasil Pekerjaan *"
+                            android:textColor="#0F172A"
                             android:textSize="12sp"
                             android:textStyle="bold" />
 
@@ -450,19 +604,20 @@
                             android:layout_height="44dp"
                             android:layout_marginTop="6dp"
                             android:background="@drawable/input_field_bg"
-                            android:hint="Contoh: Penyambungan kabel FO putus"
+                            android:hint="Contoh: Perbaikan kabel dropcore putus telah selesai"
                             android:inputType="text"
                             android:paddingStart="12dp"
                             android:paddingEnd="12dp"
                             android:textColor="#09090B"
                             android:textSize="13sp" />
 
+                        <!-- Action Taken -->
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:text="Tindakan yang Dilakukan *"
-                            android:textColor="#18181B"
+                            android:textColor="#0F172A"
                             android:textSize="12sp"
                             android:textStyle="bold" />
 
@@ -473,18 +628,19 @@
                             android:layout_marginTop="6dp"
                             android:background="@drawable/input_field_bg"
                             android:gravity="top"
-                            android:hint="Contoh: Splicing core 1 &amp; 2, pergantian protection sleeve"
+                            android:hint="Contoh: Splicing core 1 di ODP-02, cek redaman ONT..."
                             android:inputType="textMultiLine"
                             android:padding="12dp"
                             android:textColor="#09090B"
                             android:textSize="13sp" />
 
+                        <!-- Materials Used -->
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:text="Material yang Digunakan (Opsional)"
-                            android:textColor="#18181B"
+                            android:textColor="#0F172A"
                             android:textSize="12sp"
                             android:textStyle="bold" />
 
@@ -494,19 +650,20 @@
                             android:layout_height="44dp"
                             android:layout_marginTop="6dp"
                             android:background="@drawable/input_field_bg"
-                            android:hint="Contoh: 1x Protection Sleeve 60mm"
+                            android:hint="Contoh: 1x Protection Sleeve, 2x Fast Connector"
                             android:inputType="text"
                             android:paddingStart="12dp"
                             android:paddingEnd="12dp"
                             android:textColor="#09090B"
                             android:textSize="13sp" />
 
+                        <!-- Final Result -->
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:text="Hasil Akhir / Redaman (Opsional)"
-                            android:textColor="#18181B"
+                            android:textColor="#0F172A"
                             android:textSize="12sp"
                             android:textStyle="bold" />
 
@@ -516,82 +673,154 @@
                             android:layout_height="44dp"
                             android:layout_marginTop="6dp"
                             android:background="@drawable/input_field_bg"
-                            android:hint="Contoh: Redaman -19 dBm, koneksi stabil"
+                            android:hint="Contoh: Redaman -19.5 dBm, Internet normal"
                             android:inputType="text"
                             android:paddingStart="12dp"
                             android:paddingEnd="12dp"
                             android:textColor="#09090B"
                             android:textSize="13sp" />
 
-                        <!-- Photo Section: Before Photos -->
+                        <!-- ============================================== -->
+                        <!-- FOTO BEFORE (Pilihan: Kamera vs Galeri)        -->
+                        <!-- ============================================== -->
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"
-                            android:text="Foto Sebelum Pengerjaan (Before)"
-                            android:textColor="#18181B"
+                            android:text="DOKUMENTASI SEBELUM (BEFORE)"
+                            android:textColor="#0F172A"
                             android:textSize="12sp"
                             android:textStyle="bold" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnPickBeforePhotos"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        <LinearLayout
                             android:layout_width="match_parent"
-                            android:layout_height="44dp"
-                            android:layout_marginTop="6dp"
-                            android:text="Pilih Foto Before"
-                            android:textColor="#18181B"
-                            android:textSize="12sp"
-                            app:strokeColor="#E4E4E7"
-                            app:cornerRadius="8dp" />
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnCameraBefore"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="40dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                android:text="Ambil Kamera"
+                                android:textColor="#09090B"
+                                android:textSize="12sp"
+                                app:strokeColor="#CBD5E1"
+                                app:cornerRadius="8dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnGalleryBefore"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="40dp"
+                                android:layout_weight="1"
+                                android:layout_marginStart="6dp"
+                                android:text="Pilih Galeri"
+                                android:textColor="#09090B"
+                                android:textSize="12sp"
+                                app:strokeColor="#CBD5E1"
+                                app:cornerRadius="8dp" />
+                        </LinearLayout>
 
                         <TextView
                             android:id="@+id/tvBeforePhotosCount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="Belum ada foto dipilih"
-                            android:textColor="#71717A"
+                            android:text="Belum ada foto before dipilih"
+                            android:textColor="#64748B"
                             android:textSize="11sp" />
 
-                        <!-- Photo Section: After Photos -->
+                        <!-- Previews Container: Before -->
+                        <HorizontalScrollView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp">
+
+                            <LinearLayout
+                                android:id="@+id/layoutBeforePreviews"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal" />
+                        </HorizontalScrollView>
+
+                        <!-- ============================================== -->
+                        <!-- FOTO AFTER (Pilihan: Kamera vs Galeri)         -->
+                        <!-- ============================================== -->
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="14dp"
-                            android:text="Foto Sesudah Pengerjaan (After)"
-                            android:textColor="#18181B"
+                            android:layout_marginTop="16dp"
+                            android:text="DOKUMENTASI SESUDAH (AFTER)"
+                            android:textColor="#0F172A"
                             android:textSize="12sp"
                             android:textStyle="bold" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnPickAfterPhotos"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        <LinearLayout
                             android:layout_width="match_parent"
-                            android:layout_height="44dp"
-                            android:layout_marginTop="6dp"
-                            android:text="Pilih Foto After"
-                            android:textColor="#18181B"
-                            android:textSize="12sp"
-                            app:strokeColor="#E4E4E7"
-                            app:cornerRadius="8dp" />
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnCameraAfter"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="40dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="6dp"
+                                android:text="Ambil Kamera"
+                                android:textColor="#09090B"
+                                android:textSize="12sp"
+                                app:strokeColor="#CBD5E1"
+                                app:cornerRadius="8dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnGalleryAfter"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="40dp"
+                                android:layout_weight="1"
+                                android:layout_marginStart="6dp"
+                                android:text="Pilih Galeri"
+                                android:textColor="#09090B"
+                                android:textSize="12sp"
+                                app:strokeColor="#CBD5E1"
+                                app:cornerRadius="8dp" />
+                        </LinearLayout>
 
                         <TextView
                             android:id="@+id/tvAfterPhotosCount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="Belum ada foto dipilih"
-                            android:textColor="#71717A"
+                            android:text="Belum ada foto after dipilih"
+                            android:textColor="#64748B"
                             android:textSize="11sp" />
+
+                        <!-- Previews Container: After -->
+                        <HorizontalScrollView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp">
+
+                            <LinearLayout
+                                android:id="@+id/layoutAfterPreviews"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal" />
+                        </HorizontalScrollView>
 
                         <!-- Submit Report Button -->
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnSubmitReport"
                             android:layout_width="match_parent"
-                            android:layout_height="50dp"
-                            android:layout_marginTop="22dp"
-                            android:backgroundTint="#09090B"
+                            android:layout_height="48dp"
+                            android:layout_marginTop="20dp"
+                            android:backgroundTint="#059669"
                             android:text="Kirim Laporan &amp; Selesaikan Tiket"
                             android:textColor="#FFFFFF"
                             android:textSize="13sp"
@@ -600,8 +829,8 @@
 
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
-
             </LinearLayout>
         </ScrollView>
+
     </FrameLayout>
 </LinearLayout>

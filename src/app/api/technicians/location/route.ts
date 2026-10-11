@@ -5,7 +5,7 @@ import { technicianLocations, tickets, users, ticketAssignees } from "@/lib/db/s
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { errorResponse } from "@/lib/api/helpers";
 import { notificationBus } from "@/lib/notifications/bus";
-import { parseCoordinates } from "@/lib/utils/geo";
+import { parseCoordinates, resolveCoordinatesAsync } from "@/lib/utils/geo";
 import { getMobileUserFromRequest } from "@/lib/auth/mobile";
 import { z } from "zod";
 
@@ -215,17 +215,21 @@ export async function GET() {
     limit: 200,
   });
 
-  const ticketsWithCoords = ticketRows.map((t) => {
-    const coords = parseCoordinates(t.reporterMapUrl) || parseCoordinates(t.reporterAddress);
-    return {
-      ...t,
-      latitude: coords?.lat ?? null,
-      longitude: coords?.lng ?? null,
-      assigneeIds: Array.from(
-        new Set([...(t.assignees?.map((a) => a.userId) ?? []), ...(t.assigneeId ? [t.assigneeId] : [])])
-      ),
-    };
-  });
+  const ticketsWithCoords = await Promise.all(
+    ticketRows.map(async (t) => {
+      const coords =
+        (await resolveCoordinatesAsync(t.reporterMapUrl)) ||
+        (await resolveCoordinatesAsync(t.reporterAddress));
+      return {
+        ...t,
+        latitude: coords?.lat ?? null,
+        longitude: coords?.lng ?? null,
+        assigneeIds: Array.from(
+          new Set([...(t.assignees?.map((a) => a.userId) ?? []), ...(t.assigneeId ? [t.assigneeId] : [])])
+        ),
+      };
+    })
+  );
 
   return NextResponse.json({
     technicians: techRows.map((r) => ({
