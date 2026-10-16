@@ -16,19 +16,31 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.infinityteknik.helpdesk.data.ApiClient
 import net.infinityteknik.helpdesk.data.LocationPayload
 import net.infinityteknik.helpdesk.data.SessionManager
 import net.infinityteknik.helpdesk.ui.MainActivity
 import net.infinityteknik.helpdesk.util.TrackingScheduleManager
 
-class LocationTrackingService : Service(), LocationListener {
+/**
+ * Thermal-Safe 1-Minute Duty-Cycled GPS Service.
+ * Instead of keeping the hardware GPS radio continuously locked open (which causes phone heating),
+ * this service wakes up once every 60 seconds, acquires a brief location fix (max 7s window),
+ * immediately releases the GPS hardware listener so the GNSS chip sleeps for the remaining ~55 seconds,
+ * and uploads coordinates + battery + speed to the HelpDesk server.
+ */
+class LocationTrackingService : Service() {
 
     companion object {
         const val CHANNEL_ID = "helpdesk_location_tracking"
@@ -36,14 +48,17 @@ class LocationTrackingService : Service(), LocationListener {
         const val ACTION_LOCATION_UPDATED = "net.infinityteknik.helpdesk.LOCATION_UPDATED"
         const val ACTION_START = "ACTION_START"
         const val ACTION_STOP = "ACTION_STOP"
+        const val ACTION_FORCE_PING = "ACTION_FORCE_PING"
+
+        private const val PING_INTERVAL_MS = 60_000L // Strictly 1 minute between transmissions
+        private const val GPS_ACQUIRE_TIMEOUT_MS = 7_000L // Max 7s GPS burst, then hardware sleeps
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var tickerJob: Job? = null
     private lateinit var locationManager: LocationManager
     private lateinit var session: SessionManager
-
-    private var lastSentTime = 0L
-    private val MIN_INTERVAL_MS = 60000L // 60 seconds (1 minute interval to save battery and prevent heat)
+    private var activeBurstListener: LocationListener? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -56,9 +71,8 @@ class LocationTrackingService : Service(), LocationListener {
         val action = intent?.action ?: ACTION_START
 
         if (action == ACTION_STOP) {
-            // Cannot stop if in working hours (08:00 - 16:00 WIB) or if there are still active tasks
             if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
-                startForegroundTracking()
+                ensureForegroundAndTicker()
                 return START_STICKY
             }
             stopTracking()
@@ -66,7 +80,14 @@ class LocationTrackingService : Service(), LocationListener {
             return START_NOT_STICKY
         }
 
-        startForegroundTracking()
+        ensureForegroundAndTicker()
+
+        if (action == ACTION_FORCE_PING) {
+            serviceScope.launch {
+                acquireAndSendLocationOnce()
+            }
+        }
+
         return START_STICKY
     }
 
@@ -74,10 +95,10 @@ class LocationTrackingService : Service(), LocationListener {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Pelacakan GPS Teknisi",
+                "Pelacakan GPS Teknisi (Hemat Daya)",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Notifikasi status pelacakan lokasi lapangan teknisi"
+                description = "Sinkronisasi lokasi teknisi setiap 1 menit (Mode Hemat Baterai & Anti Panas)"
                 setShowBadge(false)
             }
             val manager = getSystemService(NotificationManager::class.java)
@@ -97,7 +118,7 @@ class LocationTrackingService : Service(), LocationListener {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("HelpDesk Teknisi • GPS Aktif")
+            .setContentTitle("HelpDesk Teknisi • GPS Hemat Daya")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setOngoing(true)
@@ -106,9 +127,8 @@ class LocationTrackingService : Service(), LocationListener {
             .build()
     }
 
-    @SuppressLint("MissingPermission")
-    private fun startForegroundTracking() {
-        val notification = buildNotification("Melacak lokasi lapangan secara realtime...")
+    private fun ensureForegroundAndTicker() {
+        val notification = buildNotification("Interval kirim lokasi: 1 menit (Hemat Baterai)")
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
@@ -116,42 +136,121 @@ class LocationTrackingService : Service(), LocationListener {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        try {
-            // Register GPS Provider (60s interval, 25m distance to keep device cool)
-            if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                locationManager.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER,
-                    60000L,
-                    25f,
-                    this
-                )
-            }
+        if (tickerJob?.isActive == true) return
 
-            // Register Network Provider as fallback (60s interval, 30m distance)
-            if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                locationManager.requestLocationUpdates(
-                    LocationManager.NETWORK_PROVIDER,
-                    60000L,
-                    30f,
-                    this
-                )
-            }
+        tickerJob = serviceScope.launch {
+            while (isActive) {
+                if (TrackingScheduleManager.shouldAutoTurnOff(session.activeTicketsCount)) {
+                    session.isDutyActive = false
+                    stopTracking()
+                    stopSelf()
+                    break
+                }
 
-            // Immediately check last known location
-            val lastGps = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-            val lastNet = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-            val bestLoc = lastGps ?: lastNet
-            if (bestLoc != null) {
-                onLocationChanged(bestLoc)
+                acquireAndSendLocationOnce()
+                delay(PING_INTERVAL_MS)
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 
-    private fun stopTracking() {
+    /**
+     * Wakes up location providers briefly (up to 7 seconds), captures a single fresh fix,
+     * immediately unregisters the listener so the GPS hardware turns OFF, and uploads the fix.
+     */
+    @SuppressLint("MissingPermission")
+    private suspend fun acquireAndSendLocationOnce() {
+        var capturedLocation: Location? = null
+
+        val burstListener = object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                // Prefer GPS or accurate network fix (< 50m)
+                if (capturedLocation == null || location.accuracy < (capturedLocation?.accuracy ?: 999f)) {
+                    capturedLocation = location
+                }
+            }
+            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+            override fun onProviderEnabled(provider: String) {}
+            override fun onProviderDisabled(provider: String) {}
+        }
+
         try {
-            locationManager.removeUpdates(this)
+            withContext(Dispatchers.Main) {
+                releaseBurstListener()
+                activeBurstListener = burstListener
+
+                if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                    locationManager.requestLocationUpdates(
+                        LocationManager.NETWORK_PROVIDER,
+                        0L,
+                        0f,
+                        burstListener,
+                        Looper.getMainLooper()
+                    )
+                }
+                if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                    locationManager.requestLocationUpdates(
+                        LocationManager.GPS_PROVIDER,
+                        0L,
+                        0f,
+                        burstListener,
+                        Looper.getMainLooper()
+                    )
+                }
+            }
+
+            // Wait briefly (up to 7s), polling every 500ms so we stop as soon as we get a good fix
+            var waited = 0L
+            while (waited < GPS_ACQUIRE_TIMEOUT_MS) {
+                val loc = capturedLocation
+                if (loc != null && loc.accuracy <= 35f) {
+                    break
+                }
+                delay(500L)
+                waited += 500L
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            // CRITICAL: Always remove listener immediately so GPS hardware chip powers down!
+            withContext(Dispatchers.Main) {
+                releaseBurstListener()
+            }
+        }
+
+        val finalLocation = capturedLocation ?: getBestLastKnownLocation()
+        if (finalLocation != null) {
+            dispatchLocationUpdate(finalLocation)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun getBestLastKnownLocation(): Location? {
+        return try {
+            val gps = if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER))
+                locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER) else null
+            val net = if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER))
+                locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER) else null
+            val passive = locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER)
+
+            listOfNotNull(gps, net, passive).maxByOrNull { it.time }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun releaseBurstListener() {
+        val listener = activeBurstListener ?: return
+        try {
+            locationManager.removeUpdates(listener)
+        } catch (e: Exception) {}
+        activeBurstListener = null
+    }
+
+    private fun stopTracking() {
+        tickerJob?.cancel()
+        tickerJob = null
+        try {
+            releaseBurstListener()
         } catch (e: Exception) {}
 
         serviceScope.launch {
@@ -162,26 +261,8 @@ class LocationTrackingService : Service(), LocationListener {
         }
     }
 
-    override fun onLocationChanged(loc: Location) {
-        // Auto turn off if outside work hours (past 16:00 WIB) and no active tasks left
-        if (TrackingScheduleManager.shouldAutoTurnOff(session.activeTicketsCount)) {
-            session.isDutyActive = false
-            stopTracking()
-            stopSelf()
-            return
-        }
-
+    private suspend fun dispatchLocationUpdate(loc: Location) {
         val now = System.currentTimeMillis()
-        if (now - lastSentTime < MIN_INTERVAL_MS) {
-            // Still update local session
-            session.lastLatitude = loc.latitude
-            session.lastLongitude = loc.longitude
-            session.lastAccuracy = loc.accuracy
-            session.lastUpdateTime = now
-            return
-        }
-        lastSentTime = now
-
         val batteryLevel = getBatteryLevel()
 
         session.lastLatitude = loc.latitude
@@ -189,36 +270,40 @@ class LocationTrackingService : Service(), LocationListener {
         session.lastAccuracy = loc.accuracy
         session.lastUpdateTime = now
 
-        // Update ongoing notification
         val accuracyStr = if (loc.hasAccuracy()) "±${loc.accuracy.toInt()}m" else ""
-        val speedStr = if (loc.hasSpeed() && loc.speed > 1) " • ${(loc.speed * 3.6f).toInt()} km/h" else ""
-        val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notifManager.notify(NOTIFICATION_ID, buildNotification("GPS Aktif (1 mnt • $accuracyStr$speedStr • Bat: $batteryLevel%)"))
+        val speedKmh = if (loc.hasSpeed()) loc.speed * 3.6f else 0f
+        val speedStr = if (speedKmh > 1f) " • ${speedKmh.toInt()} km/j" else ""
 
-        // Send broadcast to update UI in MainActivity
-        val broadcast = Intent(ACTION_LOCATION_UPDATED).apply {
-            putExtra("lat", loc.latitude)
-            putExtra("lng", loc.longitude)
-            putExtra("acc", loc.accuracy)
-            putExtra("battery", batteryLevel)
-            putExtra("time", now)
-        }
-        sendBroadcast(broadcast)
+        withContext(Dispatchers.Main) {
+            val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notifManager.notify(
+                NOTIFICATION_ID,
+                buildNotification("Update per 1 mnt • $accuracyStr$speedStr • Baterai: $batteryLevel%")
+            )
 
-        // Upload to HelpDesk API
-        serviceScope.launch {
-            val token = session.token
-            if (!token.isNullOrBlank() && session.isDutyActive) {
-                val payload = LocationPayload(
-                    latitude = loc.latitude,
-                    longitude = loc.longitude,
-                    accuracy = if (loc.hasAccuracy()) loc.accuracy else null,
-                    speed = if (loc.hasSpeed()) loc.speed * 3.6f else null,
-                    heading = if (loc.hasBearing()) loc.bearing else null,
-                    battery = batteryLevel
-                )
-                ApiClient.sendLocation(session.serverUrl, token, payload)
+            val broadcast = Intent(ACTION_LOCATION_UPDATED).apply {
+                setPackage(packageName)
+                putExtra("lat", loc.latitude)
+                putExtra("lng", loc.longitude)
+                putExtra("acc", loc.accuracy)
+                putExtra("speed", speedKmh)
+                putExtra("battery", batteryLevel)
+                putExtra("time", now)
             }
+            sendBroadcast(broadcast)
+        }
+
+        val token = session.token
+        if (!token.isNullOrBlank() && session.isDutyActive) {
+            val payload = LocationPayload(
+                latitude = loc.latitude,
+                longitude = loc.longitude,
+                accuracy = if (loc.hasAccuracy()) loc.accuracy else null,
+                speed = if (loc.hasSpeed()) speedKmh else null,
+                heading = if (loc.hasBearing()) loc.bearing else null,
+                battery = batteryLevel
+            )
+            ApiClient.sendLocation(session.serverUrl, token, payload)
         }
     }
 
@@ -226,10 +311,6 @@ class LocationTrackingService : Service(), LocationListener {
         val bm = getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
         return bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
     }
-
-    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-    override fun onProviderEnabled(provider: String) {}
-    override fun onProviderDisabled(provider: String) {}
 
     override fun onDestroy() {
         stopTracking()

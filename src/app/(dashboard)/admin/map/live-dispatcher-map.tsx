@@ -118,6 +118,8 @@ export function LiveDispatcherMap() {
           return [...prev, payload];
         });
         setLastSyncTime(new Date().toISOString());
+      } else if (event.type === "system_event") {
+        loadData(true);
       }
     },
   });

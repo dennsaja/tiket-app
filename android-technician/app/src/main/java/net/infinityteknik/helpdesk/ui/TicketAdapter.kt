@@ -18,7 +18,8 @@ import net.infinityteknik.helpdesk.data.TicketItem
 class TicketAdapter(
     private val context: Context,
     private val onPrimaryActionClick: (TicketItem) -> Unit,
-    private val onDetailClick: (TicketItem) -> Unit
+    private val onDetailClick: (TicketItem) -> Unit,
+    private val onChatClick: (TicketItem) -> Unit
 ) : RecyclerView.Adapter<TicketAdapter.TicketViewHolder>() {
 
     private val tickets = ArrayList<TicketItem>()
@@ -43,12 +44,15 @@ class TicketAdapter(
 
     inner class TicketViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvNumber: TextView = itemView.findViewById(R.id.tvTicketNumber)
+        private val tvTypeBadge: TextView = itemView.findViewById(R.id.tvTypeBadge)
+        private val tvLeadBadge: TextView = itemView.findViewById(R.id.tvLeadBadge)
         private val tvPriority: TextView = itemView.findViewById(R.id.tvPriorityBadge)
         private val tvStatus: TextView = itemView.findViewById(R.id.tvStatusBadge)
         private val tvTitle: TextView = itemView.findViewById(R.id.tvTicketTitle)
         private val tvCustomerName: TextView = itemView.findViewById(R.id.tvCustomerName)
         private val tvCustomerPhone: TextView = itemView.findViewById(R.id.tvCustomerPhone)
         private val tvCustomerAddress: TextView = itemView.findViewById(R.id.tvCustomerAddress)
+        private val btnQuickChat: MaterialButton = itemView.findViewById(R.id.btnQuickChat)
         private val btnMap: MaterialButton = itemView.findViewById(R.id.btnNavigateMap)
         private val btnCall: MaterialButton = itemView.findViewById(R.id.btnCallCustomer)
         private val btnPrimaryAction: MaterialButton = itemView.findViewById(R.id.btnPrimaryAction)
@@ -57,8 +61,28 @@ class TicketAdapter(
             tvNumber.text = "#${ticket.ticketNumber}"
             tvTitle.text = ticket.title
 
+            // Ticket Type Badge (100% Web TicketTypeBadge alignment)
+            val typeLabel = when (ticket.ticketType?.lowercase()) {
+                "psb" -> "PSB"
+                "perbaikan_infrastruktur" -> "INFRASTRUKTUR"
+                "pemasangan_cctv" -> "PASANG CCTV"
+                "perbaikan_cctv" -> "PERBAIKAN CCTV"
+                "maintenance" -> "MAINTENANCE"
+                else -> (ticket.ticketType ?: "UMUM").replace("_", " ").uppercase()
+            }
+            tvTypeBadge.text = typeLabel
+
+            // Lead Badge
+            tvLeadBadge.visibility = if (ticket.isLead) View.VISIBLE else View.GONE
+
             // Priority styling
-            tvPriority.text = ticket.priority.uppercase()
+            val prioLabel = when (ticket.priority.lowercase()) {
+                "critical" -> "KRITIS"
+                "high" -> "TINGGI"
+                "medium" -> "SEDANG"
+                else -> "RENDAH"
+            }
+            tvPriority.text = prioLabel
             when (ticket.priority.lowercase()) {
                 "critical" -> tvPriority.setTextColor(Color.parseColor("#DC2626"))
                 "high" -> tvPriority.setTextColor(Color.parseColor("#EA580C"))
@@ -66,41 +90,55 @@ class TicketAdapter(
                 else -> tvPriority.setTextColor(Color.parseColor("#16A34A"))
             }
 
-            // Status styling
-            val statusDisplay = ticket.status.replace("_", " ").uppercase()
+            // Status styling (Matches Web StatusBadge labels)
+            val statusDisplay = when (ticket.status.lowercase()) {
+                "open" -> "OPEN"
+                "assigned" -> "DITUGASKAN"
+                "accepted" -> "DITERIMA"
+                "on_site" -> "DI LOKASI"
+                "in_progress" -> "DIKERJAKAN"
+                "resolved" -> "SELESAI"
+                "closed" -> "DITUTUP"
+                else -> ticket.status.replace("_", " ").uppercase()
+            }
             tvStatus.text = statusDisplay
             when (ticket.status.lowercase()) {
                 "resolved", "closed" -> tvStatus.setTextColor(Color.parseColor("#16A34A"))
-                "in_progress", "on_site" -> tvStatus.setTextColor(Color.parseColor("#9333EA"))
+                "in_progress", "on_site" -> tvStatus.setTextColor(Color.parseColor("#7C3AED"))
                 "assigned", "accepted" -> tvStatus.setTextColor(Color.parseColor("#0284C7"))
-                else -> tvStatus.setTextColor(Color.parseColor("#64748B"))
+                else -> tvStatus.setTextColor(Color.parseColor("#52525B"))
             }
 
             // Customer info
             val custName = ticket.reporterName?.ifBlank { "Pelanggan" } ?: "Pelanggan"
             tvCustomerName.text = "Pelapor: $custName"
 
-            val phone = ticket.reporterPhone ?: "-"
-            tvCustomerPhone.text = "Telepon: $phone"
+            val phone = ticket.reporterPhone?.ifBlank { "-" } ?: "-"
+            tvCustomerPhone.text = phone
             btnCall.visibility = if (ticket.reporterPhone.isNullOrBlank()) View.GONE else View.VISIBLE
 
-            val addr = ticket.reporterAddress ?: "-"
-            tvCustomerAddress.text = "Alamat: $addr"
+            val addr = ticket.reporterAddress?.ifBlank { "Alamat belum dicantumkan" } ?: "Alamat belum dicantumkan"
+            tvCustomerAddress.text = "Lokasi: $addr"
 
             // Card click -> open detail
             itemView.setOnClickListener {
                 onDetailClick(ticket)
             }
 
+            // 1-Tap Direct Team Chat Button
+            btnQuickChat.setOnClickListener {
+                onChatClick(ticket)
+            }
+
             // Progressive Primary Button based on Web Workflow
             when (ticket.status.lowercase()) {
                 "open", "assigned" -> {
                     btnPrimaryAction.text = "Terima Tiket"
-                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#0284C7"))
+                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#09090B"))
                     btnPrimaryAction.setOnClickListener { onPrimaryActionClick(ticket) }
                 }
                 "accepted" -> {
-                    btnPrimaryAction.text = "Tiba di Lokasi (On-Site)"
+                    btnPrimaryAction.text = "Konfirmasi Tiba di Lokasi (On-Site)"
                     btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#4F46E5"))
                     btnPrimaryAction.setOnClickListener { onPrimaryActionClick(ticket) }
                 }
@@ -110,12 +148,12 @@ class TicketAdapter(
                     btnPrimaryAction.setOnClickListener { onPrimaryActionClick(ticket) }
                 }
                 "in_progress" -> {
-                    btnPrimaryAction.text = "Selesaikan Tiket & Laporan"
+                    btnPrimaryAction.text = "Selesaikan Tiket & Kirim Laporan"
                     btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#059669"))
                     btnPrimaryAction.setOnClickListener { onDetailClick(ticket) }
                 }
                 else -> {
-                    btnPrimaryAction.text = "Lihat Detail Tiket"
+                    btnPrimaryAction.text = "Lihat Detail & Riwayat Tiket"
                     btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#52525B"))
                     btnPrimaryAction.setOnClickListener { onDetailClick(ticket) }
                 }

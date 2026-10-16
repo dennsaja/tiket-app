@@ -84,16 +84,32 @@ export function TechnicianNotificationManager() {
     };
   }, [isTechnician]);
 
+  const refreshTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerRealtimePageRefresh = React.useCallback(() => {
+    if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+    refreshTimeoutRef.current = setTimeout(() => {
+      router.refresh();
+    }, 350);
+  }, [router]);
+
   // Handle SSE Realtime Events
   useSSE("/api/sse", {
     enabled: !!session?.user,
     onEvent: (event) => {
+      if (event.type === "system_event") {
+        // Dispatch global browser event for client components & trigger Next.js RSC refresh for server components
+        window.dispatchEvent(new CustomEvent("realtime-system-event", { detail: event.data }));
+        triggerRealtimePageRefresh();
+        return;
+      }
+
       if (event.type === "notification") {
         const payload = event.data as any;
         if (!payload) return;
 
         // Dispatches event so top-nav notification bell updates unread count immediately
         window.dispatchEvent(new CustomEvent("refresh-notifications"));
+        triggerRealtimePageRefresh();
 
         // If this is a ticket assignment notification
         if (payload.type === "ticket_assigned" && payload.ticketId) {

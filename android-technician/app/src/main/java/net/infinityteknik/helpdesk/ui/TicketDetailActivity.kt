@@ -19,6 +19,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.button.MaterialButton
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import net.infinityteknik.helpdesk.R
 import net.infinityteknik.helpdesk.data.ApiClient
@@ -42,6 +45,7 @@ class TicketDetailActivity : AppCompatActivity() {
         const val EXTRA_LATITUDE = "latitude"
         const val EXTRA_LONGITUDE = "longitude"
         const val EXTRA_DESCRIPTION = "description"
+        const val EXTRA_INITIAL_TAB = "initial_tab"
     }
 
     private lateinit var session: SessionManager
@@ -59,6 +63,9 @@ class TicketDetailActivity : AppCompatActivity() {
     private var latitude: Double = 0.0
     private var longitude: Double = 0.0
     private var ticketDescription: String = ""
+    private var initialTab: Int = 0
+    private var currentTab: Int = 0
+    private var chatPollJob: Job? = null
 
     // Views: Top Bar
     private lateinit var btnBack: ImageButton
@@ -94,6 +101,7 @@ class TicketDetailActivity : AppCompatActivity() {
     private lateinit var tvInfoCustomerPhone: TextView
     private lateinit var tvInfoCustomerAddress: TextView
     private lateinit var tvInfoDescription: TextView
+    private lateinit var btnDetailChatShortcut: MaterialButton
     private lateinit var btnDetailCall: MaterialButton
     private lateinit var btnDetailMap: MaterialButton
 
@@ -177,7 +185,8 @@ class TicketDetailActivity : AppCompatActivity() {
         setupChatRecycler()
         bindTicketData()
         updateWorkflowUi(ticketStatus)
-        switchTab(0)
+        switchTab(initialTab)
+        loadMessages(silent = initialTab != 1)
     }
 
     private fun readIntentExtras() {
@@ -194,6 +203,7 @@ class TicketDetailActivity : AppCompatActivity() {
         latitude = intent.getDoubleExtra(EXTRA_LATITUDE, 0.0)
         longitude = intent.getDoubleExtra(EXTRA_LONGITUDE, 0.0)
         ticketDescription = intent.getStringExtra(EXTRA_DESCRIPTION) ?: ""
+        initialTab = intent.getIntExtra(EXTRA_INITIAL_TAB, 0)
     }
 
     private fun initViews() {
@@ -229,6 +239,7 @@ class TicketDetailActivity : AppCompatActivity() {
         tvInfoCustomerPhone = findViewById(R.id.tvInfoCustomerPhone)
         tvInfoCustomerAddress = findViewById(R.id.tvInfoCustomerAddress)
         tvInfoDescription = findViewById(R.id.tvInfoDescription)
+        btnDetailChatShortcut = findViewById(R.id.btnDetailChatShortcut)
         btnDetailCall = findViewById(R.id.btnDetailCall)
         btnDetailMap = findViewById(R.id.btnDetailMap)
 
@@ -259,9 +270,14 @@ class TicketDetailActivity : AppCompatActivity() {
         tabDetail.setOnClickListener { switchTab(0) }
         tabChat.setOnClickListener {
             switchTab(1)
-            loadMessages()
+            loadMessages(silent = false)
         }
         tabReport.setOnClickListener { switchTab(2) }
+
+        btnDetailChatShortcut.setOnClickListener {
+            switchTab(1)
+            loadMessages(silent = false)
+        }
 
         // Primary Progressive Workflow Button
         btnWorkflowPrimary.setOnClickListener {
@@ -292,7 +308,7 @@ class TicketDetailActivity : AppCompatActivity() {
         }
 
         swipeRefreshChat.setOnRefreshListener {
-            loadMessages()
+            loadMessages(silent = false)
         }
 
         // Photo Buttons: Before
@@ -519,6 +535,7 @@ class TicketDetailActivity : AppCompatActivity() {
     }
 
     private fun switchTab(tabIndex: Int) {
+        currentTab = tabIndex
         val selectedColor = Color.parseColor("#09090B")
         val unselectedColor = Color.parseColor("#71717A")
 
@@ -680,21 +697,29 @@ class TicketDetailActivity : AppCompatActivity() {
         rvMessages.adapter = messageAdapter
     }
 
-    private fun loadMessages() {
+    private fun loadMessages(silent: Boolean = false) {
         val token = session.token ?: return
-        swipeRefreshChat.isRefreshing = true
+        if (!silent) swipeRefreshChat.isRefreshing = true
 
         lifecycleScope.launch {
             val result = ApiClient.getTicketMessages(session.serverUrl, token, ticketId)
-            swipeRefreshChat.isRefreshing = false
+            if (!silent) swipeRefreshChat.isRefreshing = false
 
             result.onSuccess { msgs ->
+                val prevCount = messageAdapter.itemCount
                 messageAdapter.submitList(msgs)
                 if (msgs.isNotEmpty()) {
-                    rvMessages.scrollToPosition(msgs.size - 1)
+                    tabChat.text = "Chat Tim (${msgs.size})"
+                    if (!silent || msgs.size > prevCount) {
+                        rvMessages.scrollToPosition(msgs.size - 1)
+                    }
+                } else {
+                    tabChat.text = "Chat Tim"
                 }
             }.onFailure { err ->
-                Toast.makeText(this@TicketDetailActivity, "Gagal memuat pesan: ${err.message}", Toast.LENGTH_SHORT).show()
+                if (!silent) {
+                    Toast.makeText(this@TicketDetailActivity, "Gagal memuat pesan: ${err.message}", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -721,11 +746,28 @@ class TicketDetailActivity : AppCompatActivity() {
 
             result.onSuccess {
                 etMessageContent.text.clear()
-                loadMessages()
+                loadMessages(silent = true)
             }.onFailure { err ->
                 Toast.makeText(this@TicketDetailActivity, "Gagal kirim pesan: ${err.message}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        chatPollJob?.cancel()
+        chatPollJob = lifecycleScope.launch {
+            while (isActive) {
+                delay(4_000L)
+                loadMessages(silent = true)
+            }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        chatPollJob?.cancel()
+        chatPollJob = null
     }
 
     private fun uriToFile(uri: Uri, fileName: String): File? {

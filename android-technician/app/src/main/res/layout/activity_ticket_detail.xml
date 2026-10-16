@@ -93,9 +93,10 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center"
-            android:text="Diskusi Tim"
+            android:text="Chat Tim"
             android:textColor="#71717A"
             android:textSize="13sp"
+            android:textStyle="bold"
             android:background="?attr/selectableItemBackground" />
 
         <TextView
@@ -107,6 +108,7 @@
             android:text="Laporan Kerja"
             android:textColor="#71717A"
             android:textSize="13sp"
+            android:textStyle="bold"
             android:background="?attr/selectableItemBackground" />
     </LinearLayout>
 
@@ -347,7 +349,7 @@
                             android:textColor="#334155"
                             android:textSize="13sp" />
 
-                        <!-- Action Buttons: Call & Google Maps -->
+                        <!-- Action Buttons: Chat Tim, Call & Google Maps -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -355,15 +357,33 @@
                             android:orientation="horizontal">
 
                             <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnDetailChatShortcut"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="40dp"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="4dp"
+                                android:text="Chat Tim"
+                                android:textAllCaps="false"
+                                android:textColor="#09090B"
+                                android:textSize="11sp"
+                                android:textStyle="bold"
+                                app:backgroundTint="#F4F4F5"
+                                app:strokeColor="#D4D4D8"
+                                app:cornerRadius="8dp" />
+
+                            <com.google.android.material.button.MaterialButton
                                 android:id="@+id/btnDetailCall"
                                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                                 android:layout_width="0dp"
                                 android:layout_height="40dp"
                                 android:layout_weight="1"
-                                android:layout_marginEnd="6dp"
-                                android:text="Hubungi Telepon"
+                                android:layout_marginStart="2dp"
+                                android:layout_marginEnd="2dp"
+                                android:text="Telepon"
+                                android:textAllCaps="false"
                                 android:textColor="#18181B"
-                                android:textSize="12sp"
+                                android:textSize="11sp"
                                 app:strokeColor="#E2E8F0"
                                 app:cornerRadius="8dp" />
 
@@ -372,11 +392,13 @@
                                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                                 android:layout_width="0dp"
                                 android:layout_height="40dp"
-                                android:layout_weight="1.2"
-                                android:layout_marginStart="6dp"
-                                android:text="Rute Google Maps"
+                                android:layout_weight="1.15"
+                                android:layout_marginStart="4dp"
+                                android:text="Rute Maps"
+                                android:textAllCaps="false"
                                 android:textColor="#1E40AF"
-                                android:textSize="12sp"
+                                android:textSize="11sp"
+                                android:textStyle="bold"
                                 app:strokeColor="#BFDBFE"
                                 app:cornerRadius="8dp" />
                         </LinearLayout>
@@ -488,22 +510,23 @@
                     android:orientation="horizontal">
 
                     <RadioButton
-                        android:id="@+id/rbPublicReply"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:checked="true"
-                        android:text="Balasan Umum"
-                        android:textColor="#334155"
-                        android:textSize="12sp" />
-
-                    <RadioButton
                         android:id="@+id/rbInternalNote"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="16dp"
-                        android:text="Catatan Internal (Tim)"
-                        android:textColor="#D97706"
-                        android:textSize="12sp" />
+                        android:checked="true"
+                        android:text="Chat Tim (Internal NOC &amp; Teknisi)"
+                        android:textColor="#B45309"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <RadioButton
+                        android:id="@+id/rbPublicReply"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:text="Balasan Umum"
+                        android:textColor="#334155"
+                        android:textSize="11sp" />
                 </RadioGroup>
 
                 <LinearLayout

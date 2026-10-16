@@ -4,10 +4,11 @@ import { errorResponse } from "@/lib/api/helpers";
 import {
   notificationBus,
   RealtimeNotificationPayload,
+  RealtimeSystemEvent,
   TechnicianLocationPayload,
 } from "@/lib/notifications/bus";
 import { db } from "@/lib/db";
-import { notifications } from "@/lib/db/schema";
+import { notifications, tickets } from "@/lib/db/schema";
 import { and, desc, eq, gt } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest) {
   const encoder = new TextEncoder();
 
   let lastCheckedTime = new Date();
+  let lastTicketCheckTime = new Date();
   const deliveredIds = new Set<string>();
 
   const stream = new ReadableStream({
@@ -52,6 +54,14 @@ export async function GET(req: NextRequest) {
         }
       );
 
+      // System-wide ticket & chat events (instant push for live UI updates)
+      const unsubscribeSystem = notificationBus.subscribeSystemEvents(
+        (payload: RealtimeSystemEvent) => {
+          lastTicketCheckTime = new Date();
+          send("system_event", payload);
+        }
+      );
+
       // Live technician locations (monitoring roles only)
       const unsubscribeLoc = canMonitorLocations
         ? notificationBus.subscribeLocations((payload: TechnicianLocationPayload) => {
@@ -59,11 +69,12 @@ export async function GET(req: NextRequest) {
           })
         : () => {};
 
-      // Fallback polling (e.g. notification created by another process) + heartbeat
+      // Fallback polling (e.g. notification or ticket update created by another process) + heartbeat
       const intervalId = setInterval(async () => {
         if (isClosed) {
           clearInterval(intervalId);
           unsubscribeNotif();
+          unsubscribeSystem();
           unsubscribeLoc();
           return;
         }
@@ -96,17 +107,37 @@ export async function GET(req: NextRequest) {
               fromPolling: true,
             });
           }
+
+          // Check if any ticket was modified since lastTicketCheckTime (fallback if multi-worker)
+          const ticketSince = lastTicketCheckTime;
+          lastTicketCheckTime = new Date();
+          const recentlyUpdatedTicket = await db.query.tickets.findFirst({
+            where: gt(tickets.updatedAt, ticketSince),
+            orderBy: [desc(tickets.updatedAt)],
+            columns: { id: true, ticketNumber: true, status: true, updatedAt: true },
+          });
+
+          if (recentlyUpdatedTicket) {
+            send("system_event", {
+              action: "ticket_updated",
+              ticketId: recentlyUpdatedTicket.id,
+              ticketNumber: recentlyUpdatedTicket.ticketNumber,
+              status: recentlyUpdatedTicket.status,
+              timestamp: recentlyUpdatedTicket.updatedAt.toISOString(),
+            });
+          }
         } catch {
           // Suppress temporary DB errors during polling
         }
 
         send("heartbeat", { timestamp: new Date().toISOString() });
-      }, 15000);
+      }, 10000);
 
       req.signal.addEventListener("abort", () => {
         isClosed = true;
         clearInterval(intervalId);
         unsubscribeNotif();
+        unsubscribeSystem();
         unsubscribeLoc();
         try {
           controller.close();

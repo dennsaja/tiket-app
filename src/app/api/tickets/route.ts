@@ -16,6 +16,7 @@ import { errorResponse, successResponse, paginatedResponse } from "@/lib/api/hel
 import { createAuditLog, getClientIp } from "@/lib/audit";
 import { applySlaPolicyToTicket } from "@/lib/sla";
 import { notifyTicketAssigned } from "@/lib/notifications";
+import { notificationBus } from "@/lib/notifications/bus";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 // GET /api/tickets — list tickets with filtering
@@ -353,6 +354,16 @@ export async function POST(req: NextRequest) {
       department: true,
       category: true,
     },
+  });
+
+  notificationBus.emitSystemEvent({
+    action: "ticket_created",
+    ticketId: ticket.id,
+    ticketNumber: ticket.ticketNumber,
+    status: ticket.status,
+    actorId: userId,
+    actorName: session.user.name || "Admin",
+    timestamp: new Date().toISOString(),
   });
 
   return NextResponse.json(completeTicket || ticket, { status: 201 });

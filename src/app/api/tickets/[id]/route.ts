@@ -13,6 +13,7 @@ import { updateTicketSchema, changeStatusSchema, assignTicketSchema } from "@/li
 import { errorResponse } from "@/lib/api/helpers";
 import { createAuditLog, getClientIp } from "@/lib/audit";
 import { notifyTicketAssigned, notifyStatusChange } from "@/lib/notifications";
+import { notificationBus } from "@/lib/notifications/bus";
 import { applySlaPolicyToTicket } from "@/lib/sla";
 import { canAccessTicket, canModifyTicket } from "@/lib/auth/helpers";
 
@@ -338,6 +339,16 @@ export async function PATCH(
     ipAddress: getClientIp(req),
   });
 
+  notificationBus.emitSystemEvent({
+    action: "ticket_updated",
+    ticketId: id,
+    ticketNumber: updated.ticketNumber,
+    status: updated.status,
+    actorId: userId,
+    actorName: currentUser.name || "Staff",
+    timestamp: new Date().toISOString(),
+  });
+
   return NextResponse.json(updated);
 }
 
@@ -375,6 +386,15 @@ export async function DELETE(
     targetId: id,
     metadata: { action: "soft_delete" },
     ipAddress: getClientIp(req),
+  });
+
+  notificationBus.emitSystemEvent({
+    action: "ticket_deleted",
+    ticketId: id,
+    ticketNumber: ticket.ticketNumber,
+    actorId: currentUser.id,
+    actorName: currentUser.name || "Admin",
+    timestamp: new Date().toISOString(),
   });
 
   return NextResponse.json({ success: true });

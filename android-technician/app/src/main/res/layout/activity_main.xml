@@ -6,30 +6,62 @@
     android:orientation="vertical"
     android:background="#FAFAFA">
 
-    <!-- Top App Bar (Black Web Style) -->
+    <!-- Top App Bar (100% Web Header Style) -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="60dp"
+        android:layout_height="58dp"
         android:background="#09090B"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp">
+        android:paddingStart="14dp"
+        android:paddingEnd="12dp">
 
+        <!-- Square White Logo Badge [HD] -->
+        <TextView
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:background="@drawable/logo_square_bg"
+            android:gravity="center"
+            android:text="HD"
+            android:textColor="#09090B"
+            android:textSize="11sp"
+            android:textStyle="bold" />
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:layout_marginStart="10dp"
             android:orientation="vertical">
 
-            <TextView
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="HelpDesk Teknisi"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="HelpDesk"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/badge_bg"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:paddingTop="1dp"
+                    android:paddingBottom="1dp"
+                    android:text="TEKNISI"
+                    android:textColor="#18181B"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/tvTechnicianName"
@@ -37,153 +69,282 @@
                 android:layout_height="wrap_content"
                 android:text="Teknisi Lapangan"
                 android:textColor="#A1A1AA"
-                android:textSize="12sp" />
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
         </LinearLayout>
 
         <ImageButton
-            android:id="@+id/btnLogout"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:id="@+id/btnRefreshTop"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Logout"
+            android:contentDescription="Muat Ulang"
+            android:src="@android:drawable/ic_popup_sync"
+            app:tint="#A1A1AA" />
+
+        <ImageButton
+            android:id="@+id/btnLogout"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="2dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Keluar"
             android:src="@android:drawable/ic_lock_power_off"
             app:tint="#A1A1AA" />
     </LinearLayout>
 
-    <!-- Duty & GPS Tracking Card -->
-    <androidx.cardview.widget.CardView
+    <!-- Web-Identical TechnicianGpsBar (Compact Low-Power 1-Min Status Bar) -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="14dp"
-        android:layout_marginEnd="14dp"
-        android:layout_marginTop="14dp"
-        android:layout_marginBottom="8dp"
-        app:cardCornerRadius="14dp"
-        app:cardElevation="1dp"
-        app:cardBackgroundColor="#FFFFFF">
+        android:background="#FFFFFF"
+        android:orientation="vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-            <!-- Switch & Status -->
+            <View
+                android:id="@+id/viewGpsDot"
+                android:layout_width="9dp"
+                android:layout_height="9dp"
+                android:background="@drawable/circle_green" />
+
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <View
-                    android:id="@+id/viewGpsDot"
-                    android:layout_width="12dp"
-                    android:layout_height="12dp"
-                    android:background="@drawable/circle_green" />
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:orientation="vertical">
 
                 <TextView
                     android:id="@+id/tvDutyStatus"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:layout_weight="1"
-                    android:text="@string/duty_active"
-                    android:textColor="#09090B"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switchDuty"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:checked="true" />
-            </LinearLayout>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="12dp"
-                android:layout_marginBottom="12dp"
-                android:background="#F4F4F5" />
-
-            <!-- Location Coordinates & Accuracy -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                    android:text="GPS Aktif (Interval 1 Menit • Hemat Daya)"
+                    android:textColor="#09090B"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
 
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:orientation="horizontal">
 
                     <TextView
                         android:id="@+id/tvGpsCoords"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="GPS: Menunggu sinyal..."
+                        android:text="GPS: Menunggu koordinat..."
                         android:textColor="#52525B"
-                        android:textSize="12sp"
+                        android:textSize="10sp"
                         android:fontFamily="monospace" />
 
                     <TextView
                         android:id="@+id/tvLastUpdated"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="Update: -"
-                        android:textColor="#A1A1AA"
-                        android:textSize="11sp" />
+                        android:layout_marginStart="6dp"
+                        android:text=""
+                        android:textColor="#71717A"
+                        android:textSize="10sp" />
                 </LinearLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnForceLocation"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
-                    android:text="Kirim GPS"
-                    android:textColor="#18181B"
-                    android:textSize="11sp"
-                    app:strokeColor="#E4E4E7"
-                    app:cornerRadius="8dp" />
             </LinearLayout>
-        </LinearLayout>
-    </androidx.cardview.widget.CardView>
 
-    <!-- Ticket Section Title -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnForceLocation"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:minWidth="0dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="Ping GPS"
+                android:textAllCaps="false"
+                android:textColor="#18181B"
+                android:textSize="10sp"
+                app:strokeColor="#E4E4E7"
+                app:cornerRadius="6dp" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchDuty"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:checked="true" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E4E4E7" />
+
+    <!-- KPI Interactive Filter Cards (100% Web Dashboard Stat Cards Style) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="6dp">
+
+        <!-- Filter 0: Semua -->
+        <LinearLayout
+            android:id="@+id/cardFilterAll"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/card_active_bg"
+            android:orientation="vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:id="@+id/tvFilterAllLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SEMUA TUGAS"
+                android:textColor="#A1A1AA"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvCountAll"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="0"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Filter 1: Tugas Aktif -->
+        <LinearLayout
+            android:id="@+id/cardFilterActive"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/card_border_bg"
+            android:orientation="vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:id="@+id/tvFilterActiveLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TUGAS AKTIF"
+                android:textColor="#71717A"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvCountActive"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="0"
+                android:textColor="#09090B"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Filter 2: Selesai -->
+        <LinearLayout
+            android:id="@+id/cardFilterResolved"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/card_border_bg"
+            android:orientation="vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:id="@+id/tvFilterResolvedLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SELESAI"
+                android:textColor="#71717A"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvCountResolved"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="0"
+                android:textColor="#16A34A"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Search Input & Section Count Row (Web Tickets Filter Style) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="8dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="4dp"
         android:paddingBottom="8dp">
 
-        <TextView
-            android:id="@+id/tvTicketSectionTitle"
+        <EditText
+            android:id="@+id/etSearchTickets"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="38dp"
             android:layout_weight="1"
-            android:text="Daftar Tugas Saya"
+            android:background="@drawable/input_field_bg"
+            android:hint="Cari #tiket, judul, pelapor, atau alamat..."
+            android:inputType="text"
+            android:maxLines="1"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
             android:textColor="#09090B"
-            android:textSize="15sp"
-            android:textStyle="bold" />
+            android:textColorHint="#A1A1AA"
+            android:textSize="12sp" />
 
         <TextView
             android:id="@+id/tvTicketCount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
             android:background="@drawable/badge_bg"
             android:paddingStart="10dp"
             android:paddingEnd="10dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
             android:text="0 Tiket"
             android:textColor="#09090B"
             android:textSize="11sp"
@@ -205,19 +366,19 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:paddingBottom="20dp" />
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="24dp" />
 
             <TextView
                 android:id="@+id/tvEmptyState"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:drawableTop="@android:drawable/ic_menu_agenda"
-                android:drawablePadding="8dp"
                 android:gravity="center"
-                android:text="Tidak ada tiket tugas lapangan saat ini\nTarik ke bawah untuk memuat ulang"
+                android:padding="24dp"
+                android:text="Tidak ada tiket yang sesuai filter saat ini.\nTarik layar ke bawah untuk menyegarkan data."
                 android:textColor="#71717A"
                 android:textSize="13sp"
                 android:visibility="gone" />

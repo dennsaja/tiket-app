@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils";
+import { useSSE } from "@/hooks/use-sse";
 
 interface ChatRoom {
   ticketId: string;
@@ -114,6 +115,32 @@ export default function DepartmentChatPage() {
     },
     []
   );
+
+  // Real-time SSE listener for instant team chat & room status updates
+  useSSE("/api/sse", {
+    enabled: authStatus === "authenticated",
+    onEvent: (event) => {
+      if (event.type === "system_event") {
+        const data = event.data;
+        fetchRooms(true);
+        if (selectedRoomId && (!data?.ticketId || data.ticketId === selectedRoomId)) {
+          if (data?.action === "message_created" && data.message && data.message.type === "internal_note") {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === data.message.id)) return prev;
+              return [...prev, data.message];
+            });
+          } else {
+            fetchMessages(selectedRoomId, true);
+          }
+        }
+      } else if (event.type === "notification") {
+        fetchRooms(true);
+        if (selectedRoomId && event.data?.ticketId === selectedRoomId) {
+          fetchMessages(selectedRoomId, true);
+        }
+      }
+    },
+  });
 
   // Initial load
   React.useEffect(() => {

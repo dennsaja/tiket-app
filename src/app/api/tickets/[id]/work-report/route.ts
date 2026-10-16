@@ -13,6 +13,7 @@ import { eq, and, isNull } from "drizzle-orm";
 import { errorResponse } from "@/lib/api/helpers";
 import { createAuditLog, getClientIp } from "@/lib/audit";
 import { notifyStatusChange } from "@/lib/notifications";
+import { notificationBus } from "@/lib/notifications/bus";
 import { nanoid } from "nanoid";
 import path from "path";
 import fs from "fs/promises";
@@ -230,6 +231,16 @@ export async function POST(
         columns: { id: true, name: true, avatarUrl: true, role: true },
       },
     },
+  });
+
+  notificationBus.emitSystemEvent({
+    action: "work_report_submitted",
+    ticketId: id,
+    ticketNumber: ticket.ticketNumber,
+    status: "resolved",
+    actorId: userId,
+    actorName: currentUser.name || "Teknisi",
+    timestamp: new Date().toISOString(),
   });
 
   return NextResponse.json(fullReport, { status: 201 });

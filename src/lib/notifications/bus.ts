@@ -25,6 +25,22 @@ export interface TechnicianLocationPayload {
   updatedAt: string;
 }
 
+export interface RealtimeSystemEvent {
+  action:
+    | "ticket_created"
+    | "ticket_updated"
+    | "ticket_deleted"
+    | "message_created"
+    | "work_report_submitted";
+  ticketId: string;
+  ticketNumber?: number;
+  status?: string;
+  actorId?: string;
+  actorName?: string;
+  message?: any;
+  timestamp: string;
+}
+
 class NotificationBus extends EventEmitter {
   constructor() {
     super();
@@ -54,6 +70,17 @@ class NotificationBus extends EventEmitter {
       this.off("location", callback);
     };
   }
+
+  emitSystemEvent(payload: RealtimeSystemEvent) {
+    this.emit("system_event", payload);
+  }
+
+  subscribeSystemEvents(callback: (payload: RealtimeSystemEvent) => void) {
+    this.on("system_event", callback);
+    return () => {
+      this.off("system_event", callback);
+    };
+  }
 }
 
 // Global singleton across serverless/Node lifecycle
@@ -66,3 +93,4 @@ export const notificationBus =
 
 // Pin to globalThis in all environments so separate route bundles share one emitter
 globalForNotification.notificationBus = notificationBus;
+

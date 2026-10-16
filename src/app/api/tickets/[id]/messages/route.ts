@@ -8,6 +8,7 @@ import { createMessageSchema } from "@/lib/validations";
 import { errorResponse } from "@/lib/api/helpers";
 import { createAuditLog, getClientIp } from "@/lib/audit";
 import { notifyNewMessage } from "@/lib/notifications";
+import { notificationBus } from "@/lib/notifications/bus";
 import { canAccessTicket, canReplyToTicket, canWriteInternalNotes } from "@/lib/auth/helpers";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -198,6 +199,16 @@ export async function POST(
         columns: { id: true, name: true, email: true, avatarUrl: true, role: true },
       },
     },
+  });
+
+  notificationBus.emitSystemEvent({
+    action: "message_created",
+    ticketId: id,
+    ticketNumber: ticket.ticketNumber,
+    actorId: userId,
+    actorName: currentUser.name || "User",
+    message: messageWithAuthor,
+    timestamp: new Date().toISOString(),
   });
 
   return NextResponse.json(messageWithAuthor, { status: 201 });

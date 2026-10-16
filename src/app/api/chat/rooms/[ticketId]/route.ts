@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { tickets, users, ticketMessages, attachments } from "@/lib/db/schema";
 import { eq, asc, and, isNull } from "drizzle-orm";
 import { errorResponse } from "@/lib/api/helpers";
 import { createMessageSchema } from "@/lib/validations";
+import { notifyNewMessage } from "@/lib/notifications";
+import { notificationBus } from "@/lib/notifications/bus";
 
 // Check if user has permission to access department chat for this ticket
 async function canUserAccessDepartmentChat(
@@ -34,12 +36,12 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ ticketId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const currentUser = await getAuthUser(req);
+  if (!currentUser) return errorResponse("Unauthorized", 401);
 
   const { ticketId } = await params;
-  const userRole = (session.user as any).role;
-  const userId = session.user.id!;
+  const userRole = currentUser.role;
+  const userId = currentUser.id;
 
   if (!["noc", "owner", "admin", "agent"].includes(userRole)) {
     return errorResponse("Forbidden: Only support staff can access department chats", 403);
@@ -99,12 +101,12 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ ticketId: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const currentUser = await getAuthUser(req);
+  if (!currentUser) return errorResponse("Unauthorized", 401);
 
   const { ticketId } = await params;
-  const userRole = (session.user as any).role;
-  const userId = session.user.id!;
+  const userRole = currentUser.role;
+  const userId = currentUser.id;
 
   if (!["noc", "owner", "admin", "agent"].includes(userRole)) {
     return errorResponse("Forbidden: Only support staff can post in department chats", 403);
@@ -159,6 +161,25 @@ export async function POST(
     .set({ updatedAt: new Date() })
     .where(eq(tickets.id, ticketId));
 
+  // Notify assignee / requester if not author
+  const recipientIds = new Set<string>();
+  if (ticket.assigneeId && ticket.assigneeId !== userId) {
+    recipientIds.add(ticket.assigneeId);
+  }
+  if (ticket.requesterId && ticket.requesterId !== userId) {
+    recipientIds.add(ticket.requesterId);
+  }
+  if (recipientIds.size > 0) {
+    notifyNewMessage(
+      ticketId,
+      ticket.ticketNumber,
+      ticket.title,
+      currentUser.name || "Staff",
+      Array.from(recipientIds),
+      true
+    ).catch(() => {});
+  }
+
   const completeMessage = await db.query.ticketMessages.findFirst({
     where: eq(ticketMessages.id, message.id),
     with: {
@@ -167,6 +188,16 @@ export async function POST(
       },
       attachments: true,
     },
+  });
+
+  notificationBus.emitSystemEvent({
+    action: "message_created",
+    ticketId,
+    ticketNumber: ticket.ticketNumber,
+    actorId: userId,
+    actorName: currentUser.name || "Staff",
+    message: completeMessage,
+    timestamp: new Date().toISOString(),
   });
 
   return NextResponse.json(completeMessage, { status: 201 });

@@ -41,6 +41,7 @@ import {
   CheckCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useSSE } from "@/hooks/use-sse";
 
 export default function TicketDetailPage() {
   const params = useParams();
@@ -73,6 +74,23 @@ export default function TicketDetailPage() {
       setIsRefreshing(false);
     }
   }, [ticketId]);
+
+  // Real-time SSE listener: auto-refresh ticket details, status, timeline, messages & work reports
+  useSSE("/api/sse", {
+    enabled: authStatus === "authenticated" && !!ticketId,
+    onEvent: (event) => {
+      if (event.type === "system_event") {
+        const data = event.data;
+        if (!data || !data.ticketId || data.ticketId === ticketId) {
+          fetchTicket();
+        }
+      } else if (event.type === "notification") {
+        if (event.data?.ticketId === ticketId) {
+          fetchTicket();
+        }
+      }
+    },
+  });
 
   const handleShareTicket = async () => {
     try {

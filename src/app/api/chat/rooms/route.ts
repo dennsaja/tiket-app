@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { tickets, users, departments, ticketMessages } from "@/lib/db/schema";
 import { eq, desc, and, or, isNull, sql, inArray } from "drizzle-orm";
@@ -7,11 +7,11 @@ import { errorResponse } from "@/lib/api/helpers";
 
 // GET /api/chat/rooms — List all ticket chat channels for Admin and matching Department Agents
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const authUser = await getAuthUser(req);
+  if (!authUser) return errorResponse("Unauthorized", 401);
 
-  const userRole = (session.user as any).role;
-  const userId = session.user.id!;
+  const userRole = authUser.role;
+  const userId = authUser.id;
 
   // Only NOC, Owner, Admin and Agents can access department chats
   if (!["noc", "owner", "admin", "agent"].includes(userRole)) {

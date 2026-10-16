@@ -10,6 +10,8 @@ import {
 } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { getMobileUserFromRequest } from "@/lib/auth/mobile";
+import { notifyStatusChange } from "@/lib/notifications";
+import { notificationBus } from "@/lib/notifications/bus";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -112,6 +114,15 @@ export async function PATCH(
       createdAt: now,
       updatedAt: now,
     });
+
+    await notifyStatusChange(
+      ticketId,
+      existingTicket.ticketNumber,
+      existingTicket.title,
+      newStatus,
+      existingTicket.requesterId,
+      userName
+    ).catch(() => {});
   }
 
   // If resolved, record work report
@@ -126,6 +137,16 @@ export async function PATCH(
       updatedAt: now,
     });
   }
+
+  notificationBus.emitSystemEvent({
+    action: "ticket_updated",
+    ticketId,
+    ticketNumber: existingTicket.ticketNumber,
+    status: newStatus,
+    actorId: userId,
+    actorName: userName,
+    timestamp: now.toISOString(),
+  });
 
   return NextResponse.json({
     success: true,
