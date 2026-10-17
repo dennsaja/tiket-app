@@ -897,7 +897,10 @@ class MainActivity : AppCompatActivity() {
             .setMessage("Apakah Anda yakin ingin keluar dari akun teknisi?")
             .setPositiveButton("Keluar") { _, _ ->
                 session.activeTicketsCount = 0
-                stopTrackingService()
+                val logoutIntent = Intent(this, LocationTrackingService::class.java).apply {
+                    action = LocationTrackingService.ACTION_LOGOUT
+                }
+                startService(logoutIntent)
                 session.logout()
                 startActivity(Intent(this, LoginActivity::class.java))
                 finish()

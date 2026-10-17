@@ -50,6 +50,7 @@ class LocationTrackingService : Service() {
         const val ACTION_LOCATION_UPDATED = "net.infinityteknik.helpdesk.LOCATION_UPDATED"
         const val ACTION_START = "ACTION_START"
         const val ACTION_STOP = "ACTION_STOP"
+        const val ACTION_LOGOUT = "ACTION_LOGOUT"
         const val ACTION_FORCE_PING = "ACTION_FORCE_PING"
 
         private const val PING_INTERVAL_MS = 60_000L // Strictly 1 minute between GPS transmissions
@@ -75,19 +76,34 @@ class LocationTrackingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action ?: ACTION_START
 
-        if (action == ACTION_STOP) {
-            if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
-                ensureForegroundAndTicker()
-                return START_STICKY
-            }
+        if (action == ACTION_LOGOUT) {
             stopTracking()
             stopSelf()
             return START_NOT_STICKY
         }
 
-        ensureForegroundAndTicker()
+        if (action == ACTION_STOP) {
+            if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
+                session.isDutyActive = true
+                ensureForegroundAndTicker()
+                return START_STICKY
+            }
+            session.isDutyActive = false
+            stopGpsTicker()
+            updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (Notifikasi Aktif)")
+            ensureNotificationPoller()
+            return START_STICKY
+        }
 
-        if (action == ACTION_FORCE_PING) {
+        if (session.isDutyActive) {
+            ensureForegroundAndTicker()
+        } else {
+            stopGpsTicker()
+            updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (Notifikasi Aktif)")
+            ensureNotificationPoller()
+        }
+
+        if (action == ACTION_FORCE_PING && session.isDutyActive) {
             serviceScope.launch {
                 acquireAndSendLocationOnce()
             }
@@ -134,28 +150,62 @@ class LocationTrackingService : Service() {
             .build()
     }
 
-    private fun ensureForegroundAndTicker() {
-        val notification = buildNotification("GPS 1 mnt (Hemat Daya) • Notifikasi Real-time Aktif")
-
+    private fun updateForegroundNotification(text: String) {
+        val notification = buildNotification(text)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
+    }
 
-        // Start 6-second real-time notification watcher
-        if (notifJob?.isActive != true) {
-            notifJob = serviceScope.launch {
-                while (isActive) {
-                    try {
-                        NotificationHelper.syncAndDispatchNotifications(this@LocationTrackingService, session)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                    delay(NOTIF_POLL_INTERVAL_MS)
+    private fun ensureNotificationPoller() {
+        if (notifJob?.isActive == true) return
+        notifJob = serviceScope.launch {
+            while (isActive) {
+                if (session.token.isNullOrBlank()) {
+                    stopTracking()
+                    stopSelf()
+                    break
                 }
+                try {
+                    val payload = NotificationHelper.syncAndDispatchNotifications(this@LocationTrackingService, session)
+                    if (payload != null) {
+                        if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
+                            if (!session.isDutyActive) {
+                                session.isDutyActive = true
+                                withContext(Dispatchers.Main) {
+                                    ensureForegroundAndTicker()
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                delay(NOTIF_POLL_INTERVAL_MS)
             }
         }
+    }
+
+    private fun stopGpsTicker() {
+        tickerJob?.cancel()
+        tickerJob = null
+        try {
+            releaseBurstListener()
+        } catch (e: Exception) {}
+
+        serviceScope.launch {
+            val token = session.token
+            if (!token.isNullOrBlank()) {
+                ApiClient.stopLocation(session.serverUrl, token)
+            }
+        }
+    }
+
+    private fun ensureForegroundAndTicker() {
+        updateForegroundNotification("GPS 1 mnt (Hemat Daya) • Notifikasi Real-time Aktif")
+        ensureNotificationPoller()
 
         if (tickerJob?.isActive == true) return
 
@@ -163,8 +213,8 @@ class LocationTrackingService : Service() {
             while (isActive) {
                 if (TrackingScheduleManager.shouldAutoTurnOff(session.activeTicketsCount)) {
                     session.isDutyActive = false
-                    stopTracking()
-                    stopSelf()
+                    stopGpsTicker()
+                    updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (Notifikasi Aktif)")
                     break
                 }
 

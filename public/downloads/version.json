@@ -1,0 +1,8 @@
+{
+  "versionCode": 3,
+  "versionName": "1.3.0",
+  "minSupportedVersion": 1,
+  "downloadUrl": "/downloads/helpdesk-teknisi.apk",
+  "updatedAt": "2026-10-17T07:00:00.000Z",
+  "releaseNotes": "Sistem notifikasi real-time lengkap (Status Bar segitiga web, Notification Drawer dengan tombol cepat, Heads-Up Pop-up bersuara), alur kerja progresif terarah (Terima -> Tiba di Lokasi -> Kerjakan -> Selesai), dokumentasi foto kamera & galeri Before-After, serta pelacakan GPS 1 menit anti-panas dan hemat daya."
+}
