@@ -34,6 +34,7 @@ import {
   ArrowUpCircle,
   MessagesSquare,
   MapPin,
+  Archive,
 } from "lucide-react";
 
 interface NavItem {
@@ -67,6 +68,7 @@ const adminNavItems: NavItem[] = [
   { href: "/admin/categories", label: "Kategori", icon: FolderOpen },
   { href: "/admin/sla", label: "Kebijakan SLA", icon: Timer },
   { href: "/admin/audit", label: "Log Aktivitas", icon: ScrollText },
+  { href: "/admin/backup", label: "Backup & Restore", icon: Archive },
   { href: "/admin/updates", label: "Pembaruan Sistem", icon: ArrowUpCircle },
   { href: "/admin/settings", label: "Pengaturan", icon: Settings },
 ];

@@ -155,6 +155,26 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
+        {/* Backup & Restore Link Card */}
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50/40 p-5 shadow-xs space-y-3 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                <span>Backup &amp; Pemulihan Data Aplikasi</span>
+              </h2>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Cadangkan seluruh data operasional (tiket, akun, chat, dan foto lampiran) atau pulihkan cadangan.
+              </p>
+            </div>
+            <a
+              href="/admin/backup"
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#0066FF] text-white px-3 py-1.5 text-xs font-medium hover:bg-blue-700 transition-colors shadow-xs"
+            >
+              Buka Pusat Backup &rarr;
+            </a>
+          </div>
+        </div>
+
         <div className="flex justify-end pt-2">
           <Button
             type="submit"
