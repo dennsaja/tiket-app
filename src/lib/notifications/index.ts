@@ -30,6 +30,7 @@ export async function getTicketParticipantIds(
   excludeUserId?: string
 ): Promise<string[]> {
   const recipientSet = new Set<string>();
+  const assignedTechSet = new Set<string>();
 
   try {
     const ticket = await db.query.tickets.findFirst({
@@ -38,7 +39,10 @@ export async function getTicketParticipantIds(
     });
 
     if (ticket?.requesterId) recipientSet.add(ticket.requesterId);
-    if (ticket?.assigneeId) recipientSet.add(ticket.assigneeId);
+    if (ticket?.assigneeId) {
+      recipientSet.add(ticket.assigneeId);
+      assignedTechSet.add(ticket.assigneeId);
+    }
 
     const teamRows = await db
       .select({ userId: ticketAssignees.userId })
@@ -46,13 +50,18 @@ export async function getTicketParticipantIds(
       .where(eq(ticketAssignees.ticketId, ticketId));
 
     for (const row of teamRows) {
-      if (row.userId) recipientSet.add(row.userId);
+      if (row.userId) {
+        recipientSet.add(row.userId);
+        assignedTechSet.add(row.userId);
+      }
     }
   } catch (e) {
     console.warn("[getTicketParticipantIds] Error:", e);
   }
 
-  if (excludeUserId) {
+  // Only exclude the actor if they are not an assigned technician (or if there are other recipients),
+  // so testing or self-assigned ticket updates from web still notify the technician's Android device.
+  if (excludeUserId && !assignedTechSet.has(excludeUserId) && recipientSet.size > 1) {
     recipientSet.delete(excludeUserId);
   }
 

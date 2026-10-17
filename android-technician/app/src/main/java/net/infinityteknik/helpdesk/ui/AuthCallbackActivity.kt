@@ -7,7 +7,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import net.infinityteknik.helpdesk.data.SessionManager
 import net.infinityteknik.helpdesk.data.UserProfile
-import net.infinityteknik.helpdesk.service.LocationTrackingService
 
 class AuthCallbackActivity : AppCompatActivity() {
 
@@ -35,16 +34,6 @@ class AuthCallbackActivity : AppCompatActivity() {
 
                 session.saveUser(profile, token)
                 session.isDutyActive = true
-
-                // Start location service
-                val serviceIntent = Intent(this, LocationTrackingService::class.java).apply {
-                    action = LocationTrackingService.ACTION_START
-                }
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    startForegroundService(serviceIntent)
-                } else {
-                    startService(serviceIntent)
-                }
 
                 Toast.makeText(this, "Login Berhasil! Halo, $name", Toast.LENGTH_SHORT).show()
 

@@ -97,6 +97,8 @@ class MainActivity : AppCompatActivity() {
     private var searchQuery = ""
     private var realtimePollJob: Job? = null
 
+    private var hasShownNotifDialogThisResume = false
+
     private val detailLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -106,7 +108,19 @@ class MainActivity : AppCompatActivity() {
         syncNotificationsNow()
     }
 
-    private val permissionLauncher = registerForActivityResult(
+    private val notifPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted && NotificationHelper.areSystemNotificationsEnabled(this)) {
+            Toast.makeText(this, "Izin Notifikasi HelpDesk Aktif!", Toast.LENGTH_SHORT).show()
+            syncNotificationsNow()
+            requestLocationPermissionsIfNeeded()
+        } else {
+            showNotificationPermissionFallbackDialog()
+        }
+    }
+
+    private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
@@ -169,7 +183,6 @@ class MainActivity : AppCompatActivity() {
                                 createdAt = ""
                             )
                         showInAppHeadsUpBanner(triggered)
-                        loadTickets(silent = true)
                     }
                 }
             }
@@ -185,18 +198,26 @@ class MainActivity : AppCompatActivity() {
 
         initViews()
         setupRecyclerView()
+
+        cachedNotifications = session.getLocalNotifications()
+        unreadNotifCount = cachedNotifications.count { !it.isRead }
+        updateNotificationBadge(unreadNotifCount)
+
         checkAndRequestPermissions()
 
-        evaluateTrackingRules(session.activeTicketsCount)
-        if (session.isDutyActive) {
+        if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
+            session.isDutyActive = true
+            switchDuty.isChecked = true
+        }
+
+        if (session.isDutyActive && hasLocationPermission()) {
             startTrackingService()
         } else {
-            updateDutyUi(false)
+            updateDutyUi(session.isDutyActive)
         }
 
         loadTickets(silent = false)
         loadUserProfile()
-        syncNotificationsNow()
     }
 
     private fun initViews() {
@@ -370,7 +391,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun syncNotificationsNow() {
         lifecycleScope.launch {
-            val payload = NotificationHelper.syncAndDispatchNotifications(this@MainActivity, session)
+            val ticketsArg = allTickets.takeIf { it.isNotEmpty() }
+            val payload = NotificationHelper.syncAndDispatchNotifications(this@MainActivity, session, ticketsArg)
             if (payload != null) {
                 cachedNotifications = payload.notifications
                 unreadNotifCount = payload.unreadCount
@@ -381,11 +403,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleNotificationClicked(notif: NotificationItem) {
         val token = session.token
+        session.markLocalNotificationRead(notif.id)
         if (!token.isNullOrBlank() && !notif.isRead) {
             lifecycleScope.launch {
                 ApiClient.markNotificationRead(session.serverUrl, token, notif.id)
                 syncNotificationsNow()
             }
+        } else {
+            syncNotificationsNow()
         }
 
         val isChat = notif.type == "new_message" || notif.type == "new_internal_note"
@@ -480,6 +505,19 @@ class MainActivity : AppCompatActivity() {
 
         var dialogRef: AlertDialog? = null
 
+        val btnTestNotif = TextView(this).apply {
+            text = "Tes Pop-up"
+            setTextColor(Color.parseColor("#34D399"))
+            textSize = 11f
+            setTypeface(typeface, Typeface.BOLD)
+            setPadding(dp(8), dp(6), dp(8), dp(6))
+            setOnClickListener {
+                dialogRef?.dismiss()
+                triggerTestNotification()
+            }
+        }
+        headerRow.addView(btnTestNotif)
+
         if (unreadNotifCount > 0) {
             val btnMarkAll = TextView(this).apply {
                 text = "Tandai Dibaca"
@@ -488,9 +526,12 @@ class MainActivity : AppCompatActivity() {
                 setTypeface(typeface, Typeface.BOLD)
                 setPadding(dp(8), dp(6), dp(8), dp(6))
                 setOnClickListener {
-                    val token = session.token ?: return@setOnClickListener
+                    session.markAllLocalNotificationsRead()
+                    val token = session.token
                     lifecycleScope.launch {
-                        ApiClient.markAllNotificationsRead(session.serverUrl, token)
+                        if (!token.isNullOrBlank()) {
+                            ApiClient.markAllNotificationsRead(session.serverUrl, token)
+                        }
                         syncNotificationsNow()
                         dialogRef?.dismiss()
                         Toast.makeText(this@MainActivity, "Semua notifikasi ditandai telah dibaca", Toast.LENGTH_SHORT).show()
@@ -501,6 +542,35 @@ class MainActivity : AppCompatActivity() {
         }
 
         rootLayout.addView(headerRow)
+
+        if (!NotificationHelper.areSystemNotificationsEnabled(this)) {
+            val permWarningRow = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setBackgroundColor(Color.parseColor("#FEF2F2"))
+                setPadding(dp(16), dp(12), dp(16), dp(12))
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    dialogRef?.dismiss()
+                    NotificationHelper.openNotificationSettings(this@MainActivity)
+                }
+            }
+            val tvPermTitle = TextView(this).apply {
+                text = "Izin Notifikasi Android Belum Aktif"
+                setTextColor(Color.parseColor("#B91C1C"))
+                textSize = 12f
+                setTypeface(typeface, Typeface.BOLD)
+            }
+            val tvPermDesc = TextView(this).apply {
+                text = "Ketuk di sini untuk mengaktifkan izin Status Bar & Pop-up Notifikasi di pengaturan HP Anda →"
+                setTextColor(Color.parseColor("#DC2626"))
+                textSize = 11f
+                setPadding(0, dp(2), 0, 0)
+            }
+            permWarningRow.addView(tvPermTitle)
+            permWarningRow.addView(tvPermDesc)
+            rootLayout.addView(permWarningRow)
+        }
 
         val scrollView = ScrollView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -742,7 +812,28 @@ class MainActivity : AppCompatActivity() {
                 null
             )
             result.onSuccess {
-                Toast.makeText(this@MainActivity, "Status tiket #${ticket.ticketNumber} diperbarui!", Toast.LENGTH_SHORT).show()
+                val statusLabel = NotificationHelper.formatStatusName(nextStatus)
+                val nowStr = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+                val notifItem = NotificationItem(
+                    id = "self_status_${ticket.id}_${nextStatus}_${System.currentTimeMillis()}",
+                    type = "status_changed",
+                    title = "Status Tiket #${ticket.ticketNumber}: $statusLabel",
+                    message = "Tiket \"${ticket.title}\" kini berstatus $statusLabel",
+                    ticketId = ticket.id,
+                    ticketNumber = ticket.ticketNumber,
+                    ticketTitle = ticket.title,
+                    ticketStatus = nextStatus,
+                    ticketPriority = ticket.priority,
+                    ticketType = ticket.ticketType,
+                    reporterName = ticket.reporterName,
+                    reporterPhone = ticket.reporterPhone,
+                    reporterAddress = ticket.reporterAddress,
+                    reporterMapUrl = ticket.reporterMapUrl,
+                    ticketDescription = ticket.description,
+                    isRead = false,
+                    createdAt = nowStr
+                )
+                NotificationHelper.dispatchCustomNotification(this@MainActivity, session, notifItem)
                 loadTickets(silent = true)
             }.onFailure { err ->
                 Toast.makeText(this@MainActivity, "Gagal: ${err.message}", Toast.LENGTH_LONG).show()
@@ -770,23 +861,112 @@ class MainActivity : AppCompatActivity() {
         detailLauncher.launch(intent)
     }
 
+    private fun hasLocationPermission(): Boolean {
+        val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        return fine || coarse
+    }
+
     private fun checkAndRequestPermissions() {
-        val permissions = mutableListOf(
+        if (!NotificationHelper.areSystemNotificationsEnabled(this)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                showNotificationPermissionFallbackDialog()
+            }
+        } else {
+            requestLocationPermissionsIfNeeded()
+        }
+    }
+
+    private fun requestLocationPermissionsIfNeeded() {
+        val permissions = listOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION
         )
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-
         val needed = permissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
-
         if (needed.isNotEmpty()) {
-            permissionLauncher.launch(needed.toTypedArray())
+            locationPermissionLauncher.launch(needed.toTypedArray())
+        } else if (session.isDutyActive) {
+            startTrackingService()
         }
+    }
+
+    private fun showNotificationPermissionFallbackDialog() {
+        if (hasShownNotifDialogThisResume || isFinishing) return
+        hasShownNotifDialogThisResume = true
+
+        AlertDialog.Builder(this)
+            .setTitle("Izin Notifikasi Diperlukan")
+            .setMessage(
+                "Aplikasi HelpDesk Teknisi memerlukan izin Notifikasi agar peringatan Chat Tim, Perubahan Status, dan Tugas Tiket Baru dapat muncul di Status Bar, Panel Notifikasi, dan Pop-up Layar.\n\nKetuk 'Aktifkan Sekarang' lalu nyalakan sakelar Izinkan Notifikasi."
+            )
+            .setCancelable(false)
+            .setPositiveButton("Aktifkan Sekarang") { _, _ ->
+                NotificationHelper.openNotificationSettings(this)
+                requestLocationPermissionsIfNeeded()
+            }
+            .setNegativeButton("Nanti") { _, _ ->
+                requestLocationPermissionsIfNeeded()
+            }
+            .show()
+    }
+
+    private fun triggerTestNotification() {
+        if (!NotificationHelper.areSystemNotificationsEnabled(this)) {
+            hasShownNotifDialogThisResume = false
+            showNotificationPermissionFallbackDialog()
+            return
+        }
+
+        val nowStr = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+        val sampleTicket = allTickets.firstOrNull()
+        val testItem = if (sampleTicket != null) {
+            NotificationItem(
+                id = "test_notif_${System.currentTimeMillis()}",
+                type = "new_internal_note",
+                title = "Chat Tim #${sampleTicket.ticketNumber} • NOC Dispatcher",
+                message = "Notifikasi Status Bar, Panel Drawer, dan Pop-up Heads-Up aktif untuk tiket \"${sampleTicket.title}\".",
+                ticketId = sampleTicket.id,
+                ticketNumber = sampleTicket.ticketNumber,
+                ticketTitle = sampleTicket.title,
+                ticketStatus = sampleTicket.status,
+                ticketPriority = sampleTicket.priority,
+                ticketType = sampleTicket.ticketType,
+                reporterName = sampleTicket.reporterName,
+                reporterPhone = sampleTicket.reporterPhone,
+                reporterAddress = sampleTicket.reporterAddress,
+                reporterMapUrl = sampleTicket.reporterMapUrl,
+                ticketDescription = sampleTicket.description,
+                isRead = false,
+                createdAt = nowStr
+            )
+        } else {
+            NotificationItem(
+                id = "test_notif_${System.currentTimeMillis()}",
+                type = "new_internal_note",
+                title = "Notifikasi HelpDesk Teknisi Aktif",
+                message = "Status Bar, Panel Notifikasi, dan Pop-up Heads-Up telah aktif dan siap menerima pesan Chat Tim & Tiket.",
+                ticketId = null,
+                ticketNumber = 0,
+                ticketTitle = "",
+                ticketStatus = "assigned",
+                ticketPriority = "medium",
+                ticketType = null,
+                reporterName = null,
+                reporterPhone = null,
+                reporterAddress = null,
+                reporterMapUrl = null,
+                ticketDescription = null,
+                isRead = false,
+                createdAt = nowStr
+            )
+        }
+
+        NotificationHelper.dispatchCustomNotification(this, session, testItem)
+        Toast.makeText(this, "Notifikasi Status Bar, Drawer & Pop-up dikirim!", Toast.LENGTH_SHORT).show()
     }
 
     private fun startTrackingService() {
@@ -856,6 +1036,13 @@ class MainActivity : AppCompatActivity() {
                 session.activeTicketsCount = activeCount
                 evaluateTrackingRules(activeCount)
                 applyFiltersAndRender()
+
+                val payload = NotificationHelper.syncAndDispatchNotifications(this@MainActivity, session, tickets)
+                if (payload != null) {
+                    cachedNotifications = payload.notifications
+                    unreadNotifCount = payload.unreadCount
+                    updateNotificationBadge(unreadNotifCount)
+                }
             }.onFailure { err ->
                 if (!silent) {
                     Toast.makeText(this@MainActivity, "Gagal memuat tiket: ${err.message}", Toast.LENGTH_SHORT).show()
@@ -869,8 +1056,9 @@ class MainActivity : AppCompatActivity() {
             if (!session.isDutyActive) {
                 session.isDutyActive = true
                 switchDuty.isChecked = true
-                checkAndRequestPermissions()
-                startTrackingService()
+                if (hasLocationPermission()) {
+                    startTrackingService()
+                }
             }
         } else if (TrackingScheduleManager.shouldAutoTurnOff(activeCount)) {
             if (session.isDutyActive) {

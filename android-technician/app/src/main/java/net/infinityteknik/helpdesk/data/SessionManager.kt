@@ -2,6 +2,8 @@ package net.infinityteknik.helpdesk.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import org.json.JSONArray
+import org.json.JSONObject
 
 class SessionManager(context: Context) {
     private val prefs: SharedPreferences =
@@ -22,7 +24,13 @@ class SessionManager(context: Context) {
         private const val KEY_LAST_UPDATE = "last_update"
         private const val KEY_ACTIVE_TICKETS_COUNT = "active_tickets_count"
         private const val KEY_ALERTED_NOTIF_IDS = "alerted_notif_ids"
-        private const val KEY_NOTIF_BASELINE_SET = "notif_baseline_set"
+        private const val KEY_NOTIF_BASELINE_SET = "notif_baseline_set_v2"
+        private const val KEY_TICKETS_SNAPSHOT_JSON = "tickets_snapshot_json_v1"
+        private const val KEY_TICKETS_SNAPSHOT_INIT = "tickets_snapshot_init_v1"
+        private const val KEY_SEEN_MSG_IDS = "seen_msg_ids_v1"
+        private const val KEY_INIT_MSG_TICKET_IDS = "init_msg_ticket_ids_v1"
+        private const val KEY_LOCAL_NOTIFS_JSON = "local_notifs_json_v1"
+        private const val KEY_WELCOME_NOTIF_V14 = "welcome_notif_v14"
 
         const val DEFAULT_SERVER_URL = "https://helpdesk.infinityteknik.net"
     }
@@ -79,6 +87,18 @@ class SessionManager(context: Context) {
         get() = prefs.getBoolean(KEY_NOTIF_BASELINE_SET, false)
         set(value) = prefs.edit().putBoolean(KEY_NOTIF_BASELINE_SET, value).apply()
 
+    var isTicketsSnapshotInitialized: Boolean
+        get() = prefs.getBoolean(KEY_TICKETS_SNAPSHOT_INIT, false)
+        set(value) = prefs.edit().putBoolean(KEY_TICKETS_SNAPSHOT_INIT, value).apply()
+
+    var ticketsSnapshotJson: String
+        get() = prefs.getString(KEY_TICKETS_SNAPSHOT_JSON, "{}") ?: "{}"
+        set(value) = prefs.edit().putString(KEY_TICKETS_SNAPSHOT_JSON, value).apply()
+
+    var hasShownWelcomeNotifV14: Boolean
+        get() = prefs.getBoolean(KEY_WELCOME_NOTIF_V14, false)
+        set(value) = prefs.edit().putBoolean(KEY_WELCOME_NOTIF_V14, value).apply()
+
     fun hasAlertedNotification(notifId: String): Boolean {
         val current = prefs.getStringSet(KEY_ALERTED_NOTIF_IDS, emptySet()) ?: emptySet()
         return current.contains(notifId)
@@ -87,9 +107,113 @@ class SessionManager(context: Context) {
     fun markNotificationAlerted(notifId: String) {
         val current = (prefs.getStringSet(KEY_ALERTED_NOTIF_IDS, emptySet()) ?: emptySet()).toMutableSet()
         current.add(notifId)
-        // Keep last 150 IDs to prevent unbounded growth
-        val trimmed = if (current.size > 150) current.toList().takeLast(150).toSet() else current
+        val trimmed = if (current.size > 200) current.toList().takeLast(200).toSet() else current
         prefs.edit().putStringSet(KEY_ALERTED_NOTIF_IDS, trimmed).apply()
+    }
+
+    fun isTicketMessageBaselineInitialized(ticketId: String): Boolean {
+        val current = prefs.getStringSet(KEY_INIT_MSG_TICKET_IDS, emptySet()) ?: emptySet()
+        return current.contains(ticketId)
+    }
+
+    fun markTicketMessageBaselineInitialized(ticketId: String) {
+        val current = (prefs.getStringSet(KEY_INIT_MSG_TICKET_IDS, emptySet()) ?: emptySet()).toMutableSet()
+        current.add(ticketId)
+        prefs.edit().putStringSet(KEY_INIT_MSG_TICKET_IDS, current).apply()
+    }
+
+    fun hasSeenMessage(msgId: String): Boolean {
+        val current = prefs.getStringSet(KEY_SEEN_MSG_IDS, emptySet()) ?: emptySet()
+        return current.contains(msgId)
+    }
+
+    fun markMessageSeen(msgId: String) {
+        val current = (prefs.getStringSet(KEY_SEEN_MSG_IDS, emptySet()) ?: emptySet()).toMutableSet()
+        current.add(msgId)
+        val trimmed = if (current.size > 300) current.toList().takeLast(300).toSet() else current
+        prefs.edit().putStringSet(KEY_SEEN_MSG_IDS, trimmed).apply()
+    }
+
+    fun getLocalNotifications(): List<NotificationItem> {
+        val raw = prefs.getString(KEY_LOCAL_NOTIFS_JSON, "[]") ?: "[]"
+        val list = mutableListOf<NotificationItem>()
+        try {
+            val arr = JSONArray(raw)
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                list.add(
+                    NotificationItem(
+                        id = o.optString("id"),
+                        type = o.optString("type", "ticket_updated"),
+                        title = o.optString("title", "Notifikasi HelpDesk"),
+                        message = o.optString("message", ""),
+                        ticketId = o.optString("ticketId", "").takeIf { it.isNotBlank() },
+                        ticketNumber = o.optInt("ticketNumber", 0),
+                        ticketTitle = o.optString("ticketTitle", ""),
+                        ticketStatus = o.optString("ticketStatus", "assigned"),
+                        ticketPriority = o.optString("ticketPriority", "medium"),
+                        ticketType = o.optString("ticketType", "").takeIf { it.isNotBlank() },
+                        reporterName = o.optString("reporterName", "").takeIf { it.isNotBlank() },
+                        reporterPhone = o.optString("reporterPhone", "").takeIf { it.isNotBlank() },
+                        reporterAddress = o.optString("reporterAddress", "").takeIf { it.isNotBlank() },
+                        reporterMapUrl = o.optString("reporterMapUrl", "").takeIf { it.isNotBlank() },
+                        ticketDescription = o.optString("ticketDescription", "").takeIf { it.isNotBlank() },
+                        isRead = o.optBoolean("isRead", false),
+                        createdAt = o.optString("createdAt", "")
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return list
+    }
+
+    fun saveLocalNotification(item: NotificationItem) {
+        val current = getLocalNotifications().toMutableList()
+        if (current.none { it.id == item.id }) {
+            current.add(0, item)
+        }
+        saveLocalNotificationsList(current.take(40))
+    }
+
+    fun markLocalNotificationRead(notifId: String) {
+        val updated = getLocalNotifications().map {
+            if (it.id == notifId) it.copy(isRead = true) else it
+        }
+        saveLocalNotificationsList(updated)
+    }
+
+    fun markAllLocalNotificationsRead() {
+        val updated = getLocalNotifications().map { it.copy(isRead = true) }
+        saveLocalNotificationsList(updated)
+    }
+
+    private fun saveLocalNotificationsList(list: List<NotificationItem>) {
+        val arr = JSONArray()
+        for (item in list) {
+            val o = JSONObject().apply {
+                put("id", item.id)
+                put("type", item.type)
+                put("title", item.title)
+                put("message", item.message)
+                put("ticketId", item.ticketId ?: "")
+                put("ticketNumber", item.ticketNumber)
+                put("ticketTitle", item.ticketTitle)
+                put("ticketStatus", item.ticketStatus)
+                put("ticketPriority", item.ticketPriority)
+                put("ticketType", item.ticketType ?: "")
+                put("reporterName", item.reporterName ?: "")
+                put("reporterPhone", item.reporterPhone ?: "")
+                put("reporterAddress", item.reporterAddress ?: "")
+                put("reporterMapUrl", item.reporterMapUrl ?: "")
+                put("ticketDescription", item.ticketDescription ?: "")
+                put("isRead", item.isRead)
+                put("createdAt", item.createdAt)
+            }
+            arr.put(o)
+        }
+        prefs.edit().putString(KEY_LOCAL_NOTIFS_JSON, arr.toString()).apply()
     }
 
     val isLoggedIn: Boolean
@@ -113,6 +237,8 @@ class SessionManager(context: Context) {
             .remove(KEY_USER_EMAIL)
             .remove(KEY_USER_ROLE)
             .remove(KEY_NOTIF_BASELINE_SET)
+            .remove(KEY_TICKETS_SNAPSHOT_INIT)
+            .remove(KEY_WELCOME_NOTIF_V14)
             .putBoolean(KEY_DUTY_ACTIVE, false)
             .apply()
     }

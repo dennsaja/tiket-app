@@ -1,6 +1,8 @@
 package net.infinityteknik.helpdesk.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.text.InputType
@@ -10,14 +12,16 @@ import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.launch
 import net.infinityteknik.helpdesk.R
 import net.infinityteknik.helpdesk.data.ApiClient
 import net.infinityteknik.helpdesk.data.SessionManager
-import net.infinityteknik.helpdesk.service.LocationTrackingService
+import net.infinityteknik.helpdesk.util.NotificationHelper
 
 class LoginActivity : AppCompatActivity() {
 
@@ -33,11 +37,27 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var session: SessionManager
     private var isPasswordVisible = false
 
+    private val notifPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ -> }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
 
         session = SessionManager(this)
+        NotificationHelper.ensureAlertChannel(this)
+
+        // Request Notification Permission on Login screen for Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
 
         etServerUrl = findViewById(R.id.etServerUrl)
         etEmail = findViewById(R.id.etEmail)
@@ -107,16 +127,6 @@ class LoginActivity : AppCompatActivity() {
                 if (response.token != null && response.user != null) {
                     session.saveUser(response.user, response.token)
                     session.isDutyActive = true
-
-                    // Start background GPS service
-                    val serviceIntent = Intent(this@LoginActivity, LocationTrackingService::class.java).apply {
-                        action = LocationTrackingService.ACTION_START
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        startForegroundService(serviceIntent)
-                    } else {
-                        startService(serviceIntent)
-                    }
 
                     Toast.makeText(
                         this@LoginActivity,
