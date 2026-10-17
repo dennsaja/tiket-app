@@ -1,8 +1,8 @@
 {
-  "versionCode": 5,
-  "versionName": "1.5.0",
+  "versionCode": 6,
+  "versionName": "1.6.0",
   "minSupportedVersion": 1,
   "downloadUrl": "/downloads/helpdesk-teknisi.apk",
-  "updatedAt": "2026-10-17T08:10:00.000Z",
-  "releaseNotes": "v1.5.0: Perbaikan pesan ganda di ruang Chat Tim (POV NOC), perbaikan notifikasi ganda pada HP teknisi, penghapusan notifikasi saat teknisi membalas chat sendiri, serta seluruh fitur v1.4.0 (izin notifikasi otomatis, Status Bar/Drawer/Heads-Up Pop-up, alur tiket progresif, foto before-after, dan GPS 1 menit hemat daya)."
+  "updatedAt": "2026-10-17T11:55:00.000Z",
+  "releaseNotes": "v1.6.0: Desain Dasbor Biru Interaktif baru dengan grafik Timeline mingguan (Senin-Sabtu), kartu GPS Aktif, Tiket Belum Selesai & Tiket Selesai Hari Ini, serta aturan GPS otomatis hanya aktif saat ada tiket yang belum selesai."
 }

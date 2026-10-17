@@ -126,7 +126,8 @@ class LoginActivity : AppCompatActivity() {
             result.onSuccess { response ->
                 if (response.token != null && response.user != null) {
                     session.saveUser(response.user, response.token)
-                    session.isDutyActive = true
+                    session.activeTicketsCount = response.user.activeTicketsCount
+                    session.isDutyActive = response.user.activeTicketsCount > 0
 
                     Toast.makeText(
                         this@LoginActivity,

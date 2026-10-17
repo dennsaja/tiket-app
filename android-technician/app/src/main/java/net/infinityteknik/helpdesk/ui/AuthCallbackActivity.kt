@@ -33,7 +33,7 @@ class AuthCallbackActivity : AppCompatActivity() {
                 )
 
                 session.saveUser(profile, token)
-                session.isDutyActive = true
+                session.isDutyActive = session.activeTicketsCount > 0
 
                 Toast.makeText(this, "Login Berhasil! Halo, $name", Toast.LENGTH_SHORT).show()
 

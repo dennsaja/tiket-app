@@ -28,7 +28,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.switchmaterial.SwitchMaterial
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -48,11 +47,31 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var session: SessionManager
 
+    // Top Blue Hero Dashboard Views
+    private lateinit var cardProfileAvatar: CardView
     private lateinit var tvTechnicianName: TextView
+    private lateinit var tvTechnicianRole: TextView
     private lateinit var btnNotificationBell: FrameLayout
     private lateinit var tvNotificationBadge: TextView
-    private lateinit var btnRefreshTop: ImageButton
-    private lateinit var btnLogout: ImageButton
+    private lateinit var btnSettings: FrameLayout
+
+    // Bento Grid Left Column Cards
+    private lateinit var cardGpsStatus: LinearLayout
+    private lateinit var tvDutyStatus: TextView
+    private lateinit var tvGpsCoords: TextView
+    private lateinit var cardFilterActive: LinearLayout
+    private lateinit var tvCountActive: TextView
+    private lateinit var tvFilterActiveLabel: TextView
+    private lateinit var cardFilterResolved: LinearLayout
+    private lateinit var tvCountResolved: TextView
+    private lateinit var tvFilterResolvedLabel: TextView
+
+    // Bento Grid Right Column Timeline Card
+    private lateinit var cardTimeline: LinearLayout
+    private lateinit var chartWeeklyTimeline: WeeklyTimelineChartView
+
+    // Bottom Support Banner inside Hero Card
+    private lateinit var cardSupportBanner: CardView
 
     // In-App Heads-Up Notification Pop-up Banner
     private lateinit var cardHeadsUpBanner: CardView
@@ -64,25 +83,8 @@ class MainActivity : AppCompatActivity() {
     private var currentHeadsUpNotif: NotificationItem? = null
     private var headsUpAutoHideJob: Job? = null
 
-    // GPS Bar
-    private lateinit var viewGpsDot: View
-    private lateinit var tvDutyStatus: TextView
-    private lateinit var switchDuty: SwitchMaterial
-    private lateinit var tvGpsCoords: TextView
-    private lateinit var tvLastUpdated: TextView
-    private lateinit var btnForceLocation: MaterialButton
-
-    // KPI Filter Cards
+    // Search & Filter Reset Row + Ticket List
     private lateinit var cardFilterAll: LinearLayout
-    private lateinit var cardFilterActive: LinearLayout
-    private lateinit var cardFilterResolved: LinearLayout
-    private lateinit var tvFilterAllLabel: TextView
-    private lateinit var tvFilterActiveLabel: TextView
-    private lateinit var tvFilterResolvedLabel: TextView
-    private lateinit var tvCountAll: TextView
-    private lateinit var tvCountActive: TextView
-    private lateinit var tvCountResolved: TextView
-
     private lateinit var etSearchTickets: EditText
     private lateinit var tvTicketCount: TextView
     private lateinit var swipeRefresh: SwipeRefreshLayout
@@ -93,9 +95,10 @@ class MainActivity : AppCompatActivity() {
     private var allTickets = listOf<TicketItem>()
     private var cachedNotifications = listOf<NotificationItem>()
     private var unreadNotifCount = 0
-    private var selectedFilterIndex = 0 // 0 = All, 1 = Active, 2 = Resolved
+    private var selectedFilterIndex = 0 // 0 = All, 1 = Belum Selesai, 2 = Selesai
     private var searchQuery = ""
     private var realtimePollJob: Job? = null
+    private var latestWeeklyCounts = IntArray(6) { 0 }
 
     private var hasShownNotifDialogThisResume = false
 
@@ -126,13 +129,11 @@ class MainActivity : AppCompatActivity() {
         val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
         val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (fineGranted || coarseGranted) {
-            if (session.isDutyActive) {
-                startTrackingService()
-            }
+            evaluateTrackingRules(session.activeTicketsCount)
         } else {
             Toast.makeText(
                 this,
-                "Izin lokasi GPS diperlukan untuk pelacakan tugas lapangan",
+                "Izin lokasi GPS diperlukan saat mengerjakan tiket tugas lapangan",
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -205,27 +206,36 @@ class MainActivity : AppCompatActivity() {
 
         checkAndRequestPermissions()
 
-        if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
-            session.isDutyActive = true
-            switchDuty.isChecked = true
-        }
-
-        if (session.isDutyActive && hasLocationPermission()) {
-            startTrackingService()
-        } else {
-            updateDutyUi(session.isDutyActive)
-        }
+        // Rule: GPS is ONLY active when there are active unfinished tickets
+        evaluateTrackingRules(session.activeTicketsCount)
 
         loadTickets(silent = false)
         loadUserProfile()
     }
 
     private fun initViews() {
+        cardProfileAvatar = findViewById(R.id.cardProfileAvatar)
         tvTechnicianName = findViewById(R.id.tvTechnicianName)
+        tvTechnicianRole = findViewById(R.id.tvTechnicianRole)
         btnNotificationBell = findViewById(R.id.btnNotificationBell)
         tvNotificationBadge = findViewById(R.id.tvNotificationBadge)
-        btnRefreshTop = findViewById(R.id.btnRefreshTop)
-        btnLogout = findViewById(R.id.btnLogout)
+        btnSettings = findViewById(R.id.btnSettings)
+
+        cardGpsStatus = findViewById(R.id.cardGpsStatus)
+        tvDutyStatus = findViewById(R.id.tvDutyStatus)
+        tvGpsCoords = findViewById(R.id.tvGpsCoords)
+
+        cardFilterActive = findViewById(R.id.cardFilterActive)
+        tvCountActive = findViewById(R.id.tvCountActive)
+        tvFilterActiveLabel = findViewById(R.id.tvFilterActiveLabel)
+
+        cardFilterResolved = findViewById(R.id.cardFilterResolved)
+        tvCountResolved = findViewById(R.id.tvCountResolved)
+        tvFilterResolvedLabel = findViewById(R.id.tvFilterResolvedLabel)
+
+        cardTimeline = findViewById(R.id.cardTimeline)
+        chartWeeklyTimeline = findViewById(R.id.chartWeeklyTimeline)
+        cardSupportBanner = findViewById(R.id.cardSupportBanner)
 
         cardHeadsUpBanner = findViewById(R.id.cardHeadsUpBanner)
         tvHeadsUpCategory = findViewById(R.id.tvHeadsUpCategory)
@@ -234,33 +244,57 @@ class MainActivity : AppCompatActivity() {
         btnHeadsUpOpen = findViewById(R.id.btnHeadsUpOpen)
         btnHeadsUpDismiss = findViewById(R.id.btnHeadsUpDismiss)
 
-        viewGpsDot = findViewById(R.id.viewGpsDot)
-        tvDutyStatus = findViewById(R.id.tvDutyStatus)
-        switchDuty = findViewById(R.id.switchDuty)
-        tvGpsCoords = findViewById(R.id.tvGpsCoords)
-        tvLastUpdated = findViewById(R.id.tvLastUpdated)
-        btnForceLocation = findViewById(R.id.btnForceLocation)
-
         cardFilterAll = findViewById(R.id.cardFilterAll)
-        cardFilterActive = findViewById(R.id.cardFilterActive)
-        cardFilterResolved = findViewById(R.id.cardFilterResolved)
-        tvFilterAllLabel = findViewById(R.id.tvFilterAllLabel)
-        tvFilterActiveLabel = findViewById(R.id.tvFilterActiveLabel)
-        tvFilterResolvedLabel = findViewById(R.id.tvFilterResolvedLabel)
-        tvCountAll = findViewById(R.id.tvCountAll)
-        tvCountActive = findViewById(R.id.tvCountActive)
-        tvCountResolved = findViewById(R.id.tvCountResolved)
-
         etSearchTickets = findViewById(R.id.etSearchTickets)
         tvTicketCount = findViewById(R.id.tvTicketCount)
         swipeRefresh = findViewById(R.id.swipeRefresh)
         rvTickets = findViewById(R.id.rvTickets)
         tvEmptyState = findViewById(R.id.tvEmptyState)
 
-        tvTechnicianName.text = session.userName
+        tvTechnicianName.text = session.userName ?: "Teknisi"
+        tvTechnicianRole.text = "Teknisi"
+        chartWeeklyTimeline.setWeeklyCounts(latestWeeklyCounts)
+
+        cardProfileAvatar.setOnClickListener {
+            showSettingsAndAccountDialog()
+        }
 
         btnNotificationBell.setOnClickListener {
             showNotificationDrawerDialog()
+        }
+
+        btnSettings.setOnClickListener {
+            showSettingsAndAccountDialog()
+        }
+
+        cardGpsStatus.setOnClickListener {
+            handleGpsCardClick()
+        }
+
+        cardFilterActive.setOnClickListener {
+            val next = if (selectedFilterIndex == 1) 0 else 1
+            selectFilter(next)
+            val label = if (next == 1) "Menampilkan Tiket Belum Selesai" else "Menampilkan Semua Tiket"
+            Toast.makeText(this, label, Toast.LENGTH_SHORT).show()
+        }
+
+        cardFilterResolved.setOnClickListener {
+            val next = if (selectedFilterIndex == 2) 0 else 2
+            selectFilter(next)
+            val label = if (next == 2) "Menampilkan Tiket Selesai" else "Menampilkan Semua Tiket"
+            Toast.makeText(this, label, Toast.LENGTH_SHORT).show()
+        }
+
+        cardTimeline.setOnClickListener {
+            showWeeklyTimelineDetailDialog()
+        }
+
+        cardSupportBanner.setOnClickListener {
+            showSupportAndQuickChatDialog()
+        }
+
+        cardFilterAll.setOnClickListener {
+            selectFilter(0)
         }
 
         btnHeadsUpDismiss.setOnClickListener {
@@ -283,63 +317,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        switchDuty.isChecked = session.isDutyActive
-        switchDuty.setOnCheckedChangeListener { _, isChecked ->
-            if (!isChecked && TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
-                switchDuty.isChecked = true
-                Toast.makeText(
-                    this,
-                    TrackingScheduleManager.getLockedReasonMessage(),
-                    Toast.LENGTH_LONG
-                ).show()
-                return@setOnCheckedChangeListener
-            }
-
-            session.isDutyActive = isChecked
-            updateDutyUi(isChecked)
-            if (isChecked) {
-                checkAndRequestPermissions()
-                startTrackingService()
-            } else {
-                stopTrackingService()
-            }
-        }
-
-        btnForceLocation.setOnClickListener {
-            if (!session.isDutyActive) {
-                switchDuty.isChecked = true
-            } else {
-                val forceIntent = Intent(this, LocationTrackingService::class.java).apply {
-                    action = LocationTrackingService.ACTION_FORCE_PING
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(forceIntent)
-                } else {
-                    startService(forceIntent)
-                }
-                Toast.makeText(this, "Mengirim ping lokasi GPS sekarang...", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        btnRefreshTop.setOnClickListener {
-            loadTickets(silent = false)
-            loadUserProfile()
-            syncNotificationsNow()
-        }
-
         swipeRefresh.setOnRefreshListener {
             loadTickets(silent = false)
             loadUserProfile()
             syncNotificationsNow()
         }
-
-        btnLogout.setOnClickListener {
-            confirmLogout()
-        }
-
-        cardFilterAll.setOnClickListener { selectFilter(0) }
-        cardFilterActive.setOnClickListener { selectFilter(1) }
-        cardFilterResolved.setOnClickListener { selectFilter(2) }
 
         etSearchTickets.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -350,7 +332,8 @@ class MainActivity : AppCompatActivity() {
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        if (session.lastLatitude != 0.0) {
+        updateDutyUi(session.activeTicketsCount > 0)
+        if (session.activeTicketsCount > 0 && session.lastLatitude != 0.0) {
             updateGpsDisplay(
                 session.lastLatitude,
                 session.lastLongitude,
@@ -361,10 +344,39 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun handleGpsCardClick() {
+        if (session.activeTicketsCount > 0) {
+            if (!hasLocationPermission()) {
+                requestLocationPermissionsIfNeeded()
+                return
+            }
+            startTrackingService()
+            val forceIntent = Intent(this, LocationTrackingService::class.java).apply {
+                action = LocationTrackingService.ACTION_FORCE_PING
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(forceIntent)
+            } else {
+                startService(forceIntent)
+            }
+            Toast.makeText(
+                this,
+                "GPS Aktif (${session.activeTicketsCount} tiket belum selesai) • Mengirim ping lokasi sekarang...",
+                Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            Toast.makeText(
+                this,
+                "GPS Nonaktif: Fitur GPS hanya aktif otomatis jika ada tiket yang belum selesai.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
     private fun updateNotificationBadge(count: Int) {
         if (count > 0) {
             tvNotificationBadge.visibility = View.VISIBLE
-            tvNotificationBadge.text = if (count > 99) "99+" else count.toString()
+            tvNotificationBadge.text = if (count > 9) "9+" else count.toString()
         } else {
             tvNotificationBadge.visibility = View.GONE
         }
@@ -445,6 +457,131 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
+     * Interactive Settings & Account Dialog (triggered by the top-right Settings Gear button or Profile Avatar).
+     */
+    private fun showSettingsAndAccountDialog() {
+        val gpsStateText = if (session.activeTicketsCount > 0) {
+            "GPS Aktif (${session.activeTicketsCount} tiket belum selesai)"
+        } else {
+            "GPS Nonaktif (Tidak ada tiket aktif)"
+        }
+        val coordsText = if (session.activeTicketsCount > 0 && session.lastLatitude != 0.0) {
+            String.format(Locale.US, "%.13f, %.13f", session.lastLatitude, session.lastLongitude)
+        } else {
+            "-"
+        }
+
+        val options = arrayOf(
+            "Segarkan Data & Tiket Sekarang",
+            "Tes Notifikasi Pop-up & Suara",
+            "Pengaturan Izin Notifikasi HP",
+            "Ping Lokasi GPS Sekarang",
+            "Lihat Semua Tiket (${allTickets.size})",
+            "Keluar Akun (Logout)"
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle("${session.userName ?: "Teknisi"} • Pengaturan (v1.6.0)")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> {
+                        Toast.makeText(this, "Menyegarkan data tiket & notifikasi...", Toast.LENGTH_SHORT).show()
+                        loadTickets(silent = false)
+                        loadUserProfile()
+                        syncNotificationsNow()
+                    }
+                    1 -> triggerTestNotification()
+                    2 -> NotificationHelper.openNotificationSettings(this)
+                    3 -> handleGpsCardClick()
+                    4 -> selectFilter(0)
+                    5 -> confirmLogout()
+                }
+            }
+            .setNeutralButton("Info Status") { _, _ ->
+                AlertDialog.Builder(this)
+                    .setTitle("Status Perangkat Teknisi")
+                    .setMessage(
+                        "Nama: ${session.userName}\n" +
+                            "Email: ${session.userEmail}\n" +
+                            "Status GPS: $gpsStateText\n" +
+                            "Koordinat: $coordsText\n" +
+                            "Server: ${session.serverUrl}\n" +
+                            "Versi Aplikasi: v1.6.0 (Build 6)"
+                    )
+                    .setPositiveButton("Tutup", null)
+                    .show()
+            }
+            .setNegativeButton("Tutup", null)
+            .show()
+    }
+
+    /**
+     * Interactive Weekly Timeline Summary Dialog (triggered when tapping the Timeline chart card).
+     */
+    private fun showWeeklyTimelineDetailDialog() {
+        val days = arrayOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu")
+        val counts = latestWeeklyCounts
+        val totalWeek = counts.sum()
+
+        val sb = StringBuilder()
+        sb.append("Akumulasi tiket yang dikerjakan minggu ini:\n\n")
+        for (i in days.indices) {
+            val c = if (i < counts.size) counts[i] else 0
+            sb.append("• ${days[i]}: $c tiket\n")
+        }
+        sb.append("\nTotal Minggu Ini: $totalWeek tiket")
+        sb.append("\nTiket Belum Selesai: ${session.activeTicketsCount} tiket")
+
+        AlertDialog.Builder(this)
+            .setTitle("Statistik Timeline Mingguan")
+            .setMessage(sb.toString())
+            .setPositiveButton("Tampilkan Semua Tiket") { _, _ ->
+                selectFilter(0)
+            }
+            .setNegativeButton("Tutup", null)
+            .show()
+    }
+
+    /**
+     * Interactive Support & Quick Team Chat Dialog (triggered when tapping "Teknisi Butuh Bantuan?").
+     */
+    private fun showSupportAndQuickChatDialog() {
+        val activeTicket = allTickets.firstOrNull { t ->
+            val s = t.status.lowercase(Locale.ROOT)
+            s != "resolved" && s != "closed" && s != "cancelled"
+        } ?: allTickets.firstOrNull()
+
+        if (activeTicket != null) {
+            AlertDialog.Builder(this)
+                .setTitle("Bantuan Teknisi & Koordinasi NOC")
+                .setMessage(
+                    "Fitur Pusat Bantuan Mandiri sedang disiapkan (Coming Soon).\n\n" +
+                        "Untuk bantuan langsung saat ini, Anda dapat menghubungi tim NOC melalui ruang Chat Tim pada tiket aktif #${activeTicket.ticketNumber} (${activeTicket.title})."
+                )
+                .setPositiveButton("Buka Chat Tim #${activeTicket.ticketNumber}") { _, _ ->
+                    openTicketDetail(activeTicket, initialTab = 1)
+                }
+                .setNeutralButton("Segarkan Tiket") { _, _ ->
+                    loadTickets(silent = false)
+                }
+                .setNegativeButton("Tutup", null)
+                .show()
+        } else {
+            AlertDialog.Builder(this)
+                .setTitle("Bantuan Teknisi (Coming Soon)")
+                .setMessage(
+                    "Pusat Bantuan Terpadu sedang dalam pengembangan.\n\n" +
+                        "Saat Anda memiliki tiket aktif, ketuk tombol ini untuk langsung membuka ruang Chat Tim dengan NOC Dispatcher."
+                )
+                .setPositiveButton("Segarkan Data") { _, _ ->
+                    loadTickets(silent = false)
+                }
+                .setNegativeButton("Tutup", null)
+                .show()
+        }
+    }
+
+    /**
      * Opens the In-App Notification Drawer (Panel Notifikasi) matching the Web TopNav Notification Panel.
      */
     private fun showNotificationDrawerDialog() {
@@ -462,11 +599,11 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, 0, 0, dp(12))
         }
 
-        // Top Header Bar (#09090B dark header matching Web)
+        // Top Header Bar
         val headerRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.parseColor("#09090B"))
+            setBackgroundColor(Color.parseColor("#004C9E"))
             setPadding(dp(16), dp(14), dp(14), dp(14))
         }
 
@@ -496,7 +633,7 @@ class MainActivity : AppCompatActivity() {
         }
         val tvHeaderSub = TextView(this).apply {
             text = if (unreadNotifCount > 0) "$unreadNotifCount belum dibaca" else "Semua notifikasi telah dibaca"
-            setTextColor(Color.parseColor("#A1A1AA"))
+            setTextColor(Color.parseColor("#E0F2FE"))
             textSize = 11f
         }
         titleCol.addView(tvHeaderTitle)
@@ -507,7 +644,7 @@ class MainActivity : AppCompatActivity() {
 
         val btnTestNotif = TextView(this).apply {
             text = "Tes Pop-up"
-            setTextColor(Color.parseColor("#34D399"))
+            setTextColor(Color.parseColor("#A7F3D0"))
             textSize = 11f
             setTypeface(typeface, Typeface.BOLD)
             setPadding(dp(8), dp(6), dp(8), dp(6))
@@ -521,7 +658,7 @@ class MainActivity : AppCompatActivity() {
         if (unreadNotifCount > 0) {
             val btnMarkAll = TextView(this).apply {
                 text = "Tandai Dibaca"
-                setTextColor(Color.parseColor("#38BDF8"))
+                setTextColor(Color.parseColor("#BAE6FD"))
                 textSize = 11f
                 setTypeface(typeface, Typeface.BOLD)
                 setPadding(dp(8), dp(6), dp(8), dp(6))
@@ -612,7 +749,6 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                // Top meta row: Unread dot + Category badge + Ticket #
                 val metaRow = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
@@ -653,7 +789,7 @@ class MainActivity : AppCompatActivity() {
                         text = "#$ticketNum"
                         setTextColor(Color.parseColor("#18181B"))
                         textSize = 10f
-                        setTypeface( Typeface.MONOSPACE, Typeface.BOLD)
+                        setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
                         setBackgroundResource(R.drawable.badge_bg)
                         setPadding(dp(6), dp(2), dp(6), dp(2))
                     }
@@ -715,17 +851,12 @@ class MainActivity : AppCompatActivity() {
     private fun selectFilter(index: Int) {
         selectedFilterIndex = index
 
-        cardFilterAll.setBackgroundResource(if (index == 0) R.drawable.card_active_bg else R.drawable.card_border_bg)
-        tvFilterAllLabel.setTextColor(Color.parseColor(if (index == 0) "#A1A1AA" else "#71717A"))
-        tvCountAll.setTextColor(Color.parseColor(if (index == 0) "#FFFFFF" else "#09090B"))
-
-        cardFilterActive.setBackgroundResource(if (index == 1) R.drawable.card_active_bg else R.drawable.card_border_bg)
-        tvFilterActiveLabel.setTextColor(Color.parseColor(if (index == 1) "#A1A1AA" else "#71717A"))
-        tvCountActive.setTextColor(Color.parseColor(if (index == 1) "#FFFFFF" else "#09090B"))
-
-        cardFilterResolved.setBackgroundResource(if (index == 2) R.drawable.card_active_bg else R.drawable.card_border_bg)
-        tvFilterResolvedLabel.setTextColor(Color.parseColor(if (index == 2) "#A1A1AA" else "#71717A"))
-        tvCountResolved.setTextColor(Color.parseColor(if (index == 2) "#FFFFFF" else "#16A34A"))
+        cardFilterActive.setBackgroundResource(
+            if (index == 1) R.drawable.bg_glass_blue_card_selected else R.drawable.bg_glass_blue_card
+        )
+        cardFilterResolved.setBackgroundResource(
+            if (index == 2) R.drawable.bg_glass_blue_card_selected else R.drawable.bg_glass_blue_card
+        )
 
         applyFiltersAndRender()
     }
@@ -755,7 +886,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         ticketAdapter.submitList(filtered)
-        tvTicketCount.text = "${filtered.size} Tiket"
+        val filterName = when (selectedFilterIndex) {
+            1 -> "Belum Selesai (${filtered.size})"
+            2 -> "Selesai (${filtered.size})"
+            else -> "Semua (${filtered.size})"
+        }
+        tvTicketCount.text = filterName
 
         if (filtered.isEmpty()) {
             tvEmptyState.visibility = View.VISIBLE
@@ -870,8 +1006,8 @@ class MainActivity : AppCompatActivity() {
         }
         if (needed.isNotEmpty()) {
             locationPermissionLauncher.launch(needed.toTypedArray())
-        } else if (session.isDutyActive) {
-            startTrackingService()
+        } else {
+            evaluateTrackingRules(session.activeTicketsCount)
         }
     }
 
@@ -971,27 +1107,130 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateDutyUi(isActive: Boolean) {
-        if (isActive) {
-            viewGpsDot.setBackgroundResource(R.drawable.circle_green)
-            tvDutyStatus.text = "GPS Aktif (Interval 1 Menit • Hemat Daya)"
+        if (isActive && session.activeTicketsCount > 0) {
+            tvDutyStatus.text = "GPS Aktif"
+            if (session.lastLatitude != 0.0 && session.lastLongitude != 0.0) {
+                tvGpsCoords.text = String.format(
+                    Locale.US,
+                    "%.13f, %.13f",
+                    session.lastLatitude,
+                    session.lastLongitude
+                )
+            } else {
+                tvGpsCoords.text = "Mencari titik koordinat..."
+            }
         } else {
-            viewGpsDot.setBackgroundResource(R.drawable.circle_red)
-            tvDutyStatus.text = "GPS Nonaktif (Di Luar Jam Tugas)"
-            tvGpsCoords.text = "GPS: Pelacakan Nonaktif"
+            tvDutyStatus.text = "GPS Nonaktif"
+            tvGpsCoords.text = "Tidak ada tiket aktif"
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun updateGpsDisplay(lat: Double, lng: Double, acc: Float, battery: Int, time: Long) {
-        val accStr = if (acc > 0) " (±${acc.toInt()}m)" else ""
-        tvGpsCoords.text = String.format(Locale.US, "%.5f, %.5f%s", lat, lng, accStr)
+        if (session.activeTicketsCount > 0 && lat != 0.0 && lng != 0.0) {
+            tvDutyStatus.text = "GPS Aktif"
+            tvGpsCoords.text = String.format(Locale.US, "%.13f, %.13f", lat, lng)
+        } else {
+            updateDutyUi(session.activeTicketsCount > 0)
+        }
+    }
 
-        val timeStr = if (time > 0) {
-            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-            sdf.format(Date(time))
-        } else "-"
+    /**
+     * Parses an ISO-8601 or formatted timestamp string into a Date object.
+     */
+    private fun parseTicketTimestamp(raw: String?): Date? {
+        if (raw.isNullOrBlank()) return null
+        val trimmed = raw.trim()
+        val patterns = arrayOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+            "yyyy-MM-dd'T'HH:mm:ssX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd HH:mm",
+            "yyyy-MM-dd"
+        )
+        for (p in patterns) {
+            try {
+                val sdf = SimpleDateFormat(p, Locale.US)
+                if (p.endsWith("'Z'")) {
+                    sdf.timeZone = TimeZone.getTimeZone("UTC")
+                }
+                val parsed = sdf.parse(trimmed)
+                if (parsed != null) return parsed
+            } catch (_: Exception) {}
+        }
+        return null
+    }
 
-        val batStr = if (battery >= 0) " • Bat $battery%" else ""
-        tvLastUpdated.text = "• $timeStr$batStr"
+    /**
+     * Computes:
+     * 1. Number of tickets resolved/closed TODAY (WIB)
+     * 2. Weekly timeline ticket counts for Senin (0), Selasa (1), Rabu (2), Kamis (3), Jumat (4), Sabtu (5)
+     *    in the current week. If there is no data on a day, its value is 0 and the chart line drops to 0.
+     */
+    private fun computeDashboardMetrics(tickets: List<TicketItem>): Pair<Int, IntArray> {
+        val wibTz = TimeZone.getTimeZone("Asia/Jakarta")
+        val dayFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+            timeZone = wibTz
+        }
+        val nowCal = Calendar.getInstance(wibTz)
+        val todayKey = dayFmt.format(nowCal.time)
+
+        // Compute Monday 00:00:00.000 of the current week (WIB)
+        val mondayCal = (nowCal.clone() as Calendar).apply {
+            firstDayOfWeek = Calendar.MONDAY
+            val dow = get(Calendar.DAY_OF_WEEK)
+            val diffToMonday = if (dow == Calendar.SUNDAY) -6 else (Calendar.MONDAY - dow)
+            add(Calendar.DAY_OF_YEAR, diffToMonday)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val sundayEndCal = (mondayCal.clone() as Calendar).apply {
+            add(Calendar.DAY_OF_YEAR, 6)
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
+        }
+
+        var resolvedTodayCount = 0
+        val weeklyCounts = IntArray(6) { 0 } // Senin, Selasa, Rabu, Kamis, Jumat, Sabtu
+
+        for (t in tickets) {
+            val statusLower = t.status.lowercase(Locale.ROOT)
+            if (statusLower == "cancelled") continue
+
+            val eventDate = parseTicketTimestamp(t.updatedAt) ?: parseTicketTimestamp(t.createdAt)
+            if (eventDate != null) {
+                val eventDayKey = dayFmt.format(eventDate)
+                val isResolvedOrClosed = statusLower == "resolved" || statusLower == "closed"
+                if (isResolvedOrClosed && eventDayKey == todayKey) {
+                    resolvedTodayCount++
+                }
+
+                // Count tickets worked on / handled during the current week (Monday..Sunday)
+                if (eventDate.time in mondayCal.timeInMillis..sundayEndCal.timeInMillis) {
+                    val tCal = Calendar.getInstance(wibTz).apply { time = eventDate }
+                    val dayIndex = when (tCal.get(Calendar.DAY_OF_WEEK)) {
+                        Calendar.MONDAY -> 0
+                        Calendar.TUESDAY -> 1
+                        Calendar.WEDNESDAY -> 2
+                        Calendar.THURSDAY -> 3
+                        Calendar.FRIDAY -> 4
+                        Calendar.SATURDAY, Calendar.SUNDAY -> 5
+                        else -> -1
+                    }
+                    if (dayIndex in 0..5) {
+                        weeklyCounts[dayIndex]++
+                    }
+                }
+            }
+        }
+
+        return Pair(resolvedTodayCount, weeklyCounts)
     }
 
     private fun loadTickets(silent: Boolean = false) {
@@ -1008,11 +1247,13 @@ class MainActivity : AppCompatActivity() {
                     val s = t.status.lowercase()
                     s != "resolved" && s != "closed" && s != "cancelled"
                 }
-                val resolvedCount = tickets.size - activeCount
 
-                tvCountAll.text = tickets.size.toString()
+                val (resolvedTodayCount, weeklyCounts) = computeDashboardMetrics(tickets)
+                latestWeeklyCounts = weeklyCounts
+
                 tvCountActive.text = activeCount.toString()
-                tvCountResolved.text = resolvedCount.toString()
+                tvCountResolved.text = resolvedTodayCount.toString()
+                chartWeeklyTimeline.setWeeklyCounts(weeklyCounts)
 
                 session.activeTicketsCount = activeCount
                 evaluateTrackingRules(activeCount)
@@ -1032,21 +1273,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Strictly enforces the rule: GPS is ONLY active when activeCount > 0.
+     * When activeCount <= 0, GPS automatically turns OFF.
+     */
     private fun evaluateTrackingRules(activeCount: Int) {
         if (TrackingScheduleManager.isTrackingMandatory(activeCount)) {
-            if (!session.isDutyActive) {
-                session.isDutyActive = true
-                switchDuty.isChecked = true
-                if (hasLocationPermission()) {
-                    startTrackingService()
-                }
+            session.isDutyActive = true
+            updateDutyUi(true)
+            if (hasLocationPermission()) {
+                startTrackingService()
             }
-        } else if (TrackingScheduleManager.shouldAutoTurnOff(activeCount)) {
-            if (session.isDutyActive) {
-                session.isDutyActive = false
-                switchDuty.isChecked = false
-                stopTrackingService()
-            }
+        } else {
+            session.isDutyActive = false
+            stopTrackingService()
         }
     }
 
@@ -1059,6 +1299,7 @@ class MainActivity : AppCompatActivity() {
                 session.userEmail = profile.email
                 session.userRole = profile.role
                 tvTechnicianName.text = profile.name
+                tvTechnicianRole.text = "Teknisi"
             }
         }
     }

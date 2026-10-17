@@ -82,7 +82,7 @@ class LocationTrackingService : Service() {
             return START_NOT_STICKY
         }
 
-        if (action == ACTION_STOP) {
+        if (action == ACTION_STOP || session.activeTicketsCount <= 0) {
             if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
                 session.isDutyActive = true
                 ensureForegroundAndTicker()
@@ -90,20 +90,22 @@ class LocationTrackingService : Service() {
             }
             session.isDutyActive = false
             stopGpsTicker()
-            updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (Notifikasi Aktif)")
+            updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (GPS Nonaktif)")
             ensureNotificationPoller()
             return START_STICKY
         }
 
-        if (session.isDutyActive) {
+        if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
+            session.isDutyActive = true
             ensureForegroundAndTicker()
         } else {
+            session.isDutyActive = false
             stopGpsTicker()
-            updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (Notifikasi Aktif)")
+            updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (GPS Nonaktif)")
             ensureNotificationPoller()
         }
 
-        if (action == ACTION_FORCE_PING && session.isDutyActive) {
+        if (action == ACTION_FORCE_PING && session.activeTicketsCount > 0) {
             serviceScope.launch {
                 acquireAndSendLocationOnce()
             }
@@ -119,7 +121,7 @@ class LocationTrackingService : Service() {
                 "Pelacakan GPS Teknisi (Hemat Daya)",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Sinkronisasi lokasi teknisi setiap 1 menit (Mode Hemat Baterai & Anti Panas)"
+                description = "Sinkronisasi lokasi teknisi setiap 1 menit saat ada tiket aktif (Mode Hemat Baterai & Anti Panas)"
                 setShowBadge(false)
             }
             val manager = getSystemService(NotificationManager::class.java)
@@ -178,10 +180,18 @@ class LocationTrackingService : Service() {
                     val payload = NotificationHelper.syncAndDispatchNotifications(this@LocationTrackingService, session)
                     if (payload != null) {
                         if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
-                            if (!session.isDutyActive) {
+                            if (!session.isDutyActive || tickerJob?.isActive != true) {
                                 session.isDutyActive = true
                                 withContext(Dispatchers.Main) {
                                     ensureForegroundAndTicker()
+                                }
+                            }
+                        } else {
+                            if (session.isDutyActive || tickerJob?.isActive == true) {
+                                session.isDutyActive = false
+                                withContext(Dispatchers.Main) {
+                                    stopGpsTicker()
+                                    updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (GPS Nonaktif)")
                                 }
                             }
                         }
@@ -210,7 +220,15 @@ class LocationTrackingService : Service() {
     }
 
     private fun ensureForegroundAndTicker() {
-        updateForegroundNotification("GPS 1 mnt (Hemat Daya) • Notifikasi Real-time Aktif")
+        if (!TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
+            session.isDutyActive = false
+            stopGpsTicker()
+            updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (GPS Nonaktif)")
+            ensureNotificationPoller()
+            return
+        }
+
+        updateForegroundNotification("GPS Aktif (1 mnt Hemat Daya) • ${session.activeTicketsCount} Tiket Aktif")
         ensureNotificationPoller()
 
         if (tickerJob?.isActive == true) return
@@ -220,7 +238,7 @@ class LocationTrackingService : Service() {
                 if (TrackingScheduleManager.shouldAutoTurnOff(session.activeTicketsCount)) {
                     session.isDutyActive = false
                     stopGpsTicker()
-                    updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (Notifikasi Aktif)")
+                    updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (GPS Nonaktif)")
                     break
                 }
 
