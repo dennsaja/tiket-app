@@ -164,7 +164,7 @@ export async function POST(
   // Notify all assigned technicians & requester (excluding sender)
   const participantIds = await getTicketParticipantIds(ticketId, userId);
   if (participantIds.length > 0) {
-    notifyNewMessage(
+    await notifyNewMessage(
       ticketId,
       ticket.ticketNumber,
       ticket.title,

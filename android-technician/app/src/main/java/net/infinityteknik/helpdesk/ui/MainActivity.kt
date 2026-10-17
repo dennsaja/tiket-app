@@ -801,6 +801,7 @@ class MainActivity : AppCompatActivity() {
 
         val token = session.token ?: return
         Toast.makeText(this, actionDesc, Toast.LENGTH_SHORT).show()
+        NotificationHelper.recordSelfStatusChange(ticket.id, nextStatus)
 
         lifecycleScope.launch {
             val result = ApiClient.updateTicketStatus(
@@ -813,27 +814,7 @@ class MainActivity : AppCompatActivity() {
             )
             result.onSuccess {
                 val statusLabel = NotificationHelper.formatStatusName(nextStatus)
-                val nowStr = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
-                val notifItem = NotificationItem(
-                    id = "self_status_${ticket.id}_${nextStatus}_${System.currentTimeMillis()}",
-                    type = "status_changed",
-                    title = "Status Tiket #${ticket.ticketNumber}: $statusLabel",
-                    message = "Tiket \"${ticket.title}\" kini berstatus $statusLabel",
-                    ticketId = ticket.id,
-                    ticketNumber = ticket.ticketNumber,
-                    ticketTitle = ticket.title,
-                    ticketStatus = nextStatus,
-                    ticketPriority = ticket.priority,
-                    ticketType = ticket.ticketType,
-                    reporterName = ticket.reporterName,
-                    reporterPhone = ticket.reporterPhone,
-                    reporterAddress = ticket.reporterAddress,
-                    reporterMapUrl = ticket.reporterMapUrl,
-                    ticketDescription = ticket.description,
-                    isRead = false,
-                    createdAt = nowStr
-                )
-                NotificationHelper.dispatchCustomNotification(this@MainActivity, session, notifItem)
+                Toast.makeText(this@MainActivity, "Status tiket #${ticket.ticketNumber}: $statusLabel", Toast.LENGTH_SHORT).show()
                 loadTickets(silent = true)
             }.onFailure { err ->
                 Toast.makeText(this@MainActivity, "Gagal: ${err.message}", Toast.LENGTH_LONG).show()
@@ -1073,7 +1054,10 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val token = session.token ?: return@launch
             ApiClient.getMe(session.serverUrl, token).onSuccess { profile ->
+                session.userId = profile.id
                 session.userName = profile.name
+                session.userEmail = profile.email
+                session.userRole = profile.role
                 tvTechnicianName.text = profile.name
             }
         }
@@ -1117,7 +1101,6 @@ class MainActivity : AppCompatActivity() {
         realtimePollJob = lifecycleScope.launch {
             while (isActive) {
                 delay(6_000L)
-                syncNotificationsNow()
                 loadTickets(silent = true)
             }
         }

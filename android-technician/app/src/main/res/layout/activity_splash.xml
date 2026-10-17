@@ -10,7 +10,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="📍 HelpDesk"
+        android:text="HelpDesk"
         android:textSize="32sp"
         android:textStyle="bold"
         android:textColor="@color/primary" />
@@ -19,7 +19,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Aplikasi Khusus Teknisi Lapangan"
+        android:text="Aplikasi Khusus Teknisi Lapangan • v1.5.0"
         android:textSize="14sp"
         android:textColor="@color/text_secondary" />
 

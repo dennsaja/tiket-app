@@ -59,9 +59,9 @@ export async function getTicketParticipantIds(
     console.warn("[getTicketParticipantIds] Error:", e);
   }
 
-  // Only exclude the actor if they are not an assigned technician (or if there are other recipients),
-  // so testing or self-assigned ticket updates from web still notify the technician's Android device.
-  if (excludeUserId && !assignedTechSet.has(excludeUserId) && recipientSet.size > 1) {
+  // Always exclude the actor who triggered the event (e.g. sender of a chat message or status update)
+  // so a user or technician never receives a notification for their own reply/action.
+  if (excludeUserId) {
     recipientSet.delete(excludeUserId);
   }
 

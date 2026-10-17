@@ -105,7 +105,14 @@ export default function DepartmentChatPage() {
         const res = await fetch(`/api/chat/rooms/${ticketId}`);
         if (!res.ok) throw new Error("Gagal memuat pesan obrolan");
         const data = await res.json();
-        setMessages(data.messages || []);
+        const incoming: ChatMessage[] = Array.isArray(data.messages) ? data.messages : [];
+        const seenIds = new Set<string>();
+        const uniqueMessages = incoming.filter((m) => {
+          if (!m?.id || seenIds.has(m.id)) return false;
+          seenIds.add(m.id);
+          return true;
+        });
+        setMessages(uniqueMessages);
         setActiveTicket(data.ticket);
       } catch (err: any) {
         if (!silent) toast.error(err.message || "Gagal memuat pesan");
@@ -135,7 +142,7 @@ export default function DepartmentChatPage() {
         }
       } else if (event.type === "notification") {
         fetchRooms(true);
-        if (selectedRoomId && event.data?.ticketId === selectedRoomId) {
+        if (selectedRoomId && event.data?.ticketId === selectedRoomId && !isSending) {
           fetchMessages(selectedRoomId, true);
         }
       }
@@ -183,7 +190,10 @@ export default function DepartmentChatPage() {
       }
 
       const newMsg = await res.json();
-      setMessages((prev) => [...prev, newMsg]);
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
       fetchRooms(true);
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan");
@@ -405,7 +415,16 @@ export default function DepartmentChatPage() {
                 ) : (
                   messages.map((msg) => {
                     const isMe = msg.author?.id === currentUserId;
-                    const isAdmin = msg.author?.role === "admin";
+                    const authorRole = msg.author?.role || "agent";
+                    const isAdmin = ["admin", "noc", "owner"].includes(authorRole);
+                    const roleBadgeText =
+                      authorRole === "noc"
+                        ? "NOC"
+                        : authorRole === "owner"
+                        ? "OWNER"
+                        : authorRole === "admin"
+                        ? "ADMIN"
+                        : "TEKNISI";
 
                     return (
                       <div
@@ -448,7 +467,7 @@ export default function DepartmentChatPage() {
                                     : "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                                 }`}
                               >
-                                {isAdmin ? "ADMIN" : "TEKNISI"}
+                                {roleBadgeText}
                               </span>
                             </div>
 

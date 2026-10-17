@@ -53,9 +53,129 @@ object NotificationHelper {
     private var cachedWebLogoBitmap: Bitmap? = null
     private val syncMutex = Mutex()
 
+    // In-memory self-action and duplicate suppression caches
+    private val recentSelfChats = LinkedHashMap<String, Long>()
+    private val recentSelfStatuses = LinkedHashMap<String, Long>()
+    private val recentDispatchedFingerprints = LinkedHashMap<String, Long>()
+
     @Volatile
     var latestCachedPayload: NotificationsPayload? = null
         private set
+
+    private fun normalizeText(input: String?): String {
+        if (input.isNullOrBlank()) return ""
+        return input.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]"), "")
+    }
+
+    @Synchronized
+    fun recordSelfSentChat(ticketId: String, content: String) {
+        val now = System.currentTimeMillis()
+        recentSelfChats.entries.removeAll { now - it.value > 180_000L }
+        val snippet = if (content.length > 90) content.substring(0, 90) else content
+        val key = "${ticketId}_${normalizeText(snippet).take(60)}"
+        recentSelfChats[key] = now
+    }
+
+    @Synchronized
+    fun isRecentSelfSentChat(ticketId: String?, text: String?): Boolean {
+        if (ticketId.isNullOrBlank() || text.isNullOrBlank()) return false
+        val now = System.currentTimeMillis()
+        recentSelfChats.entries.removeAll { now - it.value > 180_000L }
+        val normText = normalizeText(text)
+        if (normText.isBlank()) return false
+
+        for ((key, _) in recentSelfChats) {
+            if (key.startsWith("${ticketId}_")) {
+                val snippetNorm = key.removePrefix("${ticketId}_")
+                if (snippetNorm.isNotEmpty() && normText.contains(snippetNorm)) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    @Synchronized
+    fun recordSelfStatusChange(ticketId: String, newStatus: String) {
+        val now = System.currentTimeMillis()
+        recentSelfStatuses.entries.removeAll { now - it.value > 180_000L }
+        recentSelfStatuses["${ticketId}_${newStatus.lowercase(Locale.ROOT)}"] = now
+        recentSelfStatuses["${ticketId}_any"] = now
+    }
+
+    @Synchronized
+    fun isRecentSelfStatusChange(ticketId: String?, status: String?): Boolean {
+        if (ticketId.isNullOrBlank()) return false
+        val now = System.currentTimeMillis()
+        recentSelfStatuses.entries.removeAll { now - it.value > 180_000L }
+        if (!status.isNullOrBlank() && recentSelfStatuses.containsKey("${ticketId}_${status.lowercase(Locale.ROOT)}")) {
+            return true
+        }
+        return recentSelfStatuses.containsKey("${ticketId}_any")
+    }
+
+    fun getCanonicalCategory(item: NotificationItem): String {
+        val t = item.type.lowercase(Locale.ROOT)
+        val title = item.title.lowercase(Locale.ROOT)
+        return when {
+            t == "new_message" || t == "new_internal_note" || title.startsWith("chat tim") || title.startsWith("pesan baru") -> "chat"
+            t == "status_changed" || t == "ticket_resolved" || t == "ticket_closed" || t == "ticket_reopened" || title.startsWith("status tiket") -> "status"
+            t == "ticket_assigned" || t == "ticket_created" || title.startsWith("penugasan") -> "assign"
+            else -> "detail"
+        }
+    }
+
+    /**
+     * Generates a canonical fingerprint shared across Engine 1 (/api/notifications)
+     * and Engine 2 (local ticket/message diff) so the same event can NEVER trigger twice.
+     */
+    fun getEventFingerprint(item: NotificationItem): String {
+        val category = getCanonicalCategory(item)
+        val ticketKey = item.ticketId?.takeIf { it.isNotBlank() } ?: item.ticketNumber.toString()
+        return when (category) {
+            "chat" -> "fp_chat_${ticketKey}_${normalizeText(item.message).take(75)}"
+            "status" -> "fp_status_${ticketKey}_${normalizeText(item.title).take(60)}"
+            "assign" -> "fp_assign_${ticketKey}"
+            else -> "fp_detail_${ticketKey}_${normalizeText(item.message).take(60)}"
+        }
+    }
+
+    /**
+     * Detects if a notification was triggered by the technician's own chat message or own status update.
+     */
+    fun isSelfGeneratedNotification(session: SessionManager, item: NotificationItem): Boolean {
+        val myName = session.userName?.trim().orEmpty()
+        val category = getCanonicalCategory(item)
+
+        if (category == "chat") {
+            if (myName.isNotEmpty() && !myName.equals("Teknisi", ignoreCase = true)) {
+                val titleTrim = item.title.trim()
+                val msgTrim = item.message.trim()
+                if (
+                    titleTrim.endsWith("- $myName", ignoreCase = true) ||
+                    titleTrim.endsWith("• $myName", ignoreCase = true) ||
+                    msgTrim.startsWith("$myName:", ignoreCase = true) ||
+                    msgTrim.startsWith("$myName mengirim", ignoreCase = true) ||
+                    msgTrim.startsWith("$myName membalas", ignoreCase = true)
+                ) {
+                    return true
+                }
+            }
+            if (isRecentSelfSentChat(item.ticketId, item.message)) {
+                return true
+            }
+        } else if (category == "status") {
+            if (myName.isNotEmpty() && !myName.equals("Teknisi", ignoreCase = true)) {
+                if (item.message.trim().startsWith("$myName memperbarui", ignoreCase = true)) {
+                    return true
+                }
+            }
+            if (isRecentSelfStatusChange(item.ticketId, item.ticketStatus)) {
+                return true
+            }
+        }
+        return false
+    }
 
     fun areSystemNotificationsEnabled(context: Context): Boolean {
         val managerEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
@@ -222,7 +342,9 @@ object NotificationHelper {
         session: SessionManager,
         item: NotificationItem
     ) {
+        val fp = getEventFingerprint(item)
         session.markNotificationAlerted(item.id)
+        session.markNotificationAlerted(fp)
         session.saveLocalNotification(item)
         showRealtimeNotification(context, item)
 
@@ -238,10 +360,8 @@ object NotificationHelper {
     }
 
     /**
-     * Dual-Engine Poller:
-     * 1. Polls /api/notifications (if available on server)
-     * 2. Diffs /api/mobile/tickets (status changes, detail updates, new assignments) + /api/tickets/{id}/messages (team chat)
-     * 3. Fires Status Bar + Notification Drawer + Heads-Up Pop-up + In-App Banner for every new event.
+     * Synchronizes notifications from server (/api/notifications) with fallback diffing,
+     * strictly preventing duplicate notifications and self-triggered notifications.
      */
     suspend fun syncAndDispatchNotifications(
         context: Context,
@@ -253,34 +373,52 @@ object NotificationHelper {
 
         var newestTriggered: NotificationItem? = null
         val newlyDetectedItems = mutableListOf<NotificationItem>()
+        val filteredServerList = mutableListOf<NotificationItem>()
 
-        // --- ENGINE 1: Server /api/notifications ---
+        // --- ENGINE 1: Server /api/notifications (Primary Authoritative Source) ---
         val serverResult = ApiClient.getNotifications(session.serverUrl, token)
         val serverPayload = serverResult.getOrNull()
 
         if (serverPayload != null) {
             if (!session.isNotifBaselineInitialized) {
-                val firstUnread = serverPayload.notifications.firstOrNull { !it.isRead }
-                serverPayload.notifications.forEach { n ->
+                for (n in serverPayload.notifications) {
+                    val fp = getEventFingerprint(n)
                     session.markNotificationAlerted(n.id)
+                    session.markNotificationAlerted(fp)
+                    if (!isSelfGeneratedNotification(session, n)) {
+                        filteredServerList.add(n)
+                    }
                 }
                 session.isNotifBaselineInitialized = true
-                if (firstUnread != null) {
-                    newlyDetectedItems.add(firstUnread)
-                }
             } else {
-                val newUnread = serverPayload.notifications
-                    .filter { !it.isRead && !session.hasAlertedNotification(it.id) }
-                    .reversed()
+                // Process in chronological order (oldest to newest)
+                val chronological = serverPayload.notifications.reversed()
+                for (item in chronological) {
+                    val fp = getEventFingerprint(item)
+                    if (isSelfGeneratedNotification(session, item)) {
+                        session.markNotificationAlerted(item.id)
+                        session.markNotificationAlerted(fp)
+                        if (!item.isRead) {
+                            ApiClient.markNotificationRead(session.serverUrl, token, item.id)
+                        }
+                        continue
+                    }
 
-                for (item in newUnread) {
+                    filteredServerList.add(0, item)
+
+                    val alreadyAlerted = session.hasAlertedNotification(item.id) ||
+                        session.hasAlertedNotification(fp)
                     session.markNotificationAlerted(item.id)
-                    newlyDetectedItems.add(item)
+                    session.markNotificationAlerted(fp)
+
+                    if (!item.isRead && !alreadyAlerted) {
+                        newlyDetectedItems.add(item)
+                    }
                 }
             }
         }
 
-        // --- ENGINE 2: Direct Ticket & Team Chat Diff Engine ---
+        // --- ENGINE 2: Ticket Snapshot & Fallback Diff Engine ---
         val tickets = providedTickets ?: ApiClient.getTickets(session.serverUrl, token).getOrNull()
         if (tickets != null) {
             val activeCount = tickets.count { t ->
@@ -314,15 +452,55 @@ object NotificationHelper {
                 if (wasSnapInit) {
                     val oldObj = oldSnapRoot.optJSONObject(t.id)
                     if (oldObj == null) {
+                        // Only emit fallback assignment alert if Engine 1 is offline or hasn't alerted this ticket
                         val notifId = "assign_${t.id}_${t.updatedAt}"
-                        if (!session.hasAlertedNotification(notifId)) {
+                        val item = NotificationItem(
+                            id = notifId,
+                            type = "ticket_assigned",
+                            title = "Penugasan Tiket Baru #${t.ticketNumber}",
+                            message = "Tiket \"${t.title}\" ditugaskan ke Anda" +
+                                (if (!t.reporterName.isNullOrBlank()) " • Pelapor: ${t.reporterName}" else ""),
+                            ticketId = t.id,
+                            ticketNumber = t.ticketNumber,
+                            ticketTitle = t.title,
+                            ticketStatus = t.status,
+                            ticketPriority = t.priority,
+                            ticketType = t.ticketType,
+                            reporterName = t.reporterName,
+                            reporterPhone = t.reporterPhone,
+                            reporterAddress = t.reporterAddress,
+                            reporterMapUrl = t.reporterMapUrl,
+                            ticketDescription = t.description,
+                            isRead = false,
+                            createdAt = nowStr
+                        )
+                        val fp = getEventFingerprint(item)
+                        if (serverPayload == null && !session.hasAlertedNotification(notifId) && !session.hasAlertedNotification(fp)) {
                             session.markNotificationAlerted(notifId)
+                            session.markNotificationAlerted(fp)
+                            session.saveLocalNotification(item)
+                            newlyDetectedItems.add(item)
+                        } else {
+                            session.markNotificationAlerted(notifId)
+                            session.markNotificationAlerted(fp)
+                        }
+                    } else {
+                        val oldStatus = oldObj.optString("status", t.status)
+                        val oldTitle = oldObj.optString("title", t.title)
+                        val oldPriority = oldObj.optString("priority", t.priority)
+                        val oldAddress = oldObj.optString("address", t.reporterAddress ?: "")
+                        val oldPhone = oldObj.optString("phone", t.reporterPhone ?: "")
+                        val oldMapUrl = oldObj.optString("mapUrl", t.reporterMapUrl ?: "")
+                        val oldDesc = oldObj.optString("desc", t.description ?: "")
+
+                        if (!oldStatus.equals(t.status, ignoreCase = true)) {
+                            val notifId = "status_${t.id}_${t.status}_${t.updatedAt}"
+                            val statusLabel = formatStatusName(t.status)
                             val item = NotificationItem(
                                 id = notifId,
-                                type = "ticket_assigned",
-                                title = "Penugasan Tiket Baru #${t.ticketNumber}",
-                                message = "Tiket \"${t.title}\" ditugaskan ke Anda" +
-                                    (if (!t.reporterName.isNullOrBlank()) " • Pelapor: ${t.reporterName}" else ""),
+                                type = "status_changed",
+                                title = "Status Tiket #${t.ticketNumber}: $statusLabel",
+                                message = "Status tiket \"${t.title}\" diperbarui menjadi $statusLabel",
                                 ticketId = t.id,
                                 ticketNumber = t.ticketNumber,
                                 ticketTitle = t.title,
@@ -337,44 +515,21 @@ object NotificationHelper {
                                 isRead = false,
                                 createdAt = nowStr
                             )
-                            session.saveLocalNotification(item)
-                            newlyDetectedItems.add(item)
-                        }
-                    } else {
-                        val oldStatus = oldObj.optString("status", t.status)
-                        val oldTitle = oldObj.optString("title", t.title)
-                        val oldPriority = oldObj.optString("priority", t.priority)
-                        val oldAddress = oldObj.optString("address", t.reporterAddress ?: "")
-                        val oldPhone = oldObj.optString("phone", t.reporterPhone ?: "")
-                        val oldMapUrl = oldObj.optString("mapUrl", t.reporterMapUrl ?: "")
-                        val oldDesc = oldObj.optString("desc", t.description ?: "")
-
-                        if (!oldStatus.equals(t.status, ignoreCase = true)) {
-                            val notifId = "status_${t.id}_${t.status}_${t.updatedAt}"
-                            if (!session.hasAlertedNotification(notifId)) {
+                            val fp = getEventFingerprint(item)
+                            val isSelfStatus = isRecentSelfStatusChange(t.id, t.status)
+                            if (
+                                serverPayload == null &&
+                                !isSelfStatus &&
+                                !session.hasAlertedNotification(notifId) &&
+                                !session.hasAlertedNotification(fp)
+                            ) {
                                 session.markNotificationAlerted(notifId)
-                                val statusLabel = formatStatusName(t.status)
-                                val item = NotificationItem(
-                                    id = notifId,
-                                    type = "status_changed",
-                                    title = "Status Tiket #${t.ticketNumber}: $statusLabel",
-                                    message = "Status tiket \"${t.title}\" diperbarui menjadi $statusLabel",
-                                    ticketId = t.id,
-                                    ticketNumber = t.ticketNumber,
-                                    ticketTitle = t.title,
-                                    ticketStatus = t.status,
-                                    ticketPriority = t.priority,
-                                    ticketType = t.ticketType,
-                                    reporterName = t.reporterName,
-                                    reporterPhone = t.reporterPhone,
-                                    reporterAddress = t.reporterAddress,
-                                    reporterMapUrl = t.reporterMapUrl,
-                                    ticketDescription = t.description,
-                                    isRead = false,
-                                    createdAt = nowStr
-                                )
+                                session.markNotificationAlerted(fp)
                                 session.saveLocalNotification(item)
                                 newlyDetectedItems.add(item)
+                            } else {
+                                session.markNotificationAlerted(notifId)
+                                session.markNotificationAlerted(fp)
                             }
                         } else if (
                             oldTitle != t.title ||
@@ -385,43 +540,55 @@ object NotificationHelper {
                             oldDesc != (t.description ?: "")
                         ) {
                             val notifId = "detail_${t.id}_${t.updatedAt}"
-                            if (!session.hasAlertedNotification(notifId)) {
+                            val changedParts = mutableListOf<String>()
+                            if (oldTitle != t.title) changedParts.add("Judul")
+                            if (oldPriority != t.priority) changedParts.add("Prioritas")
+                            if (oldAddress != (t.reporterAddress ?: "")) changedParts.add("Alamat")
+                            if (oldPhone != (t.reporterPhone ?: "")) changedParts.add("No. Telepon")
+                            if (oldMapUrl != (t.reporterMapUrl ?: "")) changedParts.add("Titik Maps")
+                            if (oldDesc != (t.description ?: "")) changedParts.add("Deskripsi")
+
+                            val detailSummary = if (changedParts.isNotEmpty()) {
+                                "Perubahan pada ${changedParts.joinToString(", ")}"
+                            } else {
+                                "Informasi detail tiket diperbarui"
+                            }
+
+                            val item = NotificationItem(
+                                id = notifId,
+                                type = "ticket_updated",
+                                title = "Pembaruan Detail Tiket #${t.ticketNumber}",
+                                message = "$detailSummary pada tiket \"${t.title}\"",
+                                ticketId = t.id,
+                                ticketNumber = t.ticketNumber,
+                                ticketTitle = t.title,
+                                ticketStatus = t.status,
+                                ticketPriority = t.priority,
+                                ticketType = t.ticketType,
+                                reporterName = t.reporterName,
+                                reporterPhone = t.reporterPhone,
+                                reporterAddress = t.reporterAddress,
+                                reporterMapUrl = t.reporterMapUrl,
+                                ticketDescription = t.description,
+                                isRead = false,
+                                createdAt = nowStr
+                            )
+                            val fp = getEventFingerprint(item)
+                            val alreadyHasServerDetailForTicket = newlyDetectedItems.any {
+                                it.ticketId == t.id && getCanonicalCategory(it) == "detail"
+                            }
+                            if (
+                                !alreadyHasServerDetailForTicket &&
+                                !session.hasAlertedNotification(notifId) &&
+                                !session.hasAlertedNotification(fp)
+                            ) {
                                 session.markNotificationAlerted(notifId)
-                                val changedParts = mutableListOf<String>()
-                                if (oldTitle != t.title) changedParts.add("Judul")
-                                if (oldPriority != t.priority) changedParts.add("Prioritas")
-                                if (oldAddress != (t.reporterAddress ?: "")) changedParts.add("Alamat")
-                                if (oldPhone != (t.reporterPhone ?: "")) changedParts.add("No. Telepon")
-                                if (oldMapUrl != (t.reporterMapUrl ?: "")) changedParts.add("Titik Maps")
-                                if (oldDesc != (t.description ?: "")) changedParts.add("Deskripsi")
-
-                                val detailSummary = if (changedParts.isNotEmpty()) {
-                                    "Perubahan pada ${changedParts.joinToString(", ")}"
-                                } else {
-                                    "Informasi detail tiket diperbarui"
-                                }
-
-                                val item = NotificationItem(
-                                    id = notifId,
-                                    type = "ticket_updated",
-                                    title = "Pembaruan Detail Tiket #${t.ticketNumber}",
-                                    message = "$detailSummary pada tiket \"${t.title}\"",
-                                    ticketId = t.id,
-                                    ticketNumber = t.ticketNumber,
-                                    ticketTitle = t.title,
-                                    ticketStatus = t.status,
-                                    ticketPriority = t.priority,
-                                    ticketType = t.ticketType,
-                                    reporterName = t.reporterName,
-                                    reporterPhone = t.reporterPhone,
-                                    reporterAddress = t.reporterAddress,
-                                    reporterMapUrl = t.reporterMapUrl,
-                                    ticketDescription = t.description,
-                                    isRead = false,
-                                    createdAt = nowStr
-                                )
+                                session.markNotificationAlerted(fp)
                                 session.saveLocalNotification(item)
                                 newlyDetectedItems.add(item)
+                            } else {
+                                session.markNotificationAlerted(notifId)
+                                session.markNotificationAlerted(fp)
                             }
                         }
                     }
@@ -431,34 +598,37 @@ object NotificationHelper {
             session.ticketsSnapshotJson = newSnapRoot.toString()
             session.isTicketsSnapshotInitialized = true
 
-            // Poll Team Chat / Messages for active tickets (up to 6 most recent active tickets)
-            val activeTicketsToWatch = tickets.filter {
-                val s = it.status.lowercase()
-                s != "closed" && s != "cancelled"
-            }.take(6)
+            // Only poll direct ticket messages as a fallback if /api/notifications (serverPayload) is unavailable
+            if (serverPayload == null) {
+                val activeTicketsToWatch = tickets.filter {
+                    val s = it.status.lowercase()
+                    s != "closed" && s != "cancelled"
+                }.take(5)
 
-            for (t in activeTicketsToWatch) {
-                val msgs = ApiClient.getTicketMessages(session.serverUrl, token, t.id).getOrNull() ?: continue
-                val wasTicketMsgInit = session.isTicketMessageBaselineInitialized(t.id)
+                for (t in activeTicketsToWatch) {
+                    val msgs = ApiClient.getTicketMessages(session.serverUrl, token, t.id).getOrNull() ?: continue
+                    val wasTicketMsgInit = session.isTicketMessageBaselineInitialized(t.id)
 
-                if (!wasTicketMsgInit) {
-                    msgs.forEach { m -> session.markMessageSeen(m.id) }
-                    session.markTicketMessageBaselineInitialized(t.id)
-                } else {
-                    for (m in msgs) {
-                        if (!session.hasSeenMessage(m.id)) {
-                            session.markMessageSeen(m.id)
-                            // Ignore automatic "[Mobile] Status tiket diperbarui" system logs if already alerted as status
-                            if (m.content.startsWith("[Mobile] Status tiket diperbarui")) continue
+                    if (!wasTicketMsgInit) {
+                        msgs.forEach { m -> session.markMessageSeen(m.id) }
+                        session.markTicketMessageBaselineInitialized(t.id)
+                    } else {
+                        for (m in msgs) {
+                            if (!session.hasSeenMessage(m.id)) {
+                                session.markMessageSeen(m.id)
+                                if (m.content.startsWith("[Mobile] Status tiket diperbarui")) continue
 
-                            val notifId = "chat_${m.id}"
-                            if (!session.hasAlertedNotification(notifId)) {
-                                session.markNotificationAlerted(notifId)
-                                val snippet = if (m.content.length > 100) m.content.take(100) + "..." else m.content
+                                val isFromMe = (!session.userId.isNullOrBlank() && m.authorId == session.userId) ||
+                                    (!session.userName.isNullOrBlank() && m.authorName.equals(session.userName, ignoreCase = true)) ||
+                                    isRecentSelfSentChat(t.id, m.content)
+                                if (isFromMe) continue
+
+                                val notifId = "chat_${m.id}"
+                                val snippet = if (m.content.length > 90) m.content.take(90) + "..." else m.content
                                 val item = NotificationItem(
                                     id = notifId,
                                     type = if (m.type == "internal_note") "new_internal_note" else "new_message",
-                                    title = "Chat Tim #${t.ticketNumber} • ${m.authorName}",
+                                    title = "Chat Tim #${t.ticketNumber} - ${m.authorName}",
                                     message = "${m.authorName}: \"$snippet\" (${t.title})",
                                     ticketId = t.id,
                                     ticketNumber = t.ticketNumber,
@@ -474,78 +644,33 @@ object NotificationHelper {
                                     isRead = false,
                                     createdAt = nowStr
                                 )
-                                session.saveLocalNotification(item)
-                                newlyDetectedItems.add(item)
+                                val fp = getEventFingerprint(item)
+                                if (!session.hasAlertedNotification(notifId) && !session.hasAlertedNotification(fp)) {
+                                    session.markNotificationAlerted(notifId)
+                                    session.markNotificationAlerted(fp)
+                                    session.saveLocalNotification(item)
+                                    newlyDetectedItems.add(item)
+                                }
                             }
                         }
                     }
                 }
             }
+        }
 
-            // First-run welcome / active task notification once permission is granted
-            if (!session.hasShownWelcomeNotifV14 && areSystemNotificationsEnabled(context) && newlyDetectedItems.isEmpty()) {
-                session.hasShownWelcomeNotifV14 = true
-                val topTicket = tickets.firstOrNull {
-                    val s = it.status.lowercase()
-                    s != "resolved" && s != "closed" && s != "cancelled"
-                } ?: tickets.firstOrNull()
-
-                val welcomeItem = if (topTicket != null) {
-                    NotificationItem(
-                        id = "welcome_v14_${topTicket.id}",
-                        type = "ticket_assigned",
-                        title = "Tiket Aktif #${topTicket.ticketNumber}: ${formatStatusName(topTicket.status)}",
-                        message = "${topTicket.title} • Ketuk untuk membuka detail atau ruang Chat Tim.",
-                        ticketId = topTicket.id,
-                        ticketNumber = topTicket.ticketNumber,
-                        ticketTitle = topTicket.title,
-                        ticketStatus = topTicket.status,
-                        ticketPriority = topTicket.priority,
-                        ticketType = topTicket.ticketType,
-                        reporterName = topTicket.reporterName,
-                        reporterPhone = topTicket.reporterPhone,
-                        reporterAddress = topTicket.reporterAddress,
-                        reporterMapUrl = topTicket.reporterMapUrl,
-                        ticketDescription = topTicket.description,
-                        isRead = false,
-                        createdAt = nowStr
-                    )
-                } else {
-                    NotificationItem(
-                        id = "welcome_v14_ready",
-                        type = "ticket_updated",
-                        title = "Notifikasi Real-Time HelpDesk Aktif",
-                        message = "Status Bar, Panel Notifikasi, dan Pop-up Heads-Up siap menerima peringatan Chat Tim & Tiket.",
-                        ticketId = null,
-                        ticketNumber = 0,
-                        ticketTitle = "",
-                        ticketStatus = "assigned",
-                        ticketPriority = "medium",
-                        ticketType = null,
-                        reporterName = null,
-                        reporterPhone = null,
-                        reporterAddress = null,
-                        reporterMapUrl = null,
-                        ticketDescription = null,
-                        isRead = false,
-                        createdAt = nowStr
-                    )
-                }
-                session.saveLocalNotification(welcomeItem)
-                newlyDetectedItems.add(welcomeItem)
+        // Deduplicate newly detected items by canonical fingerprint within the same cycle
+        val distinctNew = newlyDetectedItems.distinctBy { getEventFingerprint(it) }
+        for (item in distinctNew) {
+            if (!shouldSuppressDuplicateDispatch(item)) {
+                showRealtimeNotification(context, item)
+                newestTriggered = item
             }
         }
 
-        // Deduplicate newly detected items by ticketId + type within the same cycle
-        val distinctNew = newlyDetectedItems.distinctBy { "${it.type}_${it.ticketId ?: it.id}_${it.title}" }
-        for (item in distinctNew) {
-            showRealtimeNotification(context, item)
-            newestTriggered = item
-        }
-
         val mergedNotifications = mergeNotifications(
-            serverPayload?.notifications ?: emptyList(),
-            session.getLocalNotifications()
+            if (serverPayload != null) filteredServerList else emptyList(),
+            session.getLocalNotifications(),
+            session
         )
         val totalUnread = mergedNotifications.count { !it.isRead }
         val finalPayload = NotificationsPayload(mergedNotifications, totalUnread)
@@ -555,20 +680,40 @@ object NotificationHelper {
         return finalPayload
     }
 
+    @Synchronized
+    private fun shouldSuppressDuplicateDispatch(item: NotificationItem): Boolean {
+        val now = System.currentTimeMillis()
+        recentDispatchedFingerprints.entries.removeAll { now - it.value > 45_000L }
+        val fp = getEventFingerprint(item)
+        val prev = recentDispatchedFingerprints[fp]
+        if (prev != null && now - prev < 45_000L) {
+            return true
+        }
+        recentDispatchedFingerprints[fp] = now
+        return false
+    }
+
     private fun mergeNotifications(
         serverList: List<NotificationItem>,
-        localList: List<NotificationItem>
+        localList: List<NotificationItem>,
+        session: SessionManager? = null
     ): List<NotificationItem> {
         val combined = ArrayList<NotificationItem>()
         val seenIds = HashSet<String>()
+        val seenFingerprints = HashSet<String>()
 
-        for (item in localList) {
-            if (seenIds.add(item.id)) {
+        // Prefer authoritative server notifications first so there are never duplicate local + server rows
+        for (item in serverList) {
+            if (session != null && isSelfGeneratedNotification(session, item)) continue
+            val fp = getEventFingerprint(item)
+            if (seenIds.add(item.id) && seenFingerprints.add(fp)) {
                 combined.add(item)
             }
         }
-        for (item in serverList) {
-            if (seenIds.add(item.id)) {
+        for (item in localList) {
+            if (session != null && isSelfGeneratedNotification(session, item)) continue
+            val fp = getEventFingerprint(item)
+            if (seenIds.add(item.id) && seenFingerprints.add(fp)) {
                 combined.add(item)
             }
         }
@@ -606,7 +751,8 @@ object NotificationHelper {
         ensureAlertChannel(context)
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
 
-        val rawHash = kotlin.math.abs(item.id.hashCode())
+        val slotKey = "${getCanonicalCategory(item)}_${item.ticketId ?: item.id}"
+        val rawHash = kotlin.math.abs(slotKey.hashCode())
         val notifId = if (rawHash < 2000) rawHash + 3000 else rawHash
         val immFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
 

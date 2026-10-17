@@ -476,8 +476,10 @@ class TicketDetailActivity : AppCompatActivity() {
     private fun updateStatusTo(newStatus: String, notes: String) {
         val token = session.token ?: return
         btnWorkflowPrimary.isEnabled = false
-        val oldText = btnWorkflowPrimary.text.toString()
+        val oldText = btnWorkflowPrimary.text
         btnWorkflowPrimary.text = "Memperbarui Status..."
+
+        NotificationHelper.recordSelfStatusChange(ticketId, newStatus)
 
         lifecycleScope.launch {
             val result = ApiClient.updateTicketStatus(
@@ -495,27 +497,6 @@ class TicketDetailActivity : AppCompatActivity() {
                 updateStatusBadge(newStatus)
                 updateWorkflowUi(newStatus)
                 setResult(RESULT_OK)
-                val statusLabel = NotificationHelper.formatStatusName(newStatus)
-                val notifItem = net.infinityteknik.helpdesk.data.NotificationItem(
-                    id = "detail_status_${ticketId}_${newStatus}_${System.currentTimeMillis()}",
-                    type = "status_changed",
-                    title = "Status Tiket #${ticketNumber}: $statusLabel",
-                    message = "Tiket \"${ticketTitle}\" kini berstatus $statusLabel",
-                    ticketId = ticketId,
-                    ticketNumber = ticketNumber,
-                    ticketTitle = ticketTitle,
-                    ticketStatus = newStatus,
-                    ticketPriority = ticketPriority,
-                    ticketType = ticketType.takeIf { it.isNotBlank() },
-                    reporterName = reporterName.takeIf { it.isNotBlank() },
-                    reporterPhone = reporterPhone.takeIf { it.isNotBlank() },
-                    reporterAddress = reporterAddress.takeIf { it.isNotBlank() },
-                    reporterMapUrl = reporterMapUrl.takeIf { it.isNotBlank() },
-                    ticketDescription = ticketDescription.takeIf { it.isNotBlank() },
-                    isRead = false,
-                    createdAt = ""
-                )
-                NotificationHelper.dispatchCustomNotification(this@TicketDetailActivity, session, notifItem)
                 val msg = when (newStatus) {
                     "accepted" -> "Tiket berhasil diterima!"
                     "on_site" -> "Status diubah: Tiba di lokasi (On-Site)"
@@ -679,6 +660,8 @@ class TicketDetailActivity : AppCompatActivity() {
         btnSubmitReport.isEnabled = false
         btnSubmitReport.text = "Mengunggah Laporan & Foto..."
 
+        NotificationHelper.recordSelfStatusChange(ticketId, "resolved")
+
         lifecycleScope.launch {
             val result = ApiClient.submitWorkReport(
                 session.serverUrl,
@@ -728,6 +711,9 @@ class TicketDetailActivity : AppCompatActivity() {
             if (!silent) swipeRefreshChat.isRefreshing = false
 
             result.onSuccess { msgs ->
+                msgs.forEach { m -> session.markMessageSeen(m.id) }
+                session.markTicketMessageBaselineInitialized(ticketId)
+
                 val prevCount = messageAdapter.itemCount
                 messageAdapter.submitList(msgs)
                 if (msgs.isNotEmpty()) {
@@ -755,6 +741,7 @@ class TicketDetailActivity : AppCompatActivity() {
         val token = session.token ?: return
 
         btnSendMessage.isEnabled = false
+        NotificationHelper.recordSelfSentChat(ticketId, content)
 
         lifecycleScope.launch {
             val result = ApiClient.sendTicketMessage(
