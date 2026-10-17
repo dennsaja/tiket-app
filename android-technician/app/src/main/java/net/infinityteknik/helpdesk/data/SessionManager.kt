@@ -21,6 +21,8 @@ class SessionManager(context: Context) {
         private const val KEY_LAST_ACC = "last_acc"
         private const val KEY_LAST_UPDATE = "last_update"
         private const val KEY_ACTIVE_TICKETS_COUNT = "active_tickets_count"
+        private const val KEY_ALERTED_NOTIF_IDS = "alerted_notif_ids"
+        private const val KEY_NOTIF_BASELINE_SET = "notif_baseline_set"
 
         const val DEFAULT_SERVER_URL = "https://helpdesk.infinityteknik.net"
     }
@@ -73,6 +75,23 @@ class SessionManager(context: Context) {
         get() = prefs.getInt(KEY_ACTIVE_TICKETS_COUNT, 0)
         set(value) = prefs.edit().putInt(KEY_ACTIVE_TICKETS_COUNT, value).apply()
 
+    var isNotifBaselineInitialized: Boolean
+        get() = prefs.getBoolean(KEY_NOTIF_BASELINE_SET, false)
+        set(value) = prefs.edit().putBoolean(KEY_NOTIF_BASELINE_SET, value).apply()
+
+    fun hasAlertedNotification(notifId: String): Boolean {
+        val current = prefs.getStringSet(KEY_ALERTED_NOTIF_IDS, emptySet()) ?: emptySet()
+        return current.contains(notifId)
+    }
+
+    fun markNotificationAlerted(notifId: String) {
+        val current = (prefs.getStringSet(KEY_ALERTED_NOTIF_IDS, emptySet()) ?: emptySet()).toMutableSet()
+        current.add(notifId)
+        // Keep last 150 IDs to prevent unbounded growth
+        val trimmed = if (current.size > 150) current.toList().takeLast(150).toSet() else current
+        prefs.edit().putStringSet(KEY_ALERTED_NOTIF_IDS, trimmed).apply()
+    }
+
     val isLoggedIn: Boolean
         get() = !token.isNullOrBlank()
 
@@ -93,6 +112,7 @@ class SessionManager(context: Context) {
             .remove(KEY_USER_NAME)
             .remove(KEY_USER_EMAIL)
             .remove(KEY_USER_ROLE)
+            .remove(KEY_NOTIF_BASELINE_SET)
             .putBoolean(KEY_DUTY_ACTIVE, false)
             .apply()
     }

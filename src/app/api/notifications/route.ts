@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { notifications } from "@/lib/db/schema";
 import { eq, desc, and, count } from "drizzle-orm";
 import { errorResponse } from "@/lib/api/helpers";
 import { markAllNotificationsRead } from "@/lib/notifications";
 
-// GET /api/notifications — get user notifications
+// GET /api/notifications — get user notifications (supports both Web Session and Android Bearer Token)
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const currentUser = await getAuthUser(req);
+  if (!currentUser) return errorResponse("Unauthorized", 401);
 
-  const userId = session.user.id!;
+  const userId = currentUser.id;
   const searchParams = req.nextUrl.searchParams;
   const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
   const perPage = Math.min(50, Math.max(1, parseInt(searchParams.get("perPage") || "20")));
@@ -26,7 +26,21 @@ export async function GET(req: NextRequest) {
     db.query.notifications.findMany({
       where,
       with: {
-        ticket: { columns: { id: true, ticketNumber: true, title: true } },
+        ticket: {
+          columns: {
+            id: true,
+            ticketNumber: true,
+            title: true,
+            status: true,
+            priority: true,
+            ticketType: true,
+            reporterName: true,
+            reporterPhone: true,
+            reporterAddress: true,
+            reporterMapUrl: true,
+            description: true,
+          },
+        },
       },
       orderBy: [desc(notifications.createdAt)],
       limit: perPage,
@@ -54,10 +68,10 @@ export async function GET(req: NextRequest) {
 
 // POST /api/notifications — mark all as read
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const currentUser = await getAuthUser(req);
+  if (!currentUser) return errorResponse("Unauthorized", 401);
 
-  const userId = session.user.id!;
+  const userId = currentUser.id;
   let body: any = {};
   try {
     body = await req.json();

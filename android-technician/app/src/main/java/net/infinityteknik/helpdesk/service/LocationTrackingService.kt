@@ -9,6 +9,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.Color
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -27,18 +28,19 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import net.infinityteknik.helpdesk.R
 import net.infinityteknik.helpdesk.data.ApiClient
 import net.infinityteknik.helpdesk.data.LocationPayload
 import net.infinityteknik.helpdesk.data.SessionManager
 import net.infinityteknik.helpdesk.ui.MainActivity
+import net.infinityteknik.helpdesk.util.NotificationHelper
 import net.infinityteknik.helpdesk.util.TrackingScheduleManager
 
 /**
- * Thermal-Safe 1-Minute Duty-Cycled GPS Service.
- * Instead of keeping the hardware GPS radio continuously locked open (which causes phone heating),
- * this service wakes up once every 60 seconds, acquires a brief location fix (max 7s window),
- * immediately releases the GPS hardware listener so the GNSS chip sleeps for the remaining ~55 seconds,
- * and uploads coordinates + battery + speed to the HelpDesk server.
+ * Thermal-Safe 1-Minute Duty-Cycled GPS Service + Real-Time Notification Listener.
+ * - GPS hardware wakes up once every 60 seconds for max 7s, then powers down for ~53s so the phone never overheats.
+ * - Lightweight HTTP notification poller checks every 6 seconds for new Team Chat messages, ticket status changes,
+ *   and ticket detail updates, triggering Status Bar + Notification Drawer + Heads-Up Pop-up notifications.
  */
 class LocationTrackingService : Service() {
 
@@ -50,12 +52,14 @@ class LocationTrackingService : Service() {
         const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_FORCE_PING = "ACTION_FORCE_PING"
 
-        private const val PING_INTERVAL_MS = 60_000L // Strictly 1 minute between transmissions
+        private const val PING_INTERVAL_MS = 60_000L // Strictly 1 minute between GPS transmissions
         private const val GPS_ACQUIRE_TIMEOUT_MS = 7_000L // Max 7s GPS burst, then hardware sleeps
+        private const val NOTIF_POLL_INTERVAL_MS = 6_000L // 6s real-time notification check
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var tickerJob: Job? = null
+    private var notifJob: Job? = null
     private lateinit var locationManager: LocationManager
     private lateinit var session: SessionManager
     private var activeBurstListener: LocationListener? = null
@@ -65,6 +69,7 @@ class LocationTrackingService : Service() {
         session = SessionManager(this)
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         createNotificationChannel()
+        NotificationHelper.ensureAlertChannel(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -118,9 +123,11 @@ class LocationTrackingService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("HelpDesk Teknisi • GPS Hemat Daya")
+            .setContentTitle("HelpDesk Teknisi • Aktif")
             .setContentText(text)
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setSmallIcon(R.drawable.ic_stat_helpdesk) // Web-matched triangle status bar icon
+            .setLargeIcon(NotificationHelper.getWebLogoBitmap(this))
+            .setColor(Color.parseColor("#09090B"))
             .setOngoing(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -128,12 +135,26 @@ class LocationTrackingService : Service() {
     }
 
     private fun ensureForegroundAndTicker() {
-        val notification = buildNotification("Interval kirim lokasi: 1 menit (Hemat Baterai)")
+        val notification = buildNotification("GPS 1 mnt (Hemat Daya) • Notifikasi Real-time Aktif")
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } else {
             startForeground(NOTIFICATION_ID, notification)
+        }
+
+        // Start 6-second real-time notification watcher
+        if (notifJob?.isActive != true) {
+            notifJob = serviceScope.launch {
+                while (isActive) {
+                    try {
+                        NotificationHelper.syncAndDispatchNotifications(this@LocationTrackingService, session)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    delay(NOTIF_POLL_INTERVAL_MS)
+                }
+            }
         }
 
         if (tickerJob?.isActive == true) return
@@ -163,7 +184,6 @@ class LocationTrackingService : Service() {
 
         val burstListener = object : LocationListener {
             override fun onLocationChanged(location: Location) {
-                // Prefer GPS or accurate network fix (< 50m)
                 if (capturedLocation == null || location.accuracy < (capturedLocation?.accuracy ?: 999f)) {
                     capturedLocation = location
                 }
@@ -198,7 +218,6 @@ class LocationTrackingService : Service() {
                 }
             }
 
-            // Wait briefly (up to 7s), polling every 500ms so we stop as soon as we get a good fix
             var waited = 0L
             while (waited < GPS_ACQUIRE_TIMEOUT_MS) {
                 val loc = capturedLocation
@@ -249,6 +268,8 @@ class LocationTrackingService : Service() {
     private fun stopTracking() {
         tickerJob?.cancel()
         tickerJob = null
+        notifJob?.cancel()
+        notifJob = null
         try {
             releaseBurstListener()
         } catch (e: Exception) {}
@@ -278,7 +299,7 @@ class LocationTrackingService : Service() {
             val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notifManager.notify(
                 NOTIFICATION_ID,
-                buildNotification("Update per 1 mnt • $accuracyStr$speedStr • Baterai: $batteryLevel%")
+                buildNotification("GPS 1 mnt • $accuracyStr$speedStr • Baterai: $batteryLevel%")
             )
 
             val broadcast = Intent(ACTION_LOCATION_UPDATED).apply {

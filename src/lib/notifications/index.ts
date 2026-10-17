@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { notifications } from "@/lib/db/schema";
+import { notifications, tickets, ticketAssignees } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { notificationBus } from "./bus";
 
@@ -22,19 +22,60 @@ export interface TicketAssignedDetails {
 }
 
 /**
+ * Helper to get all user IDs involved in a ticket (requester + primary assignee + team assignees),
+ * optionally excluding the actor who triggered the event.
+ */
+export async function getTicketParticipantIds(
+  ticketId: string,
+  excludeUserId?: string
+): Promise<string[]> {
+  const recipientSet = new Set<string>();
+
+  try {
+    const ticket = await db.query.tickets.findFirst({
+      where: eq(tickets.id, ticketId),
+      columns: { requesterId: true, assigneeId: true },
+    });
+
+    if (ticket?.requesterId) recipientSet.add(ticket.requesterId);
+    if (ticket?.assigneeId) recipientSet.add(ticket.assigneeId);
+
+    const teamRows = await db
+      .select({ userId: ticketAssignees.userId })
+      .from(ticketAssignees)
+      .where(eq(ticketAssignees.ticketId, ticketId));
+
+    for (const row of teamRows) {
+      if (row.userId) recipientSet.add(row.userId);
+    }
+  } catch (e) {
+    console.warn("[getTicketParticipantIds] Error:", e);
+  }
+
+  if (excludeUserId) {
+    recipientSet.delete(excludeUserId);
+  }
+
+  return Array.from(recipientSet);
+}
+
+/**
  * Create a notification for a user (DB + Realtime Bus)
  */
 export async function createNotification(
   input: CreateNotificationInput
 ): Promise<void> {
-  const [created] = await db.insert(notifications).values({
-    userId: input.userId,
-    type: input.type,
-    title: input.title,
-    message: input.message,
-    ticketId: input.ticketId,
-    data: input.data,
-  }).returning();
+  const [created] = await db
+    .insert(notifications)
+    .values({
+      userId: input.userId,
+      type: input.type,
+      title: input.title,
+      message: input.message,
+      ticketId: input.ticketId,
+      data: input.data,
+    })
+    .returning();
 
   // Push to realtime event bus
   notificationBus.emitNotification({
@@ -66,8 +107,10 @@ export async function notifyTicketAssigned(
     maintenance: "Maintenance",
   };
 
-  const typeName = details?.ticketType ? (typeLabelMap[details.ticketType] || details.ticketType) : "Penugasan";
-  const title = `🚨 Penugasan Baru #${ticketNumber} [${typeName}]`;
+  const typeName = details?.ticketType
+    ? typeLabelMap[details.ticketType] || details.ticketType
+    : "Penugasan";
+  const title = `Penugasan Baru #${ticketNumber} [${typeName}]`;
   const reporterInfo = details?.reporterName ? ` | Pelapor: ${details.reporterName}` : "";
   const addressInfo = details?.reporterAddress ? ` (${details.reporterAddress})` : "";
   const message = `Tiket baru ditugaskan ke Anda: "${ticketTitle}"${reporterInfo}${addressInfo}`;
@@ -92,7 +135,7 @@ export async function notifyTicketAssigned(
 }
 
 /**
- * Create notifications for new ticket reply
+ * Create notifications for new ticket reply or Team Chat message
  */
 export async function notifyNewMessage(
   ticketId: string,
@@ -100,29 +143,46 @@ export async function notifyNewMessage(
   ticketTitle: string,
   authorName: string,
   recipientIds: string[],
-  isInternalNote: boolean = false
+  isInternalNote: boolean = false,
+  messageContent?: string
 ): Promise<void> {
+  const snippet = messageContent
+    ? messageContent.length > 90
+      ? messageContent.substring(0, 90) + "..."
+      : messageContent
+    : "";
+
   const title = isInternalNote
-    ? `💬 Catatan Internal baru pada #${ticketNumber}`
-    : `💬 Balasan baru pada #${ticketNumber}`;
-  const message = isInternalNote
-    ? `${authorName} menambahkan catatan internal pada "${ticketTitle}"`
+    ? `Chat Tim #${ticketNumber} - ${authorName}`
+    : `Pesan Baru #${ticketNumber} - ${authorName}`;
+
+  const message = snippet
+    ? `${authorName}: "${snippet}" (${ticketTitle})`
+    : isInternalNote
+    ? `${authorName} mengirim pesan di ruang Chat Tim "${ticketTitle}"`
     : `${authorName} membalas tiket "${ticketTitle}"`;
 
-  for (const userId of recipientIds) {
+  const uniqueRecipients = Array.from(new Set(recipientIds));
+  for (const userId of uniqueRecipients) {
     await createNotification({
       userId,
       type: isInternalNote ? "new_internal_note" : "new_message",
       title,
       message,
       ticketId,
-      data: { ticketNumber, ticketTitle, authorName },
+      data: {
+        ticketNumber,
+        ticketTitle,
+        authorName,
+        isChat: true,
+        content: snippet,
+      },
     });
   }
 }
 
 /**
- * Create notifications for status change
+ * Create notifications for status change (notifies requester AND all assigned technicians except actor)
  */
 export async function notifyStatusChange(
   ticketId: string,
@@ -130,12 +190,15 @@ export async function notifyStatusChange(
   ticketTitle: string,
   newStatus: string,
   requesterId: string,
-  changedByName: string
+  changedByName: string,
+  actorId?: string
 ): Promise<void> {
   const statusLabels: Record<string, string> = {
+    open: "Open",
+    assigned: "Ditugaskan",
     accepted: "Diterima Teknisi",
-    on_site: "Teknisi di Lokasi",
-    in_progress: "Sedang Dikerjakan",
+    on_site: "Teknisi di Lokasi (On-Site)",
+    in_progress: "Sedang Dikerjakan (In-Progress)",
     resolved: "Selesai (Menunggu Verifikasi)",
     closed: "Ditutup",
     reopened: "Dibuka Kembali",
@@ -143,22 +206,56 @@ export async function notifyStatusChange(
   };
 
   const statusLabel = statusLabels[newStatus] || newStatus;
+  const participants = await getTicketParticipantIds(ticketId, actorId);
+  if (requesterId && requesterId !== actorId && !participants.includes(requesterId)) {
+    participants.push(requesterId);
+  }
 
-  await createNotification({
-    userId: requesterId,
-    type:
-      newStatus === "resolved"
-        ? "ticket_resolved"
-        : newStatus === "closed"
-        ? "ticket_closed"
-        : newStatus === "reopened"
-        ? "ticket_reopened"
-        : "ticket_updated",
-    title: `Tiket #${ticketNumber} status: ${statusLabel}`,
-    message: `${changedByName} mengubah status "${ticketTitle}" menjadi ${statusLabel}`,
-    ticketId,
-    data: { ticketNumber, ticketTitle, newStatus, changedByName },
-  });
+  const notifType =
+    newStatus === "resolved"
+      ? "ticket_resolved"
+      : newStatus === "closed"
+      ? "ticket_closed"
+      : newStatus === "reopened"
+      ? "ticket_reopened"
+      : "ticket_updated";
+
+  for (const recipientId of participants) {
+    await createNotification({
+      userId: recipientId,
+      type: notifType,
+      title: `Status Tiket #${ticketNumber}: ${statusLabel}`,
+      message: `${changedByName} memperbarui status "${ticketTitle}" menjadi ${statusLabel}`,
+      ticketId,
+      data: { ticketNumber, ticketTitle, newStatus, changedByName },
+    });
+  }
+}
+
+/**
+ * Create notifications when ticket details (title, description, priority, address, map URL, etc.) are updated
+ */
+export async function notifyTicketDetailsUpdated(
+  ticketId: string,
+  ticketNumber: number,
+  ticketTitle: string,
+  updatedByName: string,
+  actorId: string,
+  summaryText?: string
+): Promise<void> {
+  const participants = await getTicketParticipantIds(ticketId, actorId);
+  const detailDesc = summaryText || "Detail informasi tiket telah diperbarui";
+
+  for (const recipientId of participants) {
+    await createNotification({
+      userId: recipientId,
+      type: "ticket_updated",
+      title: `Pembaruan Detail Tiket #${ticketNumber}`,
+      message: `${updatedByName}: ${detailDesc} pada "${ticketTitle}"`,
+      ticketId,
+      data: { ticketNumber, ticketTitle, updatedByName, summaryText: detailDesc },
+    });
+  }
 }
 
 /**

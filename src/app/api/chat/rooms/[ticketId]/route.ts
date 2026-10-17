@@ -5,7 +5,7 @@ import { tickets, users, ticketMessages, attachments } from "@/lib/db/schema";
 import { eq, asc, and, isNull } from "drizzle-orm";
 import { errorResponse } from "@/lib/api/helpers";
 import { createMessageSchema } from "@/lib/validations";
-import { notifyNewMessage } from "@/lib/notifications";
+import { notifyNewMessage, getTicketParticipantIds } from "@/lib/notifications";
 import { notificationBus } from "@/lib/notifications/bus";
 
 // Check if user has permission to access department chat for this ticket
@@ -161,22 +161,17 @@ export async function POST(
     .set({ updatedAt: new Date() })
     .where(eq(tickets.id, ticketId));
 
-  // Notify assignee / requester if not author
-  const recipientIds = new Set<string>();
-  if (ticket.assigneeId && ticket.assigneeId !== userId) {
-    recipientIds.add(ticket.assigneeId);
-  }
-  if (ticket.requesterId && ticket.requesterId !== userId) {
-    recipientIds.add(ticket.requesterId);
-  }
-  if (recipientIds.size > 0) {
+  // Notify all assigned technicians & requester (excluding sender)
+  const participantIds = await getTicketParticipantIds(ticketId, userId);
+  if (participantIds.length > 0) {
     notifyNewMessage(
       ticketId,
       ticket.ticketNumber,
       ticket.title,
       currentUser.name || "Staff",
-      Array.from(recipientIds),
-      true
+      participantIds,
+      true,
+      parsed.data.content.trim()
     ).catch(() => {});
   }
 

@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import net.infinityteknik.helpdesk.R
 import net.infinityteknik.helpdesk.data.ApiClient
 import net.infinityteknik.helpdesk.data.SessionManager
+import net.infinityteknik.helpdesk.util.NotificationHelper
 import java.io.File
 import java.io.FileOutputStream
 
@@ -753,13 +754,50 @@ class TicketDetailActivity : AppCompatActivity() {
         }
     }
 
+    private fun refreshCurrentTicketMetadata() {
+        val token = session.token ?: return
+        lifecycleScope.launch {
+            ApiClient.getTickets(session.serverUrl, token).onSuccess { list ->
+                val fresh = list.find { it.id == ticketId } ?: return@onSuccess
+                val changed = fresh.status != ticketStatus ||
+                    fresh.title != ticketTitle ||
+                    (fresh.description ?: "") != ticketDescription ||
+                    (fresh.reporterName ?: "") != reporterName ||
+                    (fresh.reporterPhone ?: "") != reporterPhone ||
+                    (fresh.reporterAddress ?: "") != reporterAddress
+
+                if (changed) {
+                    ticketNumber = fresh.ticketNumber
+                    ticketTitle = fresh.title
+                    ticketStatus = fresh.status
+                    ticketPriority = fresh.priority
+                    ticketType = fresh.ticketType ?: ""
+                    reporterName = fresh.reporterName ?: ""
+                    reporterPhone = fresh.reporterPhone ?: ""
+                    reporterAddress = fresh.reporterAddress ?: ""
+                    reporterMapUrl = fresh.reporterMapUrl ?: ""
+                    ticketDescription = fresh.description ?: ""
+                    bindTicketData()
+                    updateWorkflowUi(ticketStatus)
+                }
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
+        refreshCurrentTicketMetadata()
         chatPollJob?.cancel()
         chatPollJob = lifecycleScope.launch {
+            var tick = 0
             while (isActive) {
                 delay(4_000L)
                 loadMessages(silent = true)
+                NotificationHelper.syncAndDispatchNotifications(this@TicketDetailActivity, session)
+                tick++
+                if (tick % 2 == 0) {
+                    refreshCurrentTicketMetadata()
+                }
             }
         }
     }

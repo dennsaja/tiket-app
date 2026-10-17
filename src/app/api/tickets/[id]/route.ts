@@ -12,7 +12,11 @@ import { eq, and } from "drizzle-orm";
 import { updateTicketSchema, changeStatusSchema, assignTicketSchema } from "@/lib/validations";
 import { errorResponse } from "@/lib/api/helpers";
 import { createAuditLog, getClientIp } from "@/lib/audit";
-import { notifyTicketAssigned, notifyStatusChange } from "@/lib/notifications";
+import {
+  notifyTicketAssigned,
+  notifyStatusChange,
+  notifyTicketDetailsUpdated,
+} from "@/lib/notifications";
 import { notificationBus } from "@/lib/notifications/bus";
 import { applySlaPolicyToTicket } from "@/lib/sla";
 import { canAccessTicket, canModifyTicket } from "@/lib/auth/helpers";
@@ -294,7 +298,8 @@ export async function PATCH(
       ticket.title,
       data.status,
       ticket.requesterId,
-      currentUser.name || "Agent"
+      currentUser.name || "Staff",
+      userId
     ).catch(() => {});
 
     await createAuditLog({
@@ -328,6 +333,47 @@ export async function PATCH(
     .set(updates)
     .where(eq(tickets.id, id))
     .returning();
+
+  // If ticket details (title, description, priority, address, map url, etc.) were updated without a status change, notify assigned technicians
+  const detailKeys = [
+    "title",
+    "description",
+    "priority",
+    "ticketType",
+    "reporterName",
+    "reporterPhone",
+    "reporterAddress",
+    "reporterMapUrl",
+    "departmentId",
+    "categoryId",
+  ];
+  const changedDetailKeys = detailKeys.filter(
+    (k) => (data as any)[k] !== undefined && (data as any)[k] !== (ticket as any)[k]
+  );
+
+  if (changedDetailKeys.length > 0 && (data.status === undefined || data.status === ticket.status)) {
+    const labelMap: Record<string, string> = {
+      title: "Judul",
+      description: "Deskripsi",
+      priority: "Prioritas",
+      ticketType: "Tipe Tiket",
+      reporterName: "Nama Pelapor",
+      reporterPhone: "Telepon Pelapor",
+      reporterAddress: "Alamat Lokasi",
+      reporterMapUrl: "Link Google Maps",
+      departmentId: "Departemen",
+      categoryId: "Kategori",
+    };
+    const changedLabels = changedDetailKeys.map((k) => labelMap[k] || k).join(", ");
+    await notifyTicketDetailsUpdated(
+      id,
+      updated.ticketNumber,
+      updated.title,
+      currentUser.name || "Admin",
+      userId,
+      `Memperbarui ${changedLabels}`
+    ).catch(() => {});
+  }
 
   await createAuditLog({
     actorId: userId,

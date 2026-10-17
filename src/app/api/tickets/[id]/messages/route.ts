@@ -7,7 +7,7 @@ import { eq, asc } from "drizzle-orm";
 import { createMessageSchema } from "@/lib/validations";
 import { errorResponse } from "@/lib/api/helpers";
 import { createAuditLog, getClientIp } from "@/lib/audit";
-import { notifyNewMessage } from "@/lib/notifications";
+import { notifyNewMessage, getTicketParticipantIds } from "@/lib/notifications";
 import { notificationBus } from "@/lib/notifications/bus";
 import { canAccessTicket, canReplyToTicket, canWriteInternalNotes } from "@/lib/auth/helpers";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
@@ -151,33 +151,18 @@ export async function POST(
     .set({ updatedAt: new Date() })
     .where(eq(tickets.id, id));
 
-  // Determine notification recipients
-  const recipientIds = new Set<string>();
+  // Determine notification recipients (all assigned technicians + requester, excluding sender)
+  const participantIds = await getTicketParticipantIds(id, userId);
 
-  if (type === "public") {
-    // Notify requester if agent replied
-    if (userId !== ticket.requesterId) {
-      recipientIds.add(ticket.requesterId);
-    }
-    // Notify assignee if user replied
-    if (ticket.assigneeId && userId !== ticket.assigneeId) {
-      recipientIds.add(ticket.assigneeId);
-    }
-  } else {
-    // Internal notes: notify assignee if not the author
-    if (ticket.assigneeId && userId !== ticket.assigneeId) {
-      recipientIds.add(ticket.assigneeId);
-    }
-  }
-
-  if (recipientIds.size > 0) {
+  if (participantIds.length > 0) {
     await notifyNewMessage(
       id,
       ticket.ticketNumber,
       ticket.title,
       currentUser.name || "User",
-      Array.from(recipientIds),
-      type === "internal_note"
+      participantIds,
+      type === "internal_note",
+      content
     );
   }
 

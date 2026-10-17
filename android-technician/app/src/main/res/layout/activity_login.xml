@@ -13,20 +13,18 @@
         android:orientation="vertical"
         android:padding="24dp">
 
-        <!-- Vercel-style Black Logo -->
+        <!-- Vercel-style Black Logo (Web-Matched Triangle Icon) -->
         <FrameLayout
             android:layout_width="52dp"
             android:layout_height="52dp"
             android:background="@drawable/logo_square_bg">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
                 android:layout_gravity="center"
-                android:text="H"
-                android:textColor="#FFFFFF"
-                android:textSize="22sp"
-                android:textStyle="bold" />
+                android:contentDescription="HelpDesk Logo"
+                android:src="@drawable/ic_stat_helpdesk" />
         </FrameLayout>
 
         <TextView

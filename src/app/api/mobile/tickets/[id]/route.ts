@@ -121,7 +121,8 @@ export async function PATCH(
       existingTicket.title,
       newStatus,
       existingTicket.requesterId,
-      userName
+      userName,
+      userId
     ).catch(() => {});
   }
 

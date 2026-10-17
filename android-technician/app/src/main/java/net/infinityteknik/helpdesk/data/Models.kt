@@ -55,3 +55,28 @@ data class LocationPayload(
     val heading: Float?,
     val battery: Int?
 )
+
+data class NotificationItem(
+    val id: String,
+    val type: String,
+    val title: String,
+    val message: String,
+    val ticketId: String?,
+    val ticketNumber: Int,
+    val ticketTitle: String,
+    val ticketStatus: String,
+    val ticketPriority: String,
+    val ticketType: String?,
+    val reporterName: String?,
+    val reporterPhone: String?,
+    val reporterAddress: String?,
+    val reporterMapUrl: String?,
+    val ticketDescription: String?,
+    val isRead: Boolean,
+    val createdAt: String
+)
+
+data class NotificationsPayload(
+    val notifications: List<NotificationItem>,
+    val unreadCount: Int
+)

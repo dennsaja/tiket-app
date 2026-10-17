@@ -370,4 +370,100 @@ object ApiClient {
                 Result.failure(e)
             }
         }
+
+    suspend fun getNotifications(serverUrl: String, token: String): Result<NotificationsPayload> =
+        withContext(Dispatchers.IO) {
+            try {
+                val request = Request.Builder()
+                    .url("$serverUrl/api/notifications?perPage=25")
+                    .addHeader("Authorization", "Bearer $token")
+                    .get()
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val bodyStr = response.body?.string() ?: ""
+                    if (!response.isSuccessful) {
+                        return@withContext Result.failure(Exception("HTTP ${response.code}"))
+                    }
+
+                    val resJson = JSONObject(bodyStr)
+                    val unreadCount = resJson.optInt("unreadCount", 0)
+                    val arr = resJson.optJSONArray("notifications") ?: JSONArray()
+                    val list = ArrayList<NotificationItem>()
+
+                    for (i in 0 until arr.length()) {
+                        val o = arr.getJSONObject(i)
+                        val tObj = o.optJSONObject("ticket")
+                        val dObj = o.optJSONObject("data")
+
+                        val tNum = tObj?.optInt("ticketNumber", 0)
+                            ?: dObj?.optInt("ticketNumber", 0) ?: 0
+                        val tTitle = tObj?.optNullableString("title")
+                            ?: dObj?.optNullableString("ticketTitle") ?: ""
+
+                        list.add(
+                            NotificationItem(
+                                id = o.getString("id"),
+                                type = o.optString("type", "ticket_updated"),
+                                title = o.optString("title", "Notifikasi HelpDesk"),
+                                message = o.optString("message", ""),
+                                ticketId = o.optNullableString("ticketId"),
+                                ticketNumber = tNum,
+                                ticketTitle = tTitle,
+                                ticketStatus = tObj?.optString("status", "assigned") ?: "assigned",
+                                ticketPriority = tObj?.optString("priority", dObj?.optString("priority", "medium") ?: "medium") ?: "medium",
+                                ticketType = tObj?.optNullableString("ticketType") ?: dObj?.optNullableString("ticketType"),
+                                reporterName = tObj?.optNullableString("reporterName") ?: dObj?.optNullableString("reporterName"),
+                                reporterPhone = tObj?.optNullableString("reporterPhone") ?: dObj?.optNullableString("reporterPhone"),
+                                reporterAddress = tObj?.optNullableString("reporterAddress") ?: dObj?.optNullableString("reporterAddress"),
+                                reporterMapUrl = tObj?.optNullableString("reporterMapUrl"),
+                                ticketDescription = tObj?.optNullableString("description"),
+                                isRead = o.optBoolean("isRead", false),
+                                createdAt = o.optString("createdAt", "")
+                            )
+                        )
+                    }
+
+                    Result.success(NotificationsPayload(list, unreadCount))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun markNotificationRead(serverUrl: String, token: String, notificationId: String): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            try {
+                val json = JSONObject().put("isRead", true)
+                val request = Request.Builder()
+                    .url("$serverUrl/api/notifications/$notificationId")
+                    .addHeader("Authorization", "Bearer $token")
+                    .patch(json.toString().toRequestBody(JSON_MEDIA_TYPE))
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    Result.success(response.isSuccessful)
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun markAllNotificationsRead(serverUrl: String, token: String): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            try {
+                val json = JSONObject().put("action", "mark_all_read")
+                val request = Request.Builder()
+                    .url("$serverUrl/api/notifications")
+                    .addHeader("Authorization", "Bearer $token")
+                    .post(json.toString().toRequestBody(JSON_MEDIA_TYPE))
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    Result.success(response.isSuccessful)
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 }

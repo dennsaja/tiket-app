@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { notifications } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { errorResponse } from "@/lib/api/helpers";
 import { markNotificationRead } from "@/lib/notifications";
 
-// PATCH /api/notifications/[id] — mark notification as read
+// PATCH /api/notifications/[id] — mark notification as read (supports Web Session & Android Bearer Token)
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user) return errorResponse("Unauthorized", 401);
+  const currentUser = await getAuthUser(req);
+  if (!currentUser) return errorResponse("Unauthorized", 401);
 
   const { id } = await params;
-  const userId = session.user.id!;
+  const userId = currentUser.id;
 
   const notification = await db.query.notifications.findFirst({
     where: and(eq(notifications.id, id), eq(notifications.userId, userId)),

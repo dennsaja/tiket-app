@@ -7,15 +7,21 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -29,9 +35,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import net.infinityteknik.helpdesk.R
 import net.infinityteknik.helpdesk.data.ApiClient
+import net.infinityteknik.helpdesk.data.NotificationItem
 import net.infinityteknik.helpdesk.data.SessionManager
 import net.infinityteknik.helpdesk.data.TicketItem
 import net.infinityteknik.helpdesk.service.LocationTrackingService
+import net.infinityteknik.helpdesk.util.NotificationHelper
 import net.infinityteknik.helpdesk.util.TrackingScheduleManager
 import java.text.SimpleDateFormat
 import java.util.*
@@ -41,8 +49,22 @@ class MainActivity : AppCompatActivity() {
     private lateinit var session: SessionManager
 
     private lateinit var tvTechnicianName: TextView
+    private lateinit var btnNotificationBell: FrameLayout
+    private lateinit var tvNotificationBadge: TextView
     private lateinit var btnRefreshTop: ImageButton
     private lateinit var btnLogout: ImageButton
+
+    // In-App Heads-Up Notification Pop-up Banner
+    private lateinit var cardHeadsUpBanner: CardView
+    private lateinit var tvHeadsUpCategory: TextView
+    private lateinit var tvHeadsUpTitle: TextView
+    private lateinit var tvHeadsUpMessage: TextView
+    private lateinit var btnHeadsUpOpen: MaterialButton
+    private lateinit var btnHeadsUpDismiss: ImageButton
+    private var currentHeadsUpNotif: NotificationItem? = null
+    private var headsUpAutoHideJob: Job? = null
+
+    // GPS Bar
     private lateinit var viewGpsDot: View
     private lateinit var tvDutyStatus: TextView
     private lateinit var switchDuty: SwitchMaterial
@@ -69,6 +91,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var ticketAdapter: TicketAdapter
     private var allTickets = listOf<TicketItem>()
+    private var cachedNotifications = listOf<NotificationItem>()
+    private var unreadNotifCount = 0
     private var selectedFilterIndex = 0 // 0 = All, 1 = Active, 2 = Resolved
     private var searchQuery = ""
     private var realtimePollJob: Job? = null
@@ -79,6 +103,7 @@ class MainActivity : AppCompatActivity() {
         if (result.resultCode == RESULT_OK) {
             loadTickets(silent = true)
         }
+        syncNotificationsNow()
     }
 
     private val permissionLauncher = registerForActivityResult(
@@ -99,14 +124,54 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val locationReceiver = object : BroadcastReceiver() {
+    private val systemEventReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == LocationTrackingService.ACTION_LOCATION_UPDATED) {
-                val lat = intent.getDoubleExtra("lat", 0.0)
-                val lng = intent.getDoubleExtra("lng", 0.0)
-                val acc = intent.getFloatExtra("acc", 0f)
-                val battery = intent.getIntExtra("battery", -1)
-                updateGpsDisplay(lat, lng, acc, battery, System.currentTimeMillis())
+            when (intent?.action) {
+                LocationTrackingService.ACTION_LOCATION_UPDATED -> {
+                    val lat = intent.getDoubleExtra("lat", 0.0)
+                    val lng = intent.getDoubleExtra("lng", 0.0)
+                    val acc = intent.getFloatExtra("acc", 0f)
+                    val battery = intent.getIntExtra("battery", -1)
+                    updateGpsDisplay(lat, lng, acc, battery, System.currentTimeMillis())
+                }
+                NotificationHelper.ACTION_NOTIFICATION_SYNCED -> {
+                    val payload = NotificationHelper.latestCachedPayload
+                    if (payload != null) {
+                        cachedNotifications = payload.notifications
+                        unreadNotifCount = payload.unreadCount
+                        updateNotificationBadge(unreadNotifCount)
+                    } else {
+                        val count = intent.getIntExtra("unreadCount", unreadNotifCount)
+                        unreadNotifCount = count
+                        updateNotificationBadge(count)
+                    }
+
+                    val newNotifId = intent.getStringExtra("newNotifId")
+                    if (!newNotifId.isNullOrBlank()) {
+                        val triggered = cachedNotifications.find { it.id == newNotifId }
+                            ?: NotificationItem(
+                                id = newNotifId,
+                                type = intent.getStringExtra("newNotifType") ?: "ticket_updated",
+                                title = intent.getStringExtra("newNotifTitle") ?: "Notifikasi Baru",
+                                message = intent.getStringExtra("newNotifMessage") ?: "",
+                                ticketId = intent.getStringExtra("newNotifTicketId")?.takeIf { it.isNotBlank() },
+                                ticketNumber = 0,
+                                ticketTitle = intent.getStringExtra("newNotifTitle") ?: "",
+                                ticketStatus = "assigned",
+                                ticketPriority = "medium",
+                                ticketType = null,
+                                reporterName = null,
+                                reporterPhone = null,
+                                reporterAddress = null,
+                                reporterMapUrl = null,
+                                ticketDescription = null,
+                                isRead = false,
+                                createdAt = ""
+                            )
+                        showInAppHeadsUpBanner(triggered)
+                        loadTickets(silent = true)
+                    }
+                }
             }
         }
     }
@@ -116,6 +181,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         session = SessionManager(this)
+        NotificationHelper.ensureAlertChannel(this)
 
         initViews()
         setupRecyclerView()
@@ -130,12 +196,23 @@ class MainActivity : AppCompatActivity() {
 
         loadTickets(silent = false)
         loadUserProfile()
+        syncNotificationsNow()
     }
 
     private fun initViews() {
         tvTechnicianName = findViewById(R.id.tvTechnicianName)
+        btnNotificationBell = findViewById(R.id.btnNotificationBell)
+        tvNotificationBadge = findViewById(R.id.tvNotificationBadge)
         btnRefreshTop = findViewById(R.id.btnRefreshTop)
         btnLogout = findViewById(R.id.btnLogout)
+
+        cardHeadsUpBanner = findViewById(R.id.cardHeadsUpBanner)
+        tvHeadsUpCategory = findViewById(R.id.tvHeadsUpCategory)
+        tvHeadsUpTitle = findViewById(R.id.tvHeadsUpTitle)
+        tvHeadsUpMessage = findViewById(R.id.tvHeadsUpMessage)
+        btnHeadsUpOpen = findViewById(R.id.btnHeadsUpOpen)
+        btnHeadsUpDismiss = findViewById(R.id.btnHeadsUpDismiss)
+
         viewGpsDot = findViewById(R.id.viewGpsDot)
         tvDutyStatus = findViewById(R.id.tvDutyStatus)
         switchDuty = findViewById(R.id.switchDuty)
@@ -161,9 +238,32 @@ class MainActivity : AppCompatActivity() {
 
         tvTechnicianName.text = session.userName
 
+        btnNotificationBell.setOnClickListener {
+            showNotificationDrawerDialog()
+        }
+
+        btnHeadsUpDismiss.setOnClickListener {
+            cardHeadsUpBanner.visibility = View.GONE
+        }
+
+        btnHeadsUpOpen.setOnClickListener {
+            val notif = currentHeadsUpNotif
+            cardHeadsUpBanner.visibility = View.GONE
+            if (notif != null) {
+                handleNotificationClicked(notif)
+            }
+        }
+
+        cardHeadsUpBanner.setOnClickListener {
+            val notif = currentHeadsUpNotif
+            cardHeadsUpBanner.visibility = View.GONE
+            if (notif != null) {
+                handleNotificationClicked(notif)
+            }
+        }
+
         switchDuty.isChecked = session.isDutyActive
         switchDuty.setOnCheckedChangeListener { _, isChecked ->
-            // Enforce smart tracking rules: cannot turn OFF if during 08:00-16:00 WIB or active tasks exist
             if (!isChecked && TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
                 switchDuty.isChecked = true
                 Toast.makeText(
@@ -203,23 +303,23 @@ class MainActivity : AppCompatActivity() {
         btnRefreshTop.setOnClickListener {
             loadTickets(silent = false)
             loadUserProfile()
+            syncNotificationsNow()
         }
 
         swipeRefresh.setOnRefreshListener {
             loadTickets(silent = false)
             loadUserProfile()
+            syncNotificationsNow()
         }
 
         btnLogout.setOnClickListener {
             confirmLogout()
         }
 
-        // KPI Filter Click Listeners
         cardFilterAll.setOnClickListener { selectFilter(0) }
         cardFilterActive.setOnClickListener { selectFilter(1) }
         cardFilterResolved.setOnClickListener { selectFilter(2) }
 
-        // Search input live listener
         etSearchTickets.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -229,7 +329,6 @@ class MainActivity : AppCompatActivity() {
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        // Show cached coordinates if available
         if (session.lastLatitude != 0.0) {
             updateGpsDisplay(
                 session.lastLatitude,
@@ -239,6 +338,308 @@ class MainActivity : AppCompatActivity() {
                 session.lastUpdateTime
             )
         }
+    }
+
+    private fun updateNotificationBadge(count: Int) {
+        if (count > 0) {
+            tvNotificationBadge.visibility = View.VISIBLE
+            tvNotificationBadge.text = if (count > 99) "99+" else count.toString()
+        } else {
+            tvNotificationBadge.visibility = View.GONE
+        }
+    }
+
+    private fun showInAppHeadsUpBanner(notif: NotificationItem) {
+        currentHeadsUpNotif = notif
+        val categoryLabel = NotificationHelper.getTypeLabel(notif.type).uppercase(Locale.getDefault())
+        tvHeadsUpCategory.text = categoryLabel
+        tvHeadsUpTitle.text = notif.title
+        tvHeadsUpMessage.text = notif.message
+
+        val isChat = notif.type == "new_message" || notif.type == "new_internal_note"
+        btnHeadsUpOpen.text = if (isChat) "Balas Chat" else "Buka Tiket"
+
+        cardHeadsUpBanner.visibility = View.VISIBLE
+
+        headsUpAutoHideJob?.cancel()
+        headsUpAutoHideJob = lifecycleScope.launch {
+            delay(8_000L)
+            cardHeadsUpBanner.visibility = View.GONE
+        }
+    }
+
+    private fun syncNotificationsNow() {
+        lifecycleScope.launch {
+            val payload = NotificationHelper.syncAndDispatchNotifications(this@MainActivity, session)
+            if (payload != null) {
+                cachedNotifications = payload.notifications
+                unreadNotifCount = payload.unreadCount
+                updateNotificationBadge(unreadNotifCount)
+            }
+        }
+    }
+
+    private fun handleNotificationClicked(notif: NotificationItem) {
+        val token = session.token
+        if (!token.isNullOrBlank() && !notif.isRead) {
+            lifecycleScope.launch {
+                ApiClient.markNotificationRead(session.serverUrl, token, notif.id)
+                syncNotificationsNow()
+            }
+        }
+
+        val isChat = notif.type == "new_message" || notif.type == "new_internal_note"
+        val targetTab = if (isChat) 1 else 0
+
+        if (!notif.ticketId.isNullOrBlank()) {
+            val matchedTicket = allTickets.find { it.id == notif.ticketId }
+            if (matchedTicket != null) {
+                openTicketDetail(matchedTicket, initialTab = targetTab)
+            } else {
+                val fallback = TicketItem(
+                    id = notif.ticketId,
+                    ticketNumber = notif.ticketNumber,
+                    title = notif.ticketTitle.ifBlank { notif.title },
+                    description = notif.ticketDescription ?: notif.message,
+                    status = notif.ticketStatus.ifBlank { "assigned" },
+                    priority = notif.ticketPriority.ifBlank { "medium" },
+                    ticketType = notif.ticketType,
+                    reporterName = notif.reporterName,
+                    reporterPhone = notif.reporterPhone,
+                    reporterAddress = notif.reporterAddress,
+                    reporterMapUrl = notif.reporterMapUrl,
+                    latitude = null,
+                    longitude = null,
+                    isLead = true,
+                    createdAt = notif.createdAt,
+                    updatedAt = notif.createdAt
+                )
+                openTicketDetail(fallback, initialTab = targetTab)
+            }
+        }
+    }
+
+    /**
+     * Opens the In-App Notification Drawer (Panel Notifikasi) matching the Web TopNav Notification Panel.
+     */
+    private fun showNotificationDrawerDialog() {
+        val dp = { value: Int ->
+            TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                value.toFloat(),
+                resources.displayMetrics
+            ).toInt()
+        }
+
+        val rootLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.parseColor("#FFFFFF"))
+            setPadding(0, 0, 0, dp(12))
+        }
+
+        // Top Header Bar (#09090B dark header matching Web)
+        val headerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setBackgroundColor(Color.parseColor("#09090B"))
+            setPadding(dp(16), dp(14), dp(14), dp(14))
+        }
+
+        val logoFrame = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(26), dp(26))
+            setBackgroundResource(R.drawable.logo_square_white_bg)
+        }
+        val logoImg = ImageView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(dp(14), dp(14), Gravity.CENTER)
+            setImageResource(R.drawable.ic_web_logo_triangle)
+        }
+        logoFrame.addView(logoImg)
+        headerRow.addView(logoFrame)
+
+        val titleCol = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = dp(10)
+            }
+        }
+
+        val tvHeaderTitle = TextView(this).apply {
+            text = "Panel Notifikasi"
+            setTextColor(Color.WHITE)
+            textSize = 15f
+            setTypeface(typeface, Typeface.BOLD)
+        }
+        val tvHeaderSub = TextView(this).apply {
+            text = if (unreadNotifCount > 0) "$unreadNotifCount belum dibaca" else "Semua notifikasi telah dibaca"
+            setTextColor(Color.parseColor("#A1A1AA"))
+            textSize = 11f
+        }
+        titleCol.addView(tvHeaderTitle)
+        titleCol.addView(tvHeaderSub)
+        headerRow.addView(titleCol)
+
+        var dialogRef: AlertDialog? = null
+
+        if (unreadNotifCount > 0) {
+            val btnMarkAll = TextView(this).apply {
+                text = "Tandai Dibaca"
+                setTextColor(Color.parseColor("#38BDF8"))
+                textSize = 11f
+                setTypeface(typeface, Typeface.BOLD)
+                setPadding(dp(8), dp(6), dp(8), dp(6))
+                setOnClickListener {
+                    val token = session.token ?: return@setOnClickListener
+                    lifecycleScope.launch {
+                        ApiClient.markAllNotificationsRead(session.serverUrl, token)
+                        syncNotificationsNow()
+                        dialogRef?.dismiss()
+                        Toast.makeText(this@MainActivity, "Semua notifikasi ditandai telah dibaca", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            headerRow.addView(btnMarkAll)
+        }
+
+        rootLayout.addView(headerRow)
+
+        val scrollView = ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        val listContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        if (cachedNotifications.isEmpty()) {
+            val emptyTv = TextView(this).apply {
+                text = "Belum ada notifikasi masuk saat ini.\nNotifikasi chat tim, perubahan status, dan detail tiket akan tampil di sini."
+                setTextColor(Color.parseColor("#71717A"))
+                textSize = 13f
+                gravity = Gravity.CENTER
+                setPadding(dp(24), dp(36), dp(24), dp(36))
+            }
+            listContainer.addView(emptyTv)
+        } else {
+            cachedNotifications.forEach { item ->
+                val itemRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setBackgroundColor(
+                        if (!item.isRead) Color.parseColor("#F4F4F5") else Color.parseColor("#FFFFFF")
+                    )
+                    setPadding(dp(16), dp(12), dp(16), dp(12))
+                    isClickable = true
+                    isFocusable = true
+                    setOnClickListener {
+                        dialogRef?.dismiss()
+                        handleNotificationClicked(item)
+                    }
+                }
+
+                // Top meta row: Unread dot + Category badge + Ticket #
+                val metaRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                }
+
+                if (!item.isRead) {
+                    val unreadDot = View(this).apply {
+                        layoutParams = LinearLayout.LayoutParams(dp(8), dp(8)).apply {
+                            marginEnd = dp(6)
+                        }
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(Color.parseColor("#2563EB"))
+                        }
+                    }
+                    metaRow.addView(unreadDot)
+                }
+
+                val tvCategory = TextView(this).apply {
+                    text = NotificationHelper.getTypeLabel(item.type).uppercase(Locale.getDefault())
+                    val badgeColor = when (item.type) {
+                        "new_message", "new_internal_note" -> "#0284C7"
+                        "status_changed" -> "#7C3AED"
+                        "ticket_updated" -> "#D97706"
+                        "ticket_assigned", "ticket_created" -> "#16A34A"
+                        else -> "#52525B"
+                    }
+                    setTextColor(Color.parseColor(badgeColor))
+                    textSize = 10f
+                    setTypeface(typeface, Typeface.BOLD)
+                    layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                }
+                metaRow.addView(tvCategory)
+
+                val ticketNum = item.ticketNumber
+                if (ticketNum > 0) {
+                    val tvTicketPill = TextView(this).apply {
+                        text = "#$ticketNum"
+                        setTextColor(Color.parseColor("#18181B"))
+                        textSize = 10f
+                        setTypeface( Typeface.MONOSPACE, Typeface.BOLD)
+                        setBackgroundResource(R.drawable.badge_bg)
+                        setPadding(dp(6), dp(2), dp(6), dp(2))
+                    }
+                    metaRow.addView(tvTicketPill)
+                }
+
+                itemRow.addView(metaRow)
+
+                val tvTitle = TextView(this).apply {
+                    text = item.title
+                    setTextColor(Color.parseColor("#09090B"))
+                    textSize = 13f
+                    setTypeface(typeface, if (!item.isRead) Typeface.BOLD else Typeface.NORMAL)
+                    setPadding(0, dp(4), 0, dp(2))
+                }
+                itemRow.addView(tvTitle)
+
+                val tvMsg = TextView(this).apply {
+                    text = item.message
+                    setTextColor(Color.parseColor("#52525B"))
+                    textSize = 12f
+                }
+                itemRow.addView(tvMsg)
+
+                val actionHint = TextView(this).apply {
+                    val isChat = item.type == "new_message" || item.type == "new_internal_note"
+                    text = if (isChat) "Ketuk untuk membuka Chat Tim →" else "Ketuk untuk membuka Detail Tiket →"
+                    setTextColor(Color.parseColor("#18181B"))
+                    textSize = 10f
+                    setTypeface(typeface, Typeface.BOLD)
+                    setPadding(0, dp(6), 0, 0)
+                }
+                itemRow.addView(actionHint)
+
+                val divider = View(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        dp(1)
+                    )
+                    setBackgroundColor(Color.parseColor("#E4E4E7"))
+                }
+
+                listContainer.addView(itemRow)
+                listContainer.addView(divider)
+            }
+        }
+
+        scrollView.addView(listContainer)
+        rootLayout.addView(scrollView)
+
+        dialogRef = AlertDialog.Builder(this)
+            .setView(rootLayout)
+            .setNegativeButton("Tutup", null)
+            .create()
+
+        dialogRef.show()
     }
 
     private fun selectFilter(index: Int) {
@@ -508,18 +909,24 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         evaluateTrackingRules(session.activeTicketsCount)
-        val filter = IntentFilter(LocationTrackingService.ACTION_LOCATION_UPDATED)
+        val filter = IntentFilter().apply {
+            addAction(LocationTrackingService.ACTION_LOCATION_UPDATED)
+            addAction(NotificationHelper.ACTION_NOTIFICATION_SYNCED)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(locationReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(systemEventReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
-            registerReceiver(locationReceiver, filter)
+            registerReceiver(systemEventReceiver, filter)
         }
 
-        // Start 10s real-time ticket sync while screen is active
+        syncNotificationsNow()
+
+        // Start 6s real-time ticket & notification sync while screen is active
         realtimePollJob?.cancel()
         realtimePollJob = lifecycleScope.launch {
             while (isActive) {
-                delay(10_000L)
+                delay(6_000L)
+                syncNotificationsNow()
                 loadTickets(silent = true)
             }
         }
@@ -530,7 +937,7 @@ class MainActivity : AppCompatActivity() {
         realtimePollJob?.cancel()
         realtimePollJob = null
         try {
-            unregisterReceiver(locationReceiver)
+            unregisterReceiver(systemEventReceiver)
         } catch (e: Exception) {}
     }
 }
