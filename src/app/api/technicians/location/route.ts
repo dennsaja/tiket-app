@@ -11,13 +11,27 @@ import { z } from "zod";
 
 const ACTIVE_STATUSES = ["assigned", "accepted", "on_site", "in_progress"] as const;
 
-const locationSchema = z.object({
+const locationPointSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   accuracy: z.number().nonnegative().nullable().optional(),
   heading: z.number().nullable().optional(),
   speed: z.number().nullable().optional(),
   battery: z.number().int().min(0).max(100).nullable().optional(),
+  activeTicketId: z.string().nullable().optional(),
+  deviceTime: z.number().nullable().optional(),
+});
+
+const locationSchema = z.object({
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  accuracy: z.number().nonnegative().nullable().optional(),
+  heading: z.number().nullable().optional(),
+  speed: z.number().nullable().optional(),
+  battery: z.number().int().min(0).max(100).nullable().optional(),
+  activeTicketId: z.string().nullable().optional(),
+  deviceTime: z.number().nullable().optional(),
+  batch: z.array(locationPointSchema).optional(),
 });
 
 /** Find the technician's current active ticket (most recently updated) */
@@ -51,7 +65,7 @@ async function findActiveTicketId(userId: string): Promise<string | null> {
   return active?.id ?? null;
 }
 
-// POST /api/technicians/location — technician pushes a GPS ping
+// POST /api/technicians/location — technician pushes a GPS ping (single or offline batch)
 export async function POST(req: NextRequest) {
   const session = await auth();
   const mobileUser = !session?.user ? await getMobileUserFromRequest(req) : null;
@@ -76,10 +90,6 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); }
   catch { return errorResponse("Invalid JSON body", 400); }
 
-  console.log(
-    `[TECH_LOCATION] Ping GPS diterima dari ${currentUser.name} (${currentUser.id}, role: ${userRole})`
-  );
-
   const parsed = locationSchema.safeParse(body);
   if (!parsed.success) {
     return errorResponse(
@@ -90,17 +100,46 @@ export async function POST(req: NextRequest) {
 
   const userId = currentUser.id!;
   const data = parsed.data;
+  const points =
+    data.batch && data.batch.length > 0
+      ? data.batch
+      : data.latitude != null && data.longitude != null
+      ? [
+          {
+            latitude: data.latitude,
+            longitude: data.longitude,
+            accuracy: data.accuracy,
+            heading: data.heading,
+            speed: data.speed,
+            battery: data.battery,
+            activeTicketId: data.activeTicketId,
+            deviceTime: data.deviceTime,
+          },
+        ]
+      : [];
+
+  if (points.length === 0) {
+    return errorResponse("Latitude and longitude required", 422);
+  }
+
+  // Sort offline batch chronologically by deviceTime so the latest point is applied last
+  const sortedPoints = [...points].sort((a, b) => (a.deviceTime || 0) - (b.deviceTime || 0));
+  const latestPoint = sortedPoints[sortedPoints.length - 1];
   const activeTicketId = await findActiveTicketId(userId);
   const now = new Date();
 
+  console.log(
+    `[TECH_LOCATION] Ping GPS diterima dari ${currentUser.name} (${currentUser.id}, ${sortedPoints.length} titik)`
+  );
+
   const values = {
     userId,
-    latitude: data.latitude,
-    longitude: data.longitude,
-    accuracy: data.accuracy ?? null,
-    heading: data.heading ?? null,
-    speed: data.speed ?? null,
-    battery: data.battery ?? null,
+    latitude: latestPoint.latitude,
+    longitude: latestPoint.longitude,
+    accuracy: latestPoint.accuracy ?? null,
+    heading: latestPoint.heading ?? null,
+    speed: latestPoint.speed ?? null,
+    battery: latestPoint.battery ?? null,
     isTracking: true,
     activeTicketId,
     updatedAt: now,
@@ -118,7 +157,12 @@ export async function POST(req: NextRequest) {
     updatedAt: now.toISOString(),
   });
 
-  return NextResponse.json({ success: true, activeTicketId });
+  return NextResponse.json({
+    success: true,
+    activeTicketId,
+    syncedPoints: sortedPoints.length,
+    serverTime: now.toISOString(),
+  });
 }
 
 // DELETE /api/technicians/location — technician stops sharing location

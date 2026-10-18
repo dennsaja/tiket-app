@@ -15,17 +15,26 @@ import { notificationBus } from "@/lib/notifications/bus";
 import { z } from "zod";
 
 const updateSchema = z.object({
-  status: z.enum([
-    "open",
-    "assigned",
-    "accepted",
-    "on_site",
-    "in_progress",
-    "resolved",
-    "pending",
-  ]),
+  status: z
+    .enum([
+      "open",
+      "assigned",
+      "accepted",
+      "on_site",
+      "in_progress",
+      "resolved",
+      "pending",
+      "waiting_for_user",
+      "waiting_for_third_party",
+    ])
+    .optional(),
   notes: z.string().optional(),
   resolutionSummary: z.string().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  distanceMeters: z.number().nullable().optional(),
+  updateCustomerCoordinates: z.boolean().optional(),
+  odpCoordinateType: z.string().optional(), // "customer" or "odp"
 });
 
 export async function PATCH(
@@ -69,15 +78,58 @@ export async function PATCH(
     return NextResponse.json({ error: "Tiket tidak ditemukan" }, { status: 404 });
   }
 
-  const { status: newStatus, notes, resolutionSummary } = parsed.data;
+  const {
+    status: requestedStatus,
+    notes,
+    resolutionSummary,
+    latitude,
+    longitude,
+    distanceMeters,
+    updateCustomerCoordinates,
+    odpCoordinateType,
+  } = parsed.data;
+
+  const newStatus = requestedStatus || existingTicket.status;
   const oldStatus = existingTicket.status;
   const now = new Date();
 
-  // Prepare updates
   const updatePayload: any = {
     status: newStatus,
     updatedAt: now,
   };
+
+  // FR-11: Technician records/updates customer or ODP coordinates from field
+  if (updateCustomerCoordinates && latitude != null && longitude != null) {
+    const gmapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+    const currentSpec =
+      existingTicket.specData && typeof existingTicket.specData === "object"
+        ? { ...(existingTicket.specData as Record<string, any>) }
+        : {};
+
+    if (odpCoordinateType === "odp") {
+      currentSpec.odpCoordinates = `${latitude}, ${longitude}`;
+      currentSpec.odpMapUrl = gmapsUrl;
+      currentSpec.odpUpdatedBy = userName;
+      currentSpec.odpUpdatedAt = now.toISOString();
+    } else {
+      updatePayload.reporterMapUrl = gmapsUrl;
+      currentSpec.customerCoordinates = `${latitude}, ${longitude}`;
+      currentSpec.customerUpdatedBy = userName;
+      currentSpec.customerUpdatedAt = now.toISOString();
+    }
+    updatePayload.specData = currentSpec;
+
+    await db.insert(ticketMessages).values({
+      ticketId,
+      authorId: userId,
+      type: "internal_note",
+      content: `[Mobile GPS] Teknisi ${userName} memperbarui titik koordinat ${
+        odpCoordinateType === "odp" ? "ODP / Tiang" : "Lokasi Pelanggan"
+      }: ${latitude}, ${longitude}\nLink Maps: ${gmapsUrl}`,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
 
   if (
     (newStatus === "accepted" || newStatus === "in_progress" || newStatus === "on_site") &&
@@ -92,6 +144,13 @@ export async function PATCH(
 
   await db.update(tickets).set(updatePayload).where(eq(tickets.id, ticketId));
 
+  const gpsTag =
+    latitude != null && longitude != null && (latitude !== 0 || longitude !== 0)
+      ? ` [GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}${
+          distanceMeters != null ? ` • Jarak: ${Math.round(distanceMeters)}m` : ""
+        }]`
+      : "";
+
   // Log status change history if changed
   if (oldStatus !== newStatus) {
     await db.insert(ticketStatusHistory).values({
@@ -99,16 +158,15 @@ export async function PATCH(
       fromStatus: oldStatus as any,
       toStatus: newStatus as any,
       changedById: userId,
-      reason: notes || `Status diubah dari aplikasi mobile teknisi (${userName})`,
+      reason: `${notes || `Status diubah oleh teknisi (${userName})`}${gpsTag}`,
       createdAt: now,
     });
 
-    // Record internal message
     await db.insert(ticketMessages).values({
       ticketId,
       authorId: userId,
       type: "internal_note",
-      content: `[Mobile] Status tiket diperbarui menjadi: ${newStatus.toUpperCase()}${
+      content: `[Mobile] Status tiket diperbarui menjadi: ${newStatus.toUpperCase()}${gpsTag}${
         notes ? `\nCatatan: ${notes}` : ""
       }`,
       createdAt: now,
@@ -154,6 +212,9 @@ export async function PATCH(
     ticket: {
       id: ticketId,
       status: newStatus,
+      reporterMapUrl: updatePayload.reporterMapUrl ?? existingTicket.reporterMapUrl,
+      latitude: updateCustomerCoordinates && odpCoordinateType !== "odp" ? latitude : undefined,
+      longitude: updateCustomerCoordinates && odpCoordinateType !== "odp" ? longitude : undefined,
       updatedAt: now.toISOString(),
     },
   });

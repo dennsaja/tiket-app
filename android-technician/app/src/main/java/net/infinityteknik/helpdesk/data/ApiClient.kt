@@ -17,7 +17,7 @@ object ApiClient {
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
-        .writeTimeout(20, TimeUnit.SECONDS)
+        .writeTimeout(25, TimeUnit.SECONDS)
         .build()
 
     private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
@@ -110,7 +110,51 @@ object ApiClient {
                     if (loc.accuracy != null) put("accuracy", loc.accuracy.toDouble())
                     if (loc.speed != null) put("speed", loc.speed.toDouble())
                     if (loc.heading != null) put("heading", loc.heading.toDouble())
-                    if (loc.battery != null) put("battery", loc.battery)
+                    if (loc.battery != null && loc.battery in 0..100) put("battery", loc.battery)
+                    if (!loc.activeTicketId.isNullOrBlank()) put("activeTicketId", loc.activeTicketId)
+                    put("deviceTime", loc.deviceTime)
+                }
+
+                val request = Request.Builder()
+                    .url("$serverUrl/api/technicians/location")
+                    .addHeader("Authorization", "Bearer $token")
+                    .post(json.toString().toRequestBody(JSON_MEDIA_TYPE))
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        Result.success(true)
+                    } else {
+                        Result.failure(Exception("HTTP ${response.code}"))
+                    }
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun sendLocationBatch(serverUrl: String, token: String, batch: List<LocationPayload>): Result<Boolean> =
+        withContext(Dispatchers.IO) {
+            try {
+                if (batch.isEmpty()) return@withContext Result.success(true)
+                val arr = JSONArray()
+                for (loc in batch) {
+                    arr.put(JSONObject().apply {
+                        put("latitude", loc.latitude)
+                        put("longitude", loc.longitude)
+                        if (loc.accuracy != null) put("accuracy", loc.accuracy.toDouble())
+                        if (loc.speed != null) put("speed", loc.speed.toDouble())
+                        if (loc.heading != null) put("heading", loc.heading.toDouble())
+                        if (loc.battery != null && loc.battery in 0..100) put("battery", loc.battery)
+                        if (!loc.activeTicketId.isNullOrBlank()) put("activeTicketId", loc.activeTicketId)
+                        put("deviceTime", loc.deviceTime)
+                    })
+                }
+                val latest = batch.last()
+                val json = JSONObject().apply {
+                    put("latitude", latest.latitude)
+                    put("longitude", latest.longitude)
+                    put("batch", arr)
                 }
 
                 val request = Request.Builder()
@@ -148,6 +192,122 @@ object ApiClient {
             }
         }
 
+    fun parseTicketObject(o: JSONObject): TicketItem {
+        val shArr = o.optJSONArray("statusHistory") ?: JSONArray()
+        val historyList = ArrayList<TicketStatusHistoryItem>()
+        for (j in 0 until shArr.length()) {
+            val h = shArr.getJSONObject(j)
+            historyList.add(
+                TicketStatusHistoryItem(
+                    id = h.optString("id", "sh_$j"),
+                    fromStatus = h.optNullableString("fromStatus"),
+                    toStatus = h.optString("toStatus", "assigned"),
+                    reason = h.optNullableString("reason"),
+                    createdAt = h.optString("createdAt", "")
+                )
+            )
+        }
+
+        val repObj = o.optJSONObject("latestReport")
+        val latestReport = if (repObj != null) {
+            val bpArr = repObj.optJSONArray("beforePhotos") ?: JSONArray()
+            val apArr = repObj.optJSONArray("afterPhotos") ?: JSONArray()
+            val bp = (0 until bpArr.length()).mapNotNull { bpArr.optString(it).takeIf { s -> s.isNotBlank() } }
+            val ap = (0 until apArr.length()).mapNotNull { apArr.optString(it).takeIf { s -> s.isNotBlank() } }
+            WorkReportSnapshot(
+                id = repObj.optString("id", ""),
+                summary = repObj.optString("summary", ""),
+                actionTaken = repObj.optString("actionTaken", ""),
+                materialsUsed = repObj.optNullableString("materialsUsed"),
+                finalResult = repObj.optNullableString("finalResult"),
+                beforePhotos = bp,
+                afterPhotos = ap,
+                createdAt = repObj.optString("createdAt", "")
+            )
+        } else null
+
+        val specObj = o.optJSONObject("specData")
+        val specStr = specObj?.toString() ?: o.optNullableString("specDataJson")
+
+        return TicketItem(
+            id = o.getString("id"),
+            ticketNumber = o.getInt("ticketNumber"),
+            title = o.getString("title"),
+            description = o.optNullableString("description"),
+            status = o.getString("status"),
+            priority = o.getString("priority"),
+            ticketType = o.optNullableString("ticketType"),
+            reporterName = o.optNullableString("reporterName"),
+            reporterPhone = o.optNullableString("reporterPhone"),
+            reporterAddress = o.optNullableString("reporterAddress"),
+            reporterMapUrl = o.optNullableString("reporterMapUrl"),
+            latitude = if (o.isNull("latitude") || !o.has("latitude")) null else o.optDouble("latitude"),
+            longitude = if (o.isNull("longitude") || !o.has("longitude")) null else o.optDouble("longitude"),
+            isLead = o.optBoolean("isLead", false),
+            createdAt = o.optString("createdAt", ""),
+            updatedAt = o.optString("updatedAt", ""),
+            slaFirstResponseDue = o.optNullableString("slaFirstResponseDue"),
+            slaResolutionDue = o.optNullableString("slaResolutionDue"),
+            resolution = o.optNullableString("resolution"),
+            resolvedAt = o.optNullableString("resolvedAt"),
+            specDataJson = specStr,
+            statusHistory = historyList,
+            latestReport = latestReport
+        )
+    }
+
+    fun ticketToJsonObject(t: TicketItem): JSONObject {
+        return JSONObject().apply {
+            put("id", t.id)
+            put("ticketNumber", t.ticketNumber)
+            put("title", t.title)
+            put("description", t.description ?: JSONObject.NULL)
+            put("status", t.status)
+            put("priority", t.priority)
+            put("ticketType", t.ticketType ?: JSONObject.NULL)
+            put("reporterName", t.reporterName ?: JSONObject.NULL)
+            put("reporterPhone", t.reporterPhone ?: JSONObject.NULL)
+            put("reporterAddress", t.reporterAddress ?: JSONObject.NULL)
+            put("reporterMapUrl", t.reporterMapUrl ?: JSONObject.NULL)
+            put("latitude", t.latitude ?: JSONObject.NULL)
+            put("longitude", t.longitude ?: JSONObject.NULL)
+            put("isLead", t.isLead)
+            put("createdAt", t.createdAt)
+            put("updatedAt", t.updatedAt)
+            put("slaFirstResponseDue", t.slaFirstResponseDue ?: JSONObject.NULL)
+            put("slaResolutionDue", t.slaResolutionDue ?: JSONObject.NULL)
+            put("resolution", t.resolution ?: JSONObject.NULL)
+            put("resolvedAt", t.resolvedAt ?: JSONObject.NULL)
+            put("specDataJson", t.specDataJson ?: JSONObject.NULL)
+
+            val shArr = JSONArray()
+            for (sh in t.statusHistory) {
+                shArr.put(JSONObject().apply {
+                    put("id", sh.id)
+                    put("fromStatus", sh.fromStatus ?: JSONObject.NULL)
+                    put("toStatus", sh.toStatus)
+                    put("reason", sh.reason ?: JSONObject.NULL)
+                    put("createdAt", sh.createdAt)
+                })
+            }
+            put("statusHistory", shArr)
+
+            val rep = t.latestReport
+            if (rep != null) {
+                put("latestReport", JSONObject().apply {
+                    put("id", rep.id)
+                    put("summary", rep.summary)
+                    put("actionTaken", rep.actionTaken)
+                    put("materialsUsed", rep.materialsUsed ?: JSONObject.NULL)
+                    put("finalResult", rep.finalResult ?: JSONObject.NULL)
+                    put("beforePhotos", JSONArray(rep.beforePhotos))
+                    put("afterPhotos", JSONArray(rep.afterPhotos))
+                    put("createdAt", rep.createdAt)
+                })
+            }
+        }
+    }
+
     suspend fun getTickets(serverUrl: String, token: String): Result<List<TicketItem>> =
         withContext(Dispatchers.IO) {
             try {
@@ -166,26 +326,7 @@ object ApiClient {
                         val list = ArrayList<TicketItem>()
                         for (i in 0 until arr.length()) {
                             val o = arr.getJSONObject(i)
-                            list.add(
-                                TicketItem(
-                                    id = o.getString("id"),
-                                    ticketNumber = o.getInt("ticketNumber"),
-                                    title = o.getString("title"),
-                                    description = o.optNullableString("description"),
-                                    status = o.getString("status"),
-                                    priority = o.getString("priority"),
-                                    ticketType = o.optNullableString("ticketType"),
-                                    reporterName = o.optNullableString("reporterName"),
-                                    reporterPhone = o.optNullableString("reporterPhone"),
-                                    reporterAddress = o.optNullableString("reporterAddress"),
-                                    reporterMapUrl = o.optNullableString("reporterMapUrl"),
-                                    latitude = if (o.isNull("latitude")) null else o.optDouble("latitude"),
-                                    longitude = if (o.isNull("longitude")) null else o.optDouble("longitude"),
-                                    isLead = o.optBoolean("isLead", false),
-                                    createdAt = o.getString("createdAt"),
-                                    updatedAt = o.getString("updatedAt")
-                                )
-                            )
+                            list.add(parseTicketObject(o))
                         }
                         Result.success(list)
                     } else {
@@ -201,16 +342,26 @@ object ApiClient {
         serverUrl: String,
         token: String,
         ticketId: String,
-        status: String,
+        status: String?,
         notes: String?,
-        summary: String?
+        summary: String?,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        distanceMeters: Double? = null,
+        updateCustomerCoordinates: Boolean = false,
+        odpCoordinateType: String? = null
     ): Result<Boolean> =
         withContext(Dispatchers.IO) {
             try {
                 val json = JSONObject().apply {
-                    put("status", status)
+                    if (!status.isNullOrBlank()) put("status", status)
                     if (!notes.isNullOrBlank()) put("notes", notes)
                     if (!summary.isNullOrBlank()) put("resolutionSummary", summary)
+                    if (latitude != null && latitude != 0.0) put("latitude", latitude)
+                    if (longitude != null && longitude != 0.0) put("longitude", longitude)
+                    if (distanceMeters != null) put("distanceMeters", distanceMeters)
+                    if (updateCustomerCoordinates) put("updateCustomerCoordinates", true)
+                    if (!odpCoordinateType.isNullOrBlank()) put("odpCoordinateType", odpCoordinateType)
                 }
 
                 val request = Request.Builder()
@@ -327,7 +478,8 @@ object ApiClient {
         materialsUsed: String,
         finalResult: String,
         beforePhotos: List<File>,
-        afterPhotos: List<File>
+        afterPhotos: List<File>,
+        technicalDataJson: String? = null
     ): Result<Boolean> =
         withContext(Dispatchers.IO) {
             try {
@@ -336,6 +488,7 @@ object ApiClient {
                 builder.addFormDataPart("actionTaken", actionTaken.trim())
                 if (materialsUsed.isNotBlank()) builder.addFormDataPart("materialsUsed", materialsUsed.trim())
                 if (finalResult.isNotBlank()) builder.addFormDataPart("finalResult", finalResult.trim())
+                if (!technicalDataJson.isNullOrBlank()) builder.addFormDataPart("technicalDataJson", technicalDataJson)
 
                 val mediaType = "image/jpeg".toMediaType()
 

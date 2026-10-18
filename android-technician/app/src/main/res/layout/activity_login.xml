@@ -230,7 +230,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="Infinity Teknik &amp; IT HelpDesk Portal • v1.6.0"
+            android:text="Infinity Teknik &amp; IT HelpDesk Portal • v2.0.0"
             android:textColor="#A1A1AA"
             android:textSize="12sp" />
 

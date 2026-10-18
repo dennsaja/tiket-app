@@ -70,6 +70,7 @@ export async function POST(
   let actionTaken = "";
   let materialsUsed = "";
   let finalResult = "";
+  let technicalDataJson = "";
   let beforePhotoUrls: string[] = [];
   let afterPhotoUrls: string[] = [];
 
@@ -82,6 +83,7 @@ export async function POST(
     actionTaken = (formData.get("actionTaken") as string) || "";
     materialsUsed = (formData.get("materialsUsed") as string) || "";
     finalResult = (formData.get("finalResult") as string) || "";
+    technicalDataJson = (formData.get("technicalDataJson") as string) || "";
 
     // Existing URLs passed as json array string (if any)
     const existingBefore = formData.get("existingBeforePhotos");
@@ -147,6 +149,12 @@ export async function POST(
     actionTaken = body.actionTaken || "";
     materialsUsed = body.materialsUsed || "";
     finalResult = body.finalResult || "";
+    if (body.technicalDataJson) {
+      technicalDataJson =
+        typeof body.technicalDataJson === "string"
+          ? body.technicalDataJson
+          : JSON.stringify(body.technicalDataJson);
+    }
     if (Array.isArray(body.beforePhotos)) beforePhotoUrls = body.beforePhotos;
     if (Array.isArray(body.afterPhotos)) afterPhotoUrls = body.afterPhotos;
   }
@@ -156,6 +164,13 @@ export async function POST(
   }
   if (!actionTaken.trim() || actionTaken.trim().length < 3) {
     return errorResponse("Tindakan penanganan yang dilakukan minimal 3 karakter", 422);
+  }
+
+  let parsedTechData: Record<string, any> | null = null;
+  if (technicalDataJson) {
+    try {
+      parsedTechData = JSON.parse(technicalDataJson);
+    } catch {}
   }
 
   // 1. Insert Work Report
@@ -173,10 +188,22 @@ export async function POST(
     })
     .returning();
 
-  // 2. Update Ticket to Resolved
+  // 2. Update Ticket to Resolved & persist structured technical field report into specData
   const resolutionText = `Ringkasan: ${summary.trim()}\nTindakan: ${actionTaken.trim()}${
     materialsUsed.trim() ? `\nMaterial: ${materialsUsed.trim()}` : ""
   }${finalResult.trim() ? `\nHasil Akhir: ${finalResult.trim()}` : ""}`;
+
+  const updatedSpecData =
+    ticket.specData && typeof ticket.specData === "object"
+      ? { ...(ticket.specData as Record<string, any>) }
+      : {};
+  if (parsedTechData) {
+    updatedSpecData.fieldReport = {
+      ...parsedTechData,
+      submittedBy: currentUser.name || "Teknisi",
+      submittedAt: new Date().toISOString(),
+    };
+  }
 
   await db
     .update(tickets)
@@ -185,6 +212,7 @@ export async function POST(
       resolvedAt: new Date(),
       slaResolvedAt: new Date(),
       resolution: resolutionText,
+      specData: updatedSpecData,
       updatedAt: new Date(),
     })
     .where(eq(tickets.id, id));

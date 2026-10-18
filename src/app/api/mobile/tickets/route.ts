@@ -61,6 +61,11 @@ export async function GET(req: NextRequest) {
       reporterAddress: true,
       reporterMapUrl: true,
       assigneeId: true,
+      specData: true,
+      slaFirstResponseDue: true,
+      slaResolutionDue: true,
+      resolution: true,
+      resolvedAt: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -74,6 +79,30 @@ export async function GET(req: NextRequest) {
           user: { columns: { id: true, name: true, phone: true } },
         },
       },
+      statusHistory: {
+        columns: {
+          id: true,
+          fromStatus: true,
+          toStatus: true,
+          reason: true,
+          createdAt: true,
+        },
+        orderBy: (sh, { asc }) => [asc(sh.createdAt)],
+      },
+      workReports: {
+        columns: {
+          id: true,
+          summary: true,
+          actionTaken: true,
+          materialsUsed: true,
+          finalResult: true,
+          beforePhotos: true,
+          afterPhotos: true,
+          createdAt: true,
+        },
+        orderBy: (wr, { desc: d }) => [d(wr.createdAt)],
+        limit: 1,
+      },
     },
     orderBy: [
       sql`CASE ${tickets.status}
@@ -82,11 +111,12 @@ export async function GET(req: NextRequest) {
         WHEN 'accepted' THEN 2
         WHEN 'assigned' THEN 3
         WHEN 'open' THEN 4
-        WHEN 'resolved' THEN 5
-        ELSE 6 END`,
+        WHEN 'pending' THEN 5
+        WHEN 'resolved' THEN 6
+        ELSE 7 END`,
       desc(tickets.updatedAt),
     ],
-    limit: 100,
+    limit: 120,
   });
 
   const formatted = await Promise.all(
@@ -95,36 +125,64 @@ export async function GET(req: NextRequest) {
         (await resolveCoordinatesAsync(t.reporterMapUrl)) ||
         (await resolveCoordinatesAsync(t.reporterAddress));
       const isLead = assignedMap.get(t.id) ?? (t.assigneeId === userId);
+      const latestReport = t.workReports?.[0] ?? null;
 
-    return {
-      id: t.id,
-      ticketNumber: t.ticketNumber,
-      title: t.title,
-      description: t.description,
-      status: t.status,
-      priority: t.priority,
-      ticketType: t.ticketType,
-      reporterName: t.reporterName,
-      reporterPhone: t.reporterPhone,
-      reporterAddress: t.reporterAddress,
-      reporterMapUrl: t.reporterMapUrl,
-      latitude: coords?.lat ?? null,
-      longitude: coords?.lng ?? null,
-      isLead,
-      assignees: t.assignees?.map((a) => ({
-        id: a.user?.id,
-        name: a.user?.name,
-        phone: a.user?.phone,
-        isLead: a.isLead,
-      })) || [],
-      createdAt: t.createdAt.toISOString(),
-      updatedAt: t.updatedAt.toISOString(),
-    };
-  }));
+      return {
+        id: t.id,
+        ticketNumber: t.ticketNumber,
+        title: t.title,
+        description: t.description,
+        status: t.status,
+        priority: t.priority,
+        ticketType: t.ticketType,
+        reporterName: t.reporterName,
+        reporterPhone: t.reporterPhone,
+        reporterAddress: t.reporterAddress,
+        reporterMapUrl: t.reporterMapUrl,
+        latitude: coords?.lat ?? null,
+        longitude: coords?.lng ?? null,
+        isLead,
+        specData: t.specData ?? null,
+        slaFirstResponseDue: t.slaFirstResponseDue ? t.slaFirstResponseDue.toISOString() : null,
+        slaResolutionDue: t.slaResolutionDue ? t.slaResolutionDue.toISOString() : null,
+        resolution: t.resolution ?? null,
+        resolvedAt: t.resolvedAt ? t.resolvedAt.toISOString() : null,
+        statusHistory: (t.statusHistory || []).map((sh) => ({
+          id: sh.id,
+          fromStatus: sh.fromStatus,
+          toStatus: sh.toStatus,
+          reason: sh.reason,
+          createdAt: sh.createdAt.toISOString(),
+        })),
+        latestReport: latestReport
+          ? {
+              id: latestReport.id,
+              summary: latestReport.summary,
+              actionTaken: latestReport.actionTaken,
+              materialsUsed: latestReport.materialsUsed,
+              finalResult: latestReport.finalResult,
+              beforePhotos: latestReport.beforePhotos || [],
+              afterPhotos: latestReport.afterPhotos || [],
+              createdAt: latestReport.createdAt.toISOString(),
+            }
+          : null,
+        assignees:
+          t.assignees?.map((a) => ({
+            id: a.user?.id,
+            name: a.user?.name,
+            phone: a.user?.phone,
+            isLead: a.isLead,
+          })) || [],
+        createdAt: t.createdAt.toISOString(),
+        updatedAt: t.updatedAt.toISOString(),
+      };
+    })
+  );
 
   return NextResponse.json({
     success: true,
     tickets: formatted,
     total: formatted.length,
+    serverTime: new Date().toISOString(),
   });
 }

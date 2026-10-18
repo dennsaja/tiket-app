@@ -34,6 +34,7 @@ import net.infinityteknik.helpdesk.data.LocationPayload
 import net.infinityteknik.helpdesk.data.SessionManager
 import net.infinityteknik.helpdesk.ui.MainActivity
 import net.infinityteknik.helpdesk.util.NotificationHelper
+import net.infinityteknik.helpdesk.util.OfflineSyncManager
 import net.infinityteknik.helpdesk.util.TrackingScheduleManager
 
 /**
@@ -178,6 +179,11 @@ class LocationTrackingService : Service() {
                 }
                 try {
                     val payload = NotificationHelper.syncAndDispatchNotifications(this@LocationTrackingService, session)
+                    if (OfflineSyncManager.isOnline(this@LocationTrackingService) &&
+                        OfflineSyncManager.getTotalPendingSyncCount(this@LocationTrackingService) > 0
+                    ) {
+                        OfflineSyncManager.flushAllPendingQueues(this@LocationTrackingService, session)
+                    }
                     if (payload != null) {
                         if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
                             if (!session.isDutyActive || tickerJob?.isActive != true) {
@@ -357,6 +363,17 @@ class LocationTrackingService : Service() {
     }
 
     private suspend fun dispatchLocationUpdate(loc: Location) {
+        // GT-05: Filter out inaccurate GPS jumps (>50m accuracy when a recent valid fix exists)
+        if (!OfflineSyncManager.isLocationValid(
+                loc,
+                session.lastLatitude,
+                session.lastLongitude,
+                session.lastUpdateTime
+            )
+        ) {
+            return
+        }
+
         val now = System.currentTimeMillis()
         val batteryLevel = getBatteryLevel()
 
@@ -368,12 +385,14 @@ class LocationTrackingService : Service() {
         val accuracyStr = if (loc.hasAccuracy()) "±${loc.accuracy.toInt()}m" else ""
         val speedKmh = if (loc.hasSpeed()) loc.speed * 3.6f else 0f
         val speedStr = if (speedKmh > 1f) " • ${speedKmh.toInt()} km/j" else ""
+        val pendingGps = OfflineSyncManager.getBufferedGpsPoints(this).size
+        val bufferStr = if (pendingGps > 0) " • Buffer: $pendingGps" else ""
 
         withContext(Dispatchers.Main) {
             val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notifManager.notify(
                 NOTIFICATION_ID,
-                buildNotification("GPS 1 mnt • $accuracyStr$speedStr • Baterai: $batteryLevel%")
+                buildNotification("GPS 1 mnt • $accuracyStr$speedStr • Baterai: $batteryLevel%$bufferStr")
             )
 
             val broadcast = Intent(ACTION_LOCATION_UPDATED).apply {
@@ -390,15 +409,23 @@ class LocationTrackingService : Service() {
 
         val token = session.token
         if (!token.isNullOrBlank() && session.isDutyActive) {
+            val activeTicketId = OfflineSyncManager.getCachedTickets(this)
+                .firstOrNull {
+                    val s = it.status.lowercase()
+                    s == "on_site" || s == "in_progress" || s == "accepted" || s == "assigned"
+                }?.id
+
             val payload = LocationPayload(
                 latitude = loc.latitude,
                 longitude = loc.longitude,
                 accuracy = if (loc.hasAccuracy()) loc.accuracy else null,
                 speed = if (loc.hasSpeed()) speedKmh else null,
                 heading = if (loc.hasBearing()) loc.bearing else null,
-                battery = batteryLevel
+                battery = batteryLevel,
+                activeTicketId = activeTicketId,
+                deviceTime = now
             )
-            ApiClient.sendLocation(session.serverUrl, token, payload)
+            OfflineSyncManager.sendOrBufferLocation(this, session, payload)
         }
     }
 

@@ -17,6 +17,25 @@ data class UserProfile(
     val activeTicketsCount: Int = 0
 )
 
+data class TicketStatusHistoryItem(
+    val id: String,
+    val fromStatus: String?,
+    val toStatus: String,
+    val reason: String?,
+    val createdAt: String
+)
+
+data class WorkReportSnapshot(
+    val id: String,
+    val summary: String,
+    val actionTaken: String,
+    val materialsUsed: String?,
+    val finalResult: String?,
+    val beforePhotos: List<String>,
+    val afterPhotos: List<String>,
+    val createdAt: String
+)
+
 data class TicketItem(
     val id: String,
     val ticketNumber: Int,
@@ -33,7 +52,14 @@ data class TicketItem(
     val longitude: Double?,
     val isLead: Boolean,
     val createdAt: String,
-    val updatedAt: String
+    val updatedAt: String,
+    val slaFirstResponseDue: String? = null,
+    val slaResolutionDue: String? = null,
+    val resolution: String? = null,
+    val resolvedAt: String? = null,
+    val specDataJson: String? = null,
+    val statusHistory: List<TicketStatusHistoryItem> = emptyList(),
+    val latestReport: WorkReportSnapshot? = null
 )
 
 data class TicketMessage(
@@ -53,7 +79,49 @@ data class LocationPayload(
     val accuracy: Float?,
     val speed: Float?,
     val heading: Float?,
-    val battery: Int?
+    val battery: Int?,
+    val activeTicketId: String? = null,
+    val deviceTime: Long = System.currentTimeMillis()
+)
+
+data class OfflineActionItem(
+    val id: String,
+    val actionType: String, // "status_update", "coord_update", "work_report"
+    val ticketId: String,
+    val ticketNumber: Int,
+    val status: String?,
+    val notes: String?,
+    val latitude: Double?,
+    val longitude: Double?,
+    val distanceMeters: Double?,
+    val odpCoordinateType: String? = null,
+    val reportSummary: String? = null,
+    val reportActionTaken: String? = null,
+    val reportMaterials: String? = null,
+    val reportFinalResult: String? = null,
+    val reportTechnicalJson: String? = null,
+    val beforePhotoPaths: List<String> = emptyList(),
+    val afterPhotoPaths: List<String> = emptyList(),
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+data class ReportDraftData(
+    val ticketId: String,
+    val summary: String = "",
+    val actionTaken: String = "",
+    val materialsUsed: String = "",
+    val finalResult: String = "",
+    val ontSerial: String = "",
+    val routerType: String = "",
+    val ssidName: String = "",
+    val opticalPowerDbm: String = "",
+    val odpNamePort: String = "",
+    val cableLengthMeter: String = "",
+    val pingSpeedResult: String = "",
+    val rootCauseIndex: Int = 0,
+    val customerRecipientName: String = "",
+    val checkedIndices: Set<Int> = emptySet(),
+    val updatedAt: Long = System.currentTimeMillis()
 )
 
 data class NotificationItem(

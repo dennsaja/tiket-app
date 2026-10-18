@@ -1,8 +1,8 @@
 {
-  "versionCode": 6,
-  "versionName": "1.6.0",
+  "versionCode": 7,
+  "versionName": "2.0.0",
   "minSupportedVersion": 1,
   "downloadUrl": "/downloads/helpdesk-teknisi.apk",
-  "updatedAt": "2026-10-17T11:55:00.000Z",
-  "releaseNotes": "v1.6.0: Desain Dasbor Biru Interaktif baru dengan grafik Timeline mingguan (Senin-Sabtu), kartu GPS Aktif, Tiket Belum Selesai & Tiket Selesai Hari Ini, serta aturan GPS otomatis hanya aktif saat ada tiket yang belum selesai."
+  "updatedAt": "2026-10-18T16:30:00.000Z",
+  "releaseNotes": "v2.0.0: Pembaruan Besar sesuai PRD v2 — Navigasi Bawah 5 Tab (Beranda, Tugas, Peta, Riwayat, Profil), Validasi Check-In Radius 100m, Laporan Teknis ISP/CCTV Dinamis (Scan Barcode/SN, Validasi Redaman dBm, Watermark Foto GPS & Timestamp Otomatis, Tanda Tangan Digital Pelanggan), serta Antrean Offline & Buffer Lokasi GPS."
 }
