@@ -6,11 +6,11 @@
     android:orientation="vertical"
     android:background="#F8FAFC">
 
-    <!-- Top App Bar -->
+    <!-- Top App Bar (Clean Royal Blue Dispatch Style) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="60dp"
-        android:background="#09090B"
+        android:background="#004C9E"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:paddingStart="12dp"
@@ -46,7 +46,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Judul Tiket"
-                android:textColor="#A1A1AA"
+                android:textColor="#BAE6FD"
                 android:textSize="12sp"
                 android:maxLines="1"
                 android:ellipsize="end" />
@@ -82,7 +82,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Detail &amp; Alur"
-            android:textColor="#09090B"
+            android:textColor="#004C9E"
             android:textSize="13sp"
             android:textStyle="bold"
             android:background="?attr/selectableItemBackground" />
@@ -167,19 +167,34 @@
                                 android:textSize="10.5sp"
                                 android:textStyle="bold" />
 
-                            <TextView
-                                android:id="@+id/tvDetailDistanceRadius"
+                            <LinearLayout
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:background="@drawable/badge_bg"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
                                 android:paddingStart="7dp"
                                 android:paddingEnd="7dp"
-                                android:paddingTop="2dp"
-                                android:paddingBottom="2dp"
-                                android:text="📍 Cek Jarak..."
-                                android:textColor="#0284C7"
-                                android:textSize="9.5sp"
-                                android:textStyle="bold" />
+                                android:paddingTop="3dp"
+                                android:paddingBottom="3dp">
+
+                                <ImageView
+                                    android:layout_width="11dp"
+                                    android:layout_height="11dp"
+                                    android:contentDescription="Jarak"
+                                    android:src="@drawable/ic_ln_pin"
+                                    app:tint="#0284C7" />
+
+                                <TextView
+                                    android:id="@+id/tvDetailDistanceRadius"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="4dp"
+                                    android:text="Cek Jarak..."
+                                    android:textColor="#0284C7"
+                                    android:textSize="9.5sp"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
                         </LinearLayout>
 
                         <!-- Stepper Visualizer -->
@@ -297,11 +312,16 @@
                                 android:layout_width="0dp"
                                 android:layout_height="36dp"
                                 android:layout_weight="1"
-                                android:text="⏸ Tunda / Eskalasi Tugas"
+                                android:text="Tunda / Eskalasi Tugas"
                                 android:textAllCaps="false"
                                 android:textColor="#D97706"
                                 android:textSize="11sp"
-                                android:textStyle="bold" />
+                                android:textStyle="bold"
+                                app:icon="@drawable/ic_ln_pause"
+                                app:iconGravity="textStart"
+                                app:iconPadding="5dp"
+                                app:iconSize="13dp"
+                                app:iconTint="#D97706" />
                         </LinearLayout>
 
                         <!-- Success completed banner -->
@@ -502,10 +522,15 @@
                                 android:insetBottom="0dp"
                                 android:paddingStart="4dp"
                                 android:paddingEnd="4dp"
-                                android:text="📋 Salin Alamat"
+                                android:text="Salin Alamat"
                                 android:textAllCaps="false"
                                 android:textColor="#475569"
                                 android:textSize="10sp"
+                                app:icon="@drawable/ic_ln_copy"
+                                app:iconGravity="textStart"
+                                app:iconPadding="4dp"
+                                app:iconSize="12dp"
+                                app:iconTint="#475569"
                                 app:strokeColor="#CBD5E1"
                                 app:cornerRadius="8dp" />
 
@@ -521,11 +546,16 @@
                                 android:insetBottom="0dp"
                                 android:paddingStart="4dp"
                                 android:paddingEnd="4dp"
-                                android:text="📍 Set Titik Pelanggan"
+                                android:text="Set Titik Pelanggan"
                                 android:textAllCaps="false"
                                 android:textColor="#0284C7"
                                 android:textSize="10sp"
                                 android:textStyle="bold"
+                                app:icon="@drawable/ic_ln_pin"
+                                app:iconGravity="textStart"
+                                app:iconPadding="4dp"
+                                app:iconSize="12dp"
+                                app:iconTint="#0284C7"
                                 app:strokeColor="#BAE6FD"
                                 app:cornerRadius="8dp" />
 
@@ -540,11 +570,16 @@
                                 android:insetBottom="0dp"
                                 android:paddingStart="4dp"
                                 android:paddingEnd="4dp"
-                                android:text="📍 Set Titik ODP"
+                                android:text="Set Titik ODP"
                                 android:textAllCaps="false"
                                 android:textColor="#7C3AED"
                                 android:textSize="10sp"
                                 android:textStyle="bold"
+                                app:icon="@drawable/ic_ln_locate"
+                                app:iconGravity="textStart"
+                                app:iconPadding="4dp"
+                                app:iconSize="12dp"
+                                app:iconTint="#7C3AED"
                                 app:strokeColor="#DDD6FE"
                                 app:cornerRadius="8dp" />
                         </LinearLayout>
@@ -775,12 +810,20 @@
                     android:padding="10dp"
                     android:layout_marginBottom="12dp">
 
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:contentDescription="Draft"
+                        android:src="@drawable/ic_ln_check"
+                        app:tint="#1D4ED8" />
+
                     <TextView
                         android:id="@+id/tvDraftSavedStatus"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="💾 Draf laporan disimpan otomatis di perangkat (Aman saat offline)"
+                        android:layout_marginStart="6dp"
+                        android:text="Draf laporan disimpan otomatis di perangkat (Aman saat offline)"
                         android:textColor="#1D4ED8"
                         android:textSize="11sp"
                         android:textStyle="bold" />
@@ -885,11 +928,16 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="42dp"
                                 android:layout_marginStart="8dp"
-                                android:text="📷 Scan SN/QR"
+                                android:text="Scan SN/QR"
                                 android:textAllCaps="false"
                                 android:textColor="#0284C7"
                                 android:textSize="11sp"
                                 android:textStyle="bold"
+                                app:icon="@drawable/ic_ln_scan"
+                                app:iconGravity="textStart"
+                                app:iconPadding="5dp"
+                                app:iconSize="14dp"
+                                app:iconTint="#0284C7"
                                 app:strokeColor="#BAE6FD"
                                 app:cornerRadius="8dp" />
                         </LinearLayout>
@@ -1303,10 +1351,15 @@
                                 android:layout_height="40dp"
                                 android:layout_weight="1"
                                 android:layout_marginEnd="6dp"
-                                android:text="📷 Kamera (Before)"
+                                android:text="Kamera (Before)"
                                 android:textAllCaps="false"
                                 android:textColor="#09090B"
                                 android:textSize="11.5sp"
+                                app:icon="@drawable/ic_ln_camera"
+                                app:iconGravity="textStart"
+                                app:iconPadding="6dp"
+                                app:iconSize="15dp"
+                                app:iconTint="#09090B"
                                 app:strokeColor="#CBD5E1"
                                 app:cornerRadius="8dp" />
 
@@ -1317,10 +1370,15 @@
                                 android:layout_height="40dp"
                                 android:layout_weight="1"
                                 android:layout_marginStart="6dp"
-                                android:text="🖼 Galeri (Before)"
+                                android:text="Galeri (Before)"
                                 android:textAllCaps="false"
                                 android:textColor="#09090B"
                                 android:textSize="11.5sp"
+                                app:icon="@drawable/ic_ln_image"
+                                app:iconGravity="textStart"
+                                app:iconPadding="6dp"
+                                app:iconSize="15dp"
+                                app:iconTint="#09090B"
                                 app:strokeColor="#CBD5E1"
                                 app:cornerRadius="8dp" />
                         </LinearLayout>
@@ -1369,10 +1427,15 @@
                                 android:layout_height="40dp"
                                 android:layout_weight="1"
                                 android:layout_marginEnd="6dp"
-                                android:text="📷 Kamera (After)"
+                                android:text="Kamera (After)"
                                 android:textAllCaps="false"
                                 android:textColor="#09090B"
                                 android:textSize="11.5sp"
+                                app:icon="@drawable/ic_ln_camera"
+                                app:iconGravity="textStart"
+                                app:iconPadding="6dp"
+                                app:iconSize="15dp"
+                                app:iconTint="#09090B"
                                 app:strokeColor="#CBD5E1"
                                 app:cornerRadius="8dp" />
 
@@ -1383,10 +1446,15 @@
                                 android:layout_height="40dp"
                                 android:layout_weight="1"
                                 android:layout_marginStart="6dp"
-                                android:text="🖼 Galeri (After)"
+                                android:text="Galeri (After)"
                                 android:textAllCaps="false"
                                 android:textColor="#09090B"
                                 android:textSize="11.5sp"
+                                app:icon="@drawable/ic_ln_image"
+                                app:iconGravity="textStart"
+                                app:iconPadding="6dp"
+                                app:iconSize="15dp"
+                                app:iconTint="#09090B"
                                 app:strokeColor="#CBD5E1"
                                 app:cornerRadius="8dp" />
                         </LinearLayout>

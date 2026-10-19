@@ -1,8 +1,8 @@
 {
-  "versionCode": 7,
-  "versionName": "2.0.0",
+  "versionCode": 8,
+  "versionName": "2.1.0",
   "minSupportedVersion": 1,
   "downloadUrl": "/downloads/helpdesk-teknisi.apk",
-  "updatedAt": "2026-10-18T16:30:00.000Z",
-  "releaseNotes": "v2.0.0: Pembaruan Besar sesuai PRD v2 — Navigasi Bawah 5 Tab (Beranda, Tugas, Peta, Riwayat, Profil), Validasi Check-In Radius 100m, Laporan Teknis ISP/CCTV Dinamis (Scan Barcode/SN, Validasi Redaman dBm, Watermark Foto GPS & Timestamp Otomatis, Tanda Tangan Digital Pelanggan), serta Antrean Offline & Buffer Lokasi GPS."
+  "updatedAt": "2026-10-19T06:30:00.000Z",
+  "releaseNotes": "v2.1.0: Pembaruan Desain Clean UI/UX — Dasbor Bento Hero Biru dengan Filter Pipeline Alur Kerja (1. Ditugaskan s/d 4. Dikerjakan), Header Peta Dispatch Glassmorphism (Realtime GPS Active, Sync GPS & Reset Peta), serta Set Ikon Vektor Custom (Bebas Emoji) di seluruh halaman."
 }

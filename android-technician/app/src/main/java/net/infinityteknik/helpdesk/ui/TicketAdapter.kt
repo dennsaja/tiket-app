@@ -9,6 +9,7 @@ import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
@@ -58,11 +59,11 @@ class TicketAdapter(
         }
 
         fun formatDistanceText(meters: Float?): String {
-            if (meters == null) return "📍 Lokasi belum dipetakan"
+            if (meters == null) return "Lokasi belum dipetakan"
             return if (meters >= 1000f) {
-                String.format(Locale.US, "📍 Jarak: %.1f km", meters / 1000f)
+                String.format(Locale.US, "Jarak: %.1f km", meters / 1000f)
             } else {
-                "📍 Jarak: ${meters.toInt()} m"
+                "Jarak: ${meters.toInt()} m"
             }
         }
 
@@ -114,6 +115,7 @@ class TicketAdapter(
         private val tvPriority: TextView = itemView.findViewById(R.id.tvPriorityBadge)
         private val tvStatus: TextView = itemView.findViewById(R.id.tvStatusBadge)
         private val tvDistanceBadge: TextView = itemView.findViewById(R.id.tvDistanceBadge)
+        private val ivSlaIcon: ImageView? = itemView.findViewById(R.id.ivSlaIcon)
         private val tvSlaBadge: TextView = itemView.findViewById(R.id.tvSlaBadge)
         private val tvTitle: TextView = itemView.findViewById(R.id.tvTicketTitle)
         private val tvCustomerName: TextView = itemView.findViewById(R.id.tvCustomerName)
@@ -155,7 +157,6 @@ class TicketAdapter(
                 else -> tvPriority.setTextColor(Color.parseColor("#16A34A"))
             }
 
-            // Status styling (PRD 4.2 & 7.1)
             val statusDisplay = when (ticket.status.lowercase()) {
                 "open" -> "BARU"
                 "assigned" -> "DITUGASKAN"
@@ -172,7 +173,7 @@ class TicketAdapter(
                 "resolved", "closed" -> tvStatus.setTextColor(Color.parseColor("#16A34A"))
                 "in_progress", "on_site", "accepted" -> tvStatus.setTextColor(Color.parseColor("#EA580C"))
                 "pending", "waiting_for_user", "waiting_for_third_party" -> tvStatus.setTextColor(Color.parseColor("#D97706"))
-                "assigned", "open" -> tvStatus.setTextColor(Color.parseColor("#2563EB"))
+                "assigned", "open" -> tvStatus.setTextColor(Color.parseColor("#0284C7"))
                 else -> tvStatus.setTextColor(Color.parseColor("#DC2626"))
             }
 
@@ -194,7 +195,7 @@ class TicketAdapter(
             btnWhatsApp.visibility = if (hasPhone) View.VISIBLE else View.GONE
 
             val addr = ticket.reporterAddress?.ifBlank { "Alamat belum dicantumkan" } ?: "Alamat belum dicantumkan"
-            tvCustomerAddress.text = "Lokasi: $addr"
+            tvCustomerAddress.text = addr
 
             itemView.setOnClickListener {
                 onDetailClick(ticket)
@@ -208,21 +209,21 @@ class TicketAdapter(
                 openWhatsAppChat(context, ticket.reporterPhone, ticket.reporterName, ticket.ticketNumber, ticket.title)
             }
 
-            // FR-07: Single clear primary action per status
+            // FR-07: Single clear primary action per status aligned with progressive workflow
             when (ticket.status.lowercase()) {
                 "open", "assigned" -> {
                     btnPrimaryAction.text = "1. Terima Tugas & Mulai Perjalanan"
-                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#2563EB"))
+                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#004C9E"))
                     btnPrimaryAction.setOnClickListener { onPrimaryActionClick(ticket) }
                 }
                 "accepted" -> {
-                    btnPrimaryAction.text = "2. Saya Tiba di Lokasi (Check-In)"
-                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#4F46E5"))
+                    btnPrimaryAction.text = "2. Konfirmasi Tiba di Lokasi (Check-In)"
+                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#0284C7"))
                     btnPrimaryAction.setOnClickListener { onPrimaryActionClick(ticket) }
                 }
                 "on_site", "pending" -> {
-                    btnPrimaryAction.text = "3. Mulai Kerjakan Tugas"
-                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#7C3AED"))
+                    btnPrimaryAction.text = "3. Mulai Pengerjaan Teknis"
+                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#0369A1"))
                     btnPrimaryAction.setOnClickListener { onPrimaryActionClick(ticket) }
                 }
                 "in_progress" -> {
@@ -232,7 +233,7 @@ class TicketAdapter(
                 }
                 else -> {
                     btnPrimaryAction.text = "Lihat Detail & Bukti Laporan"
-                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#475569"))
+                    btnPrimaryAction.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#334155"))
                     btnPrimaryAction.setOnClickListener { onDetailClick(ticket) }
                 }
             }
@@ -273,8 +274,11 @@ class TicketAdapter(
         private fun bindSlaBadge(ticket: TicketItem) {
             val statusLower = ticket.status.lowercase(Locale.ROOT)
             if (statusLower == "resolved" || statusLower == "closed") {
-                tvSlaBadge.text = "✓ Tugas Selesai"
-                tvSlaBadge.setTextColor(Color.parseColor("#16A34A"))
+                tvSlaBadge.text = "Tugas Selesai"
+                val green = Color.parseColor("#16A34A")
+                tvSlaBadge.setTextColor(green)
+                ivSlaIcon?.setImageResource(R.drawable.ic_ln_check)
+                ivSlaIcon?.setColorFilter(green)
                 return
             }
 
@@ -292,8 +296,11 @@ class TicketAdapter(
             }
 
             if (dueDate == null) {
-                tvSlaBadge.text = "⏱ SLA Sesuai Jadwal"
-                tvSlaBadge.setTextColor(Color.parseColor("#475569"))
+                tvSlaBadge.text = "SLA Sesuai Jadwal"
+                val slate = Color.parseColor("#475569")
+                tvSlaBadge.setTextColor(slate)
+                ivSlaIcon?.setImageResource(R.drawable.ic_ln_clock)
+                ivSlaIcon?.setColorFilter(slate)
                 return
             }
 
@@ -303,20 +310,29 @@ class TicketAdapter(
                 diffMins < 0 -> {
                     val overHours = (-diffMins) / 60
                     val overMins = (-diffMins) % 60
-                    tvSlaBadge.text = if (overHours > 0) "⚠ Lewat SLA ${overHours}j ${overMins}m" else "⚠ Lewat SLA ${overMins}m"
-                    tvSlaBadge.setTextColor(Color.parseColor("#DC2626"))
+                    tvSlaBadge.text = if (overHours > 0) "Lewat SLA ${overHours}j ${overMins}m" else "Lewat SLA ${overMins}m"
+                    val red = Color.parseColor("#DC2626")
+                    tvSlaBadge.setTextColor(red)
+                    ivSlaIcon?.setImageResource(R.drawable.ic_ln_alert)
+                    ivSlaIcon?.setColorFilter(red)
                 }
                 diffMins <= 120 -> {
                     val h = diffMins / 60
                     val m = diffMins % 60
-                    tvSlaBadge.text = if (h > 0) "⏳ Batas SLA: ${h}j ${m}m" else "⏳ Batas SLA: ${m}m"
-                    tvSlaBadge.setTextColor(Color.parseColor("#D97706"))
+                    tvSlaBadge.text = if (h > 0) "Batas SLA: ${h}j ${m}m" else "Batas SLA: ${m}m"
+                    val amber = Color.parseColor("#D97706")
+                    tvSlaBadge.setTextColor(amber)
+                    ivSlaIcon?.setImageResource(R.drawable.ic_ln_clock)
+                    ivSlaIcon?.setColorFilter(amber)
                 }
                 else -> {
                     val h = diffMins / 60
                     val m = diffMins % 60
-                    tvSlaBadge.text = "⏱ Sisa SLA: ${h}j ${m}m"
-                    tvSlaBadge.setTextColor(Color.parseColor("#15803D"))
+                    tvSlaBadge.text = "Sisa SLA: ${h}j ${m}m"
+                    val green = Color.parseColor("#15803D")
+                    tvSlaBadge.setTextColor(green)
+                    ivSlaIcon?.setImageResource(R.drawable.ic_ln_clock)
+                    ivSlaIcon?.setColorFilter(green)
                 }
             }
         }

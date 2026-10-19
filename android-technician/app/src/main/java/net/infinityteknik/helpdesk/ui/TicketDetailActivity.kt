@@ -649,15 +649,15 @@ class TicketDetailActivity : AppCompatActivity() {
         }
         when {
             dbm in -25.0..-8.0 -> {
-                tvDbmValidationHint.text = "✓ Redaman Optik Normal ($dbm dBm — Kualitas sinyal baik)"
+                tvDbmValidationHint.text = "[NORMAL] Redaman Optik Normal ($dbm dBm — Kualitas sinyal baik)"
                 tvDbmValidationHint.setTextColor(Color.parseColor("#16A34A"))
             }
             dbm in -27.9..-25.01 -> {
-                tvDbmValidationHint.text = "⚠ Peringatan: Redaman agak tinggi ($dbm dBm — Cek konektor/bending)"
+                tvDbmValidationHint.text = "[PERINGATAN] Redaman agak tinggi ($dbm dBm — Cek konektor/bending)"
                 tvDbmValidationHint.setTextColor(Color.parseColor("#D97706"))
             }
             else -> {
-                tvDbmValidationHint.text = "❗ PERINGATAN: Redaman ($dbm dBm) di luar batas wajar (-8 s/d -27 dBm)!"
+                tvDbmValidationHint.text = "[DI LUAR BATAS] Redaman ($dbm dBm) di luar batas wajar (-8 s/d -27 dBm)!"
                 tvDbmValidationHint.setTextColor(Color.parseColor("#DC2626"))
             }
         }
@@ -684,7 +684,7 @@ class TicketDetailActivity : AppCompatActivity() {
         )
         OfflineSyncManager.saveReportDraft(this, draft)
         val timeFmt = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
-        tvDraftSavedStatus.text = "💾 Draf tersimpan otomatis ($timeFmt)"
+        tvDraftSavedStatus.text = "Draf tersimpan otomatis ($timeFmt)"
     }
 
     private fun restoreDraftIfAvailable() {
@@ -714,7 +714,7 @@ class TicketDetailActivity : AppCompatActivity() {
             checklistCheckBoxes.forEachIndexed { index, cb ->
                 cb.isChecked = draft.checkedIndices.contains(index)
             }
-            tvDraftSavedStatus.text = "💾 Draf sebelumnya berhasil dipulihkan otomatis"
+            tvDraftSavedStatus.text = "Draf sebelumnya berhasil dipulihkan otomatis"
         } finally {
             isRestoringDraft = false
         }
@@ -773,14 +773,14 @@ class TicketDetailActivity : AppCompatActivity() {
     private fun updateDistanceAndRadiusUi() {
         val dist = getCurrentDistanceToCustomerMeters()
         if (dist == null) {
-            tvDetailDistanceRadius.text = "📍 Radius Check-In Siap"
+            tvDetailDistanceRadius.text = "Radius Check-In Siap"
             tvDetailDistanceRadius.setTextColor(Color.parseColor("#0284C7"))
         } else if (dist <= 100f) {
-            tvDetailDistanceRadius.text = "📍 Jarak ${dist.toInt()}m (Dalam Radius 100m)"
+            tvDetailDistanceRadius.text = "Jarak ${dist.toInt()}m (Dalam Radius 100m)"
             tvDetailDistanceRadius.setTextColor(Color.parseColor("#16A34A"))
         } else {
             val fmt = if (dist >= 1000f) String.format(Locale.US, "%.1f km", dist / 1000f) else "${dist.toInt()}m"
-            tvDetailDistanceRadius.text = "📍 Jarak $fmt (>100m)"
+            tvDetailDistanceRadius.text = "Jarak $fmt (>100m)"
             tvDetailDistanceRadius.setTextColor(Color.parseColor("#D97706"))
         }
     }
@@ -824,7 +824,7 @@ class TicketDetailActivity : AppCompatActivity() {
                 gravity = Gravity.CENTER_VERTICAL
             }
             val tvSt = TextView(this).apply {
-                text = "● $title"
+                text = "• $title"
                 setTextColor(Color.parseColor("#0F172A"))
                 textSize = 12f
                 setTypeface(typeface, Typeface.BOLD)
@@ -1338,8 +1338,8 @@ class TicketDetailActivity : AppCompatActivity() {
 
     private fun switchTab(tabIndex: Int) {
         currentTab = tabIndex
-        val selectedColor = Color.parseColor("#09090B")
-        val unselectedColor = Color.parseColor("#71717A")
+        val selectedColor = Color.parseColor("#004C9E")
+        val unselectedColor = Color.parseColor("#64748B")
 
         tabDetail.setTextColor(if (tabIndex == 0) selectedColor else unselectedColor)
         tabChat.setTextColor(if (tabIndex == 1) selectedColor else unselectedColor)
@@ -1383,7 +1383,7 @@ class TicketDetailActivity : AppCompatActivity() {
             countText.text = "Belum ada $prefix dipilih"
             countText.setTextColor(Color.parseColor("#64748B"))
         } else {
-            countText.text = "✓ ${list.size} $prefix siap dikirim (<1 MB)"
+            countText.text = "[SIAP] ${list.size} $prefix siap dikirim (<1 MB)"
             countText.setTextColor(Color.parseColor("#16A34A"))
         }
 
@@ -1417,7 +1417,7 @@ class TicketDetailActivity : AppCompatActivity() {
             }
 
             val btnDelete = TextView(this).apply {
-                text = "✕"
+                text = "X"
                 setTextColor(Color.WHITE)
                 textSize = 11f
                 gravity = Gravity.CENTER

@@ -20,9 +20,9 @@ import {
 } from "lucide-react";
 
 export const metadata = {
-  title: "Download Aplikasi Android Teknisi v2.0.0 | HelpDesk",
+  title: "Download Aplikasi Android Teknisi v2.1.0 | HelpDesk",
   description:
-    "Unduh aplikasi Android resmi HelpDesk Teknisi v2.0.0 dengan notifikasi real-time, alur kerja progresif, kamera before-after, dan GPS hemat daya.",
+    "Unduh aplikasi Android resmi HelpDesk Teknisi v2.1.0 dengan Clean UI/UX Dasbor Bento & Peta Dispatch, ikon vektor custom, alur kerja progresif, kamera watermark GPS, dan GPS hemat daya.",
 };
 
 export default function DownloadPage() {
@@ -53,7 +53,7 @@ export default function DownloadPage() {
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
                 <Sparkles className="h-3 w-3" />
-                Versi Rilis Terbaru v2.0.0
+                Versi Rilis Terbaru v2.1.0
               </span>
               <span className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
                 Update Oktober 2026
@@ -66,10 +66,10 @@ export default function DownloadPage() {
         </div>
 
         <p className="text-sm text-zinc-600 dark:text-zinc-300 leading-relaxed mb-6">
-          Aplikasi resmi teknisi dengan dukungan <strong>Notifikasi Real-Time</strong> (Status Bar,
-          Notification Drawer &amp; Heads-Up Pop-up), alur tiket terarah (terima hingga selesai),
-          dokumentasi foto kamera/galeri Sebelum &amp; Sesudah (Before &amp; After), serta{" "}
-          <strong>Pelacakan GPS Hemat Daya 1 Menit (Anti Panas)</strong>.
+          Aplikasi resmi teknisi dengan <strong>Clean UI/UX Bento Dashboard &amp; Peta Dispatch</strong>,
+          ikon vektor custom profesional (tanpa emoji), <strong>Notifikasi Real-Time</strong> (Status Bar,
+          Notification Drawer &amp; Heads-Up Pop-up), alur tiket progresif, dokumentasi foto Watermark GPS,
+          serta <strong>Pelacakan GPS Hemat Daya 1 Menit (Hanya Saat Ada Tiket Aktif)</strong>.
         </p>
 
         {/* Primary Download Banner */}
@@ -77,7 +77,7 @@ export default function DownloadPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-sm text-sky-950 dark:text-sky-100">
-                Paket Instalasi Android APK (v2.0.0)
+                Paket Instalasi Android APK (v2.1.0 • Build 8)
               </span>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-200/70 dark:bg-sky-800/60 text-sky-800 dark:text-sky-200">
                 Build Resmi
@@ -89,11 +89,11 @@ export default function DownloadPage() {
           </div>
           <a
             href="/downloads/helpdesk-teknisi.apk"
-            download="helpdesk-teknisi-v2.0.0.apk"
+            download="helpdesk-teknisi-v2.1.0.apk"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 hover:bg-black dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-3.5 text-sm font-bold shadow-lg transition-all active:scale-95 shrink-0"
           >
             <Download className="h-4 w-4" />
-            <span>Unduh APK v2.0.0</span>
+            <span>Unduh APK v2.1.0</span>
           </a>
         </div>
 
@@ -101,7 +101,7 @@ export default function DownloadPage() {
         <div className="space-y-4 mb-8">
           <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
             <Zap className="h-4 w-4 text-amber-500" />
-            Fitur Utama &amp; Pembaruan v2.0.0:
+            Fitur Utama &amp; Pembaruan v2.1.0:
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
@@ -209,7 +209,7 @@ export default function DownloadPage() {
                 1
               </span>
               <span>
-                Ketuk tombol <strong>Unduh APK v2.0.0</strong> di atas. Jika Anda sudah menginstal versi lama, cukup instal file baru ini untuk memperbarui (tidak perlu uninstall).
+                Ketuk tombol <strong>Unduh APK v2.1.0</strong> di atas. Jika Anda sudah menginstal versi lama, cukup instal file baru ini untuk memperbarui (tidak perlu uninstall).
               </span>
             </li>
             <li className="flex items-start gap-2.5">

@@ -71,6 +71,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var navTabMap: LinearLayout
     private lateinit var navTabHistory: LinearLayout
     private lateinit var navTabProfile: LinearLayout
+    private lateinit var ivNavHome: ImageView
+    private lateinit var ivNavTasks: ImageView
+    private lateinit var ivNavMap: ImageView
+    private lateinit var ivNavHistory: ImageView
+    private lateinit var ivNavProfile: ImageView
     private lateinit var tvNavLabelHome: TextView
     private lateinit var tvNavLabelTasks: TextView
     private lateinit var tvNavLabelMap: TextView
@@ -114,7 +119,13 @@ class MainActivity : AppCompatActivity() {
     private var currentHeadsUpNotif: NotificationItem? = null
     private var headsUpAutoHideJob: Job? = null
 
-    // Search & Filter Reset Row + Ticket List (Tab 1: Beranda)
+    // Workflow Pipeline Chips + Search & Filter Reset Row + Ticket List (Tab 1: Beranda)
+    private lateinit var chipHomeWfAll: TextView
+    private lateinit var chipHomeWfAssigned: TextView
+    private lateinit var chipHomeWfEnRoute: TextView
+    private lateinit var chipHomeWfOnSite: TextView
+    private lateinit var chipHomeWfWorking: TextView
+    private var homeWorkflowStage = "all" // all, assigned, accepted, on_site, in_progress
     private lateinit var cardFilterAll: LinearLayout
     private lateinit var etSearchTickets: EditText
     private lateinit var tvTicketCount: TextView
@@ -137,7 +148,9 @@ class MainActivity : AppCompatActivity() {
     private var tasksTabSearchQuery = ""
 
     // Tab 3: Peta (Interactive Field Map)
-    private lateinit var btnMapRecenter: MaterialButton
+    private lateinit var tvMapHeaderStats: TextView
+    private lateinit var btnMapHeaderSyncGps: LinearLayout
+    private lateinit var btnMapRecenter: LinearLayout
     private lateinit var btnMapZoomIn: MaterialButton
     private lateinit var btnMapZoomOut: MaterialButton
     private lateinit var fieldMapView: FieldTechnicianMapView
@@ -329,6 +342,11 @@ class MainActivity : AppCompatActivity() {
         navTabMap = findViewById(R.id.navTabMap)
         navTabHistory = findViewById(R.id.navTabHistory)
         navTabProfile = findViewById(R.id.navTabProfile)
+        ivNavHome = findViewById(R.id.ivNavHome)
+        ivNavTasks = findViewById(R.id.ivNavTasks)
+        ivNavMap = findViewById(R.id.ivNavMap)
+        ivNavHistory = findViewById(R.id.ivNavHistory)
+        ivNavProfile = findViewById(R.id.ivNavProfile)
         tvNavLabelHome = findViewById(R.id.tvNavLabelHome)
         tvNavLabelTasks = findViewById(R.id.tvNavLabelTasks)
         tvNavLabelMap = findViewById(R.id.tvNavLabelMap)
@@ -366,6 +384,12 @@ class MainActivity : AppCompatActivity() {
         btnHeadsUpOpen = findViewById(R.id.btnHeadsUpOpen)
         btnHeadsUpDismiss = findViewById(R.id.btnHeadsUpDismiss)
 
+        chipHomeWfAll = findViewById(R.id.chipHomeWfAll)
+        chipHomeWfAssigned = findViewById(R.id.chipHomeWfAssigned)
+        chipHomeWfEnRoute = findViewById(R.id.chipHomeWfEnRoute)
+        chipHomeWfOnSite = findViewById(R.id.chipHomeWfOnSite)
+        chipHomeWfWorking = findViewById(R.id.chipHomeWfWorking)
+
         cardFilterAll = findViewById(R.id.cardFilterAll)
         etSearchTickets = findViewById(R.id.etSearchTickets)
         tvTicketCount = findViewById(R.id.tvTicketCount)
@@ -385,6 +409,8 @@ class MainActivity : AppCompatActivity() {
         rvTasksTab = findViewById(R.id.rvTasksTab)
 
         // Tab 3: Peta Views
+        tvMapHeaderStats = findViewById(R.id.tvMapHeaderStats)
+        btnMapHeaderSyncGps = findViewById(R.id.btnMapHeaderSyncGps)
         btnMapRecenter = findViewById(R.id.btnMapRecenter)
         btnMapZoomIn = findViewById(R.id.btnMapZoomIn)
         btnMapZoomOut = findViewById(R.id.btnMapZoomOut)
@@ -457,7 +483,15 @@ class MainActivity : AppCompatActivity() {
         cardSupportBanner.setOnClickListener {
             showSupportAndQuickChatDialog()
         }
+        chipHomeWfAll.setOnClickListener { setHomeWorkflowChip("all") }
+        chipHomeWfAssigned.setOnClickListener { setHomeWorkflowChip("assigned") }
+        chipHomeWfEnRoute.setOnClickListener { setHomeWorkflowChip("accepted") }
+        chipHomeWfOnSite.setOnClickListener { setHomeWorkflowChip("on_site") }
+        chipHomeWfWorking.setOnClickListener { setHomeWorkflowChip("in_progress") }
+
         cardFilterAll.setOnClickListener {
+            homeWorkflowStage = "all"
+            updateHomeWorkflowChipStyles()
             selectFilter(0)
         }
         btnHeadsUpDismiss.setOnClickListener {
@@ -503,9 +537,9 @@ class MainActivity : AppCompatActivity() {
                 .setSingleChoiceItems(sortOptions, tasksTabSortMode) { d, which ->
                     tasksTabSortMode = which
                     btnSortTasksTab.text = when (which) {
-                        1 -> "⇅ Urut: Jarak"
-                        2 -> "⇅ Urut: SLA"
-                        else -> "⇅ Urut: Prioritas"
+                        1 -> "Urut: Jarak"
+                        2 -> "Urut: SLA"
+                        else -> "Urut: Prioritas"
                     }
                     renderTasksTab()
                     d.dismiss()
@@ -527,8 +561,13 @@ class MainActivity : AppCompatActivity() {
         chipTaskTabDone.setOnClickListener { setTasksTabStatusChip("done") }
 
         // Tab 3 (Peta) Listeners
+        btnMapHeaderSyncGps.setOnClickListener {
+            handleGpsCardClick()
+            loadTickets(silent = false)
+        }
         btnMapRecenter.setOnClickListener {
             fieldMapView.recenterOnTechnician()
+            Toast.makeText(this, "Peta dipusatkan ke posisi teknisi", Toast.LENGTH_SHORT).show()
         }
         btnMapZoomIn.setOnClickListener {
             fieldMapView.zoomIn()
@@ -606,11 +645,13 @@ class MainActivity : AppCompatActivity() {
         val activeColor = Color.parseColor("#004C9E")
         val inactiveColor = Color.parseColor("#64748B")
         val labels = arrayOf(tvNavLabelHome, tvNavLabelTasks, tvNavLabelMap, tvNavLabelHistory, tvNavLabelProfile)
+        val icons = arrayOf(ivNavHome, ivNavTasks, ivNavMap, ivNavHistory, ivNavProfile)
 
         for (i in 0..4) {
             val isSelected = i == index
             labels[i].setTextColor(if (isSelected) activeColor else inactiveColor)
             labels[i].setTypeface(null, if (isSelected) Typeface.BOLD else Typeface.NORMAL)
+            icons[i].setColorFilter(if (isSelected) activeColor else inactiveColor)
         }
 
         when (index) {
@@ -629,7 +670,7 @@ class MainActivity : AppCompatActivity() {
         if (totalPending > 0) {
             layoutOfflineSyncBanner.visibility = View.VISIBLE
             tvOfflineSyncStatus.text =
-                "⚡ Antrean Offline: $pendingActions laporan/status • $pendingGps titik GPS menunggu sinkronisasi"
+                "Antrean Offline: $pendingActions laporan/status • $pendingGps titik GPS menunggu sinkronisasi"
         } else {
             layoutOfflineSyncBanner.visibility = View.GONE
         }
@@ -637,20 +678,20 @@ class MainActivity : AppCompatActivity() {
         // Update Profile Tab views
         tvProfileFullName.text = session.userName ?: "Teknisi Lapangan"
         tvProfileEmail.text = "${session.userEmail ?: "-"} • ${session.userRole?.uppercase() ?: "TEKNISI"}"
-        tvProfileVersion.text = "HelpDesk Teknisi v2.0.0 (Build 7) • ${session.serverUrl}"
+        tvProfileVersion.text = "HelpDesk Teknisi v2.1.0 (Build 8) • ${session.serverUrl}"
 
         val gpsStatusLine = if (session.activeTicketsCount > 0) {
             val lastCoord = if (session.lastLatitude != 0.0) {
-                String.format(Locale.US, "%.6f, %.6f (±%.0fm)", session.lastLatitude, session.lastLongitude, session.lastAccuracy)
+                String.format(Locale.US, "%.6f, %.6f (+/-%.0fm)", session.lastLatitude, session.lastLongitude, session.lastAccuracy)
             } else {
                 "Mencari sinyal satelit..."
             }
-            "🟢 Status GPS: AKTIF (${session.activeTicketsCount} Tiket Belum Selesai)\n" +
-                "📍 Koordinat Terakhir: $lastCoord\n" +
-                "⏱️ Interval Hemat Daya: 1 Menit (Anti Panas)\n"
+            "[AKTIF] Status GPS: AKTIF (${session.activeTicketsCount} Tiket Belum Selesai)\n" +
+                "• Koordinat Terakhir: $lastCoord\n" +
+                "• Interval Hemat Daya: 1 Menit (Anti Panas)\n"
         } else {
-            "⚪ Status GPS: NONAKTIF (0 Tiket Aktif)\n" +
-                "💡 GPS otomatis berhenti saat semua tiket selesai untuk menghemat baterai.\n"
+            "[SIAGA] Status GPS: NONAKTIF (0 Tiket Aktif)\n" +
+                "• GPS otomatis berhenti saat semua tiket selesai untuk menghemat baterai.\n"
         }
 
         val lastSyncMs = OfflineSyncManager.getLastSyncTime(this)
@@ -659,11 +700,11 @@ class MainActivity : AppCompatActivity() {
         } else "Belum pernah"
 
         tvProfileTrackingDetails.text = gpsStatusLine +
-            "📦 Buffer Lokasi Offline: $pendingGps titik GPS\n" +
-            "📋 Antrean Status/Laporan Offline: $pendingActions item\n" +
-            "🔄 Sinkronisasi Terakhir: $lastSyncStr"
+            "• Buffer Lokasi Offline: $pendingGps titik GPS\n" +
+            "• Antrean Status/Laporan Offline: $pendingActions item\n" +
+            "• Sinkronisasi Terakhir: $lastSyncStr"
 
-        // Permission checklist
+        // Permission checklist (No emojis, clean status tags)
         val locOk = hasLocationPermission()
         val notifOk = NotificationHelper.areSystemNotificationsEnabled(this)
         val camOk = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
@@ -673,10 +714,10 @@ class MainActivity : AppCompatActivity() {
         } else true
 
         val sb = StringBuilder()
-        sb.append(if (locOk) "✅ " else "⚠️ ").append("Izin Lokasi GPS Presisi: ").append(if (locOk) "Aktif\n" else "Belum Diizinkan\n")
-        sb.append(if (notifOk) "✅ " else "⚠️ ").append("Izin Notifikasi Tugas & Chat: ").append(if (notifOk) "Aktif\n" else "Belum Diizinkan\n")
-        sb.append(if (camOk) "✅ " else "ℹ️ ").append("Izin Kamera Dokumentasi & Barcode: ").append(if (camOk) "Aktif\n" else "Diminta saat foto\n")
-        sb.append(if (batteryUnrestricted) "✅ " else "⚠️ ").append("Pengecualian Optimasi Baterai Background: ").append(if (batteryUnrestricted) "Aktif (Tanpa Pembatasan)" else "Disarankan Diaktifkan")
+        sb.append(if (locOk) "[AKTIF] " else "[PERLU IZIN] ").append("Izin Lokasi GPS Presisi: ").append(if (locOk) "Diizinkan\n" else "Belum Diizinkan\n")
+        sb.append(if (notifOk) "[AKTIF] " else "[PERLU IZIN] ").append("Izin Notifikasi Tugas & Chat: ").append(if (notifOk) "Diizinkan\n" else "Belum Diizinkan\n")
+        sb.append(if (camOk) "[AKTIF] " else "[SIAP] ").append("Izin Kamera Dokumentasi & Barcode: ").append(if (camOk) "Diizinkan\n" else "Diminta saat foto\n")
+        sb.append(if (batteryUnrestricted) "[AKTIF] " else "[SARAN] ").append("Pengecualian Optimasi Baterai Background: ").append(if (batteryUnrestricted) "Aktif (Tanpa Pembatasan)" else "Disarankan Diaktifkan")
         tvProfilePermissionsStatus.text = sb.toString()
     }
 
@@ -898,7 +939,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         AlertDialog.Builder(this)
-            .setTitle("${session.userName ?: "Teknisi"} • Pengaturan (v2.0.0)")
+            .setTitle("${session.userName ?: "Teknisi"} • Pengaturan (v2.1.0)")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> {
@@ -925,7 +966,7 @@ class MainActivity : AppCompatActivity() {
                             "Status GPS: $gpsStateText\n" +
                             "Koordinat: $coordsText\n" +
                             "Server: ${session.serverUrl}\n" +
-                            "Versi Aplikasi: v2.0.0 (Build 7)"
+                            "Versi Aplikasi: v2.1.0 (Build 8)"
                     )
                     .setPositiveButton("Tutup", null)
                     .show()
@@ -1107,7 +1148,7 @@ class MainActivity : AppCompatActivity() {
                 setTypeface(typeface, Typeface.BOLD)
             }
             val tvPermDesc = TextView(this).apply {
-                text = "Ketuk di sini untuk mengaktifkan izin Status Bar & Pop-up Notifikasi di pengaturan HP Anda →"
+                text = "Ketuk di sini untuk mengaktifkan izin Status Bar & Pop-up Notifikasi di pengaturan HP Anda ->"
                 setTextColor(Color.parseColor("#DC2626"))
                 textSize = 11f
                 setPadding(0, dp(2), 0, 0)
@@ -1224,7 +1265,7 @@ class MainActivity : AppCompatActivity() {
 
                 val actionHint = TextView(this).apply {
                     val isChat = item.type == "new_message" || item.type == "new_internal_note"
-                    text = if (isChat) "Ketuk untuk membuka Chat Tim →" else "Ketuk untuk membuka Detail Tiket →"
+                    text = if (isChat) "Ketuk untuk membuka Chat Tim ->" else "Ketuk untuk membuka Detail Tiket ->"
                     setTextColor(Color.parseColor("#18181B"))
                     textSize = 10f
                     setTypeface(typeface, Typeface.BOLD)
@@ -1256,8 +1297,42 @@ class MainActivity : AppCompatActivity() {
         dialogRef.show()
     }
 
+    private fun setHomeWorkflowChip(stage: String) {
+        homeWorkflowStage = if (homeWorkflowStage == stage && stage != "all") "all" else stage
+        if (homeWorkflowStage != "all") {
+            selectedFilterIndex = 0
+            cardFilterActive.setBackgroundResource(R.drawable.bg_glass_blue_card)
+            cardFilterResolved.setBackgroundResource(R.drawable.bg_glass_blue_card)
+        }
+        updateHomeWorkflowChipStyles()
+        applyFiltersAndRender()
+    }
+
+    private fun updateHomeWorkflowChipStyles() {
+        val map = mapOf(
+            "all" to chipHomeWfAll,
+            "assigned" to chipHomeWfAssigned,
+            "accepted" to chipHomeWfEnRoute,
+            "on_site" to chipHomeWfOnSite,
+            "in_progress" to chipHomeWfWorking
+        )
+        for ((k, tv) in map) {
+            if (k == homeWorkflowStage) {
+                tv.setBackgroundResource(R.drawable.bg_chip_selected_blue)
+                tv.setTextColor(Color.WHITE)
+            } else {
+                tv.setBackgroundResource(R.drawable.bg_chip_unselected)
+                tv.setTextColor(Color.parseColor("#334155"))
+            }
+        }
+    }
+
     private fun selectFilter(index: Int) {
         selectedFilterIndex = index
+        if (index != 0) {
+            homeWorkflowStage = "all"
+            updateHomeWorkflowChipStyles()
+        }
 
         cardFilterActive.setBackgroundResource(
             if (index == 1) R.drawable.bg_glass_blue_card_selected else R.drawable.bg_glass_blue_card
@@ -1270,8 +1345,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyFiltersAndRender() {
+        // Update live workflow stage counts on Home Pipeline Chips
+        var cAssigned = 0
+        var cEnRoute = 0
+        var cOnSite = 0
+        var cWorking = 0
+        for (t in allTickets) {
+            when (t.status.lowercase(Locale.ROOT)) {
+                "open", "assigned", "reopened" -> cAssigned++
+                "accepted" -> cEnRoute++
+                "on_site", "pending", "waiting_for_user", "waiting_for_third_party" -> cOnSite++
+                "in_progress" -> cWorking++
+            }
+        }
+        chipHomeWfAssigned.text = "1. Ditugaskan ($cAssigned)"
+        chipHomeWfEnRoute.text = "2. Perjalanan ($cEnRoute)"
+        chipHomeWfOnSite.text = "3. Di Lokasi ($cOnSite)"
+        chipHomeWfWorking.text = "4. Dikerjakan ($cWorking)"
+
         val filtered = allTickets.filter { t ->
-            val s = t.status.lowercase()
+            val s = t.status.lowercase(Locale.ROOT)
             val isResolved = s == "resolved" || s == "closed" || s == "cancelled"
 
             val matchesTab = when (selectedFilterIndex) {
@@ -1280,23 +1373,35 @@ class MainActivity : AppCompatActivity() {
                 else -> true
             }
 
-            val q = searchQuery.lowercase()
+            val matchesWorkflowStage = when (homeWorkflowStage) {
+                "assigned" -> s == "open" || s == "assigned" || s == "reopened"
+                "accepted" -> s == "accepted"
+                "on_site" -> s == "on_site" || s == "pending" || s == "waiting_for_user" || s == "waiting_for_third_party"
+                "in_progress" -> s == "in_progress"
+                else -> true
+            }
+
+            val q = searchQuery.lowercase(Locale.ROOT)
             val matchesQuery = if (q.isEmpty()) {
                 true
             } else {
                 t.ticketNumber.toString().contains(q) ||
-                    t.title.lowercase().contains(q) ||
-                    (t.reporterName?.lowercase()?.contains(q) == true) ||
-                    (t.reporterAddress?.lowercase()?.contains(q) == true)
+                    t.title.lowercase(Locale.ROOT).contains(q) ||
+                    (t.reporterName?.lowercase(Locale.ROOT)?.contains(q) == true) ||
+                    (t.reporterAddress?.lowercase(Locale.ROOT)?.contains(q) == true)
             }
 
-            matchesTab && matchesQuery
+            matchesTab && matchesWorkflowStage && matchesQuery
         }
 
         homeTicketAdapter.submitList(filtered)
-        val filterName = when (selectedFilterIndex) {
-            1 -> "Belum Selesai (${filtered.size})"
-            2 -> "Selesai (${filtered.size})"
+        val filterName = when {
+            homeWorkflowStage == "assigned" -> "Ditugaskan (${filtered.size})"
+            homeWorkflowStage == "accepted" -> "Perjalanan (${filtered.size})"
+            homeWorkflowStage == "on_site" -> "Di Lokasi (${filtered.size})"
+            homeWorkflowStage == "in_progress" -> "Dikerjakan (${filtered.size})"
+            selectedFilterIndex == 1 -> "Belum Selesai (${filtered.size})"
+            selectedFilterIndex == 2 -> "Selesai (${filtered.size})"
             else -> "Semua (${filtered.size})"
         }
         tvTicketCount.text = filterName
@@ -1321,11 +1426,11 @@ class MainActivity : AppCompatActivity() {
         )
         for ((k, tv) in map) {
             if (k == statusKey) {
-                tv.setBackgroundColor(Color.parseColor("#004C9E"))
+                tv.setBackgroundResource(R.drawable.bg_chip_selected_blue)
                 tv.setTextColor(Color.WHITE)
             } else {
-                tv.setBackgroundResource(R.drawable.badge_bg)
-                tv.setTextColor(Color.parseColor("#09090B"))
+                tv.setBackgroundResource(R.drawable.bg_chip_unselected)
+                tv.setTextColor(Color.parseColor("#334155"))
             }
         }
         renderTasksTab()
@@ -1394,6 +1499,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderMapTab() {
+        val activeCount = allTickets.count {
+            val s = it.status.lowercase(Locale.ROOT)
+            s != "resolved" && s != "closed" && s != "cancelled"
+        }
+        tvMapHeaderStats.text = "$activeCount Aktif / ${allTickets.size} Total Tiket"
+
         val sel = selectedMapTicket ?: allTickets.firstOrNull {
             val s = it.status.lowercase(Locale.ROOT)
             s != "resolved" && s != "closed" && s != "cancelled"
@@ -1420,9 +1531,9 @@ class MainActivity : AppCompatActivity() {
             val res = FloatArray(1)
             Location.distanceBetween(techLat, techLng, tLat, tLng, res)
             val m = res[0]
-            tvMapPreviewDistance.text = if (m < 1000f) "📍 ${m.toInt()} m" else String.format(Locale.US, "📍 %.1f km", m / 1000f)
+            tvMapPreviewDistance.text = if (m < 1000f) "${m.toInt()} m" else String.format(Locale.US, "%.1f km", m / 1000f)
         } else {
-            tvMapPreviewDistance.text = "📍 Titik Area"
+            tvMapPreviewDistance.text = "Titik Area"
         }
     }
 
@@ -1450,10 +1561,10 @@ class MainActivity : AppCompatActivity() {
         val chips = arrayOf(chipHistoryAll, chipHistoryToday, chipHistoryWeek)
         for (i in chips.indices) {
             if (i == period) {
-                chips[i].setBackgroundColor(Color.parseColor("#004C9E"))
+                chips[i].setBackgroundResource(R.drawable.bg_chip_selected_blue)
                 chips[i].setTextColor(Color.WHITE)
             } else {
-                chips[i].setBackgroundResource(R.drawable.badge_bg)
+                chips[i].setBackgroundResource(R.drawable.bg_chip_unselected)
                 chips[i].setTextColor(Color.parseColor("#475569"))
             }
         }
@@ -1520,7 +1631,7 @@ class MainActivity : AppCompatActivity() {
         sb.append("Status: ${NotificationHelper.formatStatusName(ticket.status)}\n\n")
 
         if (report != null) {
-            sb.append("📋 RINGKASAN LAPORAN TEKNISI:\n")
+            sb.append("RINGKASAN LAPORAN TEKNISI:\n")
             sb.append("• Ringkasan: ${report.summary}\n")
             sb.append("• Tindakan: ${report.actionTaken}\n")
             if (!report.materialsUsed.isNullOrBlank()) {
@@ -1532,7 +1643,7 @@ class MainActivity : AppCompatActivity() {
             sb.append("• Foto Dokumentasi: ${report.beforePhotos.size} Before, ${report.afterPhotos.size} After\n")
             sb.append("• Waktu Laporan: ${report.createdAt}\n")
         } else if (!ticket.resolution.isNullOrBlank()) {
-            sb.append("📋 RINGKASAN PENYELESAIAN:\n${ticket.resolution}\n")
+            sb.append("RINGKASAN PENYELESAIAN:\n${ticket.resolution}\n")
         } else {
             sb.append("Tiket ini telah diselesaikan. Ketuk 'Buka Detail & Foto' untuk melihat dokumentasi lengkap.\n")
         }
