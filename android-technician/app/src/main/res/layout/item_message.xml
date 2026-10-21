@@ -9,7 +9,7 @@
         android:id="@+id/cardMessage"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#FFFFFF">
+        android:background="@color/surface">
 
         <LinearLayout
             android:id="@+id/layoutMessageContainer"
@@ -30,7 +30,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Nama Pengirim"
-                    android:textColor="#09090B"
+                    android:textColor="@color/text_primary"
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
@@ -45,7 +45,7 @@
                     android:paddingTop="1dp"
                     android:paddingBottom="1dp"
                     android:text="TEKNISI"
-                    android:textColor="#71717A"
+                    android:textColor="@color/text_muted"
                     android:textSize="9sp"
                     android:textStyle="bold" />
 
@@ -60,7 +60,7 @@
                     android:paddingTop="1dp"
                     android:paddingBottom="1dp"
                     android:text="INTERNAL"
-                    android:textColor="#D97706"
+                    android:textColor="@color/status_amber"
                     android:textSize="9sp"
                     android:textStyle="bold"
                     android:visibility="gone" />

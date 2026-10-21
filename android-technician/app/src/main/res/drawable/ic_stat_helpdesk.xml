@@ -1,11 +1,1 @@
-<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <!-- Exact Web HelpDesk Triangle Icon for Status Bar, Notification Drawer & Heads-Up -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M12,3L22,20H2L12,3Z" />
-</vector>
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"><path android:strokeColor="#FFFFFF" android:strokeWidth="1.8" android:strokeLineCap="round" android:fillColor="@android:color/transparent" android:pathData="M3,6 C6,9 8,3 11,6 C14,9 16,3 20,6 M3,12 C6,15 8,9 11,12 C14,15 16,9 20,12 M3,18 C6,21 8,15 11,18 C14,21 16,15 20,18" /></vector>

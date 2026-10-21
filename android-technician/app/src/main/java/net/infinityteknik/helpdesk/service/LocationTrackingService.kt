@@ -9,6 +9,14 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.content.pm.PackageManager
+import android.Manifest
+import androidx.core.content.ContextCompat
+import androidx.core.location.LocationManagerCompat
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.sync.Mutex
+import net.infinityteknik.helpdesk.util.LocationPolicy
+import java.util.concurrent.atomic.AtomicReference
 import android.graphics.Color
 import android.location.Location
 import android.location.LocationListener
@@ -35,12 +43,12 @@ import net.infinityteknik.helpdesk.data.SessionManager
 import net.infinityteknik.helpdesk.ui.MainActivity
 import net.infinityteknik.helpdesk.util.NotificationHelper
 import net.infinityteknik.helpdesk.util.OfflineSyncManager
-import net.infinityteknik.helpdesk.util.TrackingScheduleManager
+
 
 /**
  * Thermal-Safe 1-Minute Duty-Cycled GPS Service + Real-Time Notification Listener.
- * - GPS hardware wakes up once every 60 seconds for max 7s, then powers down for ~53s so the phone never overheats.
- * - Lightweight HTTP notification poller checks every 6 seconds for new Team Chat messages, ticket status changes,
+ * - GPS hardware wakes up once every 60 seconds for max 7s, then powers down for ~53s to limit continuous GPS use.
+ * - Lightweight HTTP notification poller checks every 15 seconds for new Team Chat messages, ticket status changes,
  *   and ticket detail updates, triggering Status Bar + Notification Drawer + Heads-Up Pop-up notifications.
  */
 class LocationTrackingService : Service() {
@@ -56,10 +64,11 @@ class LocationTrackingService : Service() {
 
         private const val PING_INTERVAL_MS = 60_000L // Strictly 1 minute between GPS transmissions
         private const val GPS_ACQUIRE_TIMEOUT_MS = 7_000L // Max 7s GPS burst, then hardware sleeps
-        private const val NOTIF_POLL_INTERVAL_MS = 6_000L // 6s real-time notification check
+        private const val NOTIF_POLL_INTERVAL_MS = 15_000L // Notification polling interval
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val locationMutex = Mutex()
     private var tickerJob: Job? = null
     private var notifJob: Job? = null
     private lateinit var locationManager: LocationManager
@@ -74,47 +83,32 @@ class LocationTrackingService : Service() {
         NotificationHelper.ensureAlertChannel(this)
     }
 
+    private fun canTrackNow(): Boolean {
+        val permitted = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        return LocationPolicy.canTrack(session.isLoggedIn, session.userRole, session.activeTicketsCount, permitted,
+            LocationManagerCompat.isLocationEnabled(locationManager))
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action ?: ACTION_START
-
-        if (action == ACTION_LOGOUT) {
+        if (!session.isLoggedIn || action == ACTION_LOGOUT) {
+            session.isDutyActive = false
             stopTracking()
             stopSelf()
             return START_NOT_STICKY
         }
-
-        if (action == ACTION_STOP || session.activeTicketsCount <= 0) {
-            if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
-                session.isDutyActive = true
-                ensureForegroundAndTicker()
-                return START_STICKY
-            }
+        if (!canTrackNow()) {
             session.isDutyActive = false
             stopGpsTicker()
-            updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (GPS Nonaktif)")
+            updateForegroundNotification("Siaga tugas · GPS tidak aktif")
             ensureNotificationPoller()
-            return START_STICKY
-        }
-
-        if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
-            session.isDutyActive = true
-            ensureForegroundAndTicker()
         } else {
-            session.isDutyActive = false
-            stopGpsTicker()
-            updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (GPS Nonaktif)")
-            ensureNotificationPoller()
+            ensureForegroundAndTicker()
+            if (action == ACTION_FORCE_PING) serviceScope.launch { acquireAndSendLocationOnce() }
         }
-
-        if (action == ACTION_FORCE_PING && session.activeTicketsCount > 0) {
-            serviceScope.launch {
-                acquireAndSendLocationOnce()
-            }
-        }
-
         return START_STICKY
     }
-
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -144,7 +138,7 @@ class LocationTrackingService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("HelpDesk Teknisi • Aktif")
             .setContentText(text)
-            .setSmallIcon(R.drawable.ic_stat_helpdesk) // Web-matched triangle status bar icon
+            .setSmallIcon(R.drawable.ic_stat_helpdesk) // Shared HelpDesk brand
             .setLargeIcon(NotificationHelper.getWebLogoBitmap(this))
             .setColor(Color.parseColor("#09090B"))
             .setOngoing(true)
@@ -153,21 +147,28 @@ class LocationTrackingService : Service() {
             .build()
     }
 
-    private fun updateForegroundNotification(text: String) {
+    private fun updateForegroundNotification(text: String): Boolean {
         val notification = buildNotification(text)
-        try {
+        return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-            } else {
-                startForeground(NOTIFICATION_ID, notification)
-            }
-        } catch (e: Exception) {
+                val types = ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC or
+                    if (canTrackNow()) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else 0
+                startForeground(NOTIFICATION_ID, notification, types)
+            } else startForeground(NOTIFICATION_ID, notification)
+            true
+        } catch (_: RuntimeException) {
+            session.isDutyActive = false
             try {
-                startForeground(NOTIFICATION_ID, notification)
-            } catch (_: Exception) {}
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                    startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                else startForeground(NOTIFICATION_ID, notification)
+                false
+            } catch (_: RuntimeException) {
+                stopSelf()
+                false
+            }
         }
     }
-
     private fun ensureNotificationPoller() {
         if (notifJob?.isActive == true) return
         notifJob = serviceScope.launch {
@@ -185,7 +186,7 @@ class LocationTrackingService : Service() {
                         OfflineSyncManager.flushAllPendingQueues(this@LocationTrackingService, session)
                     }
                     if (payload != null) {
-                        if (TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
+                        if (canTrackNow()) {
                             if (!session.isDutyActive || tickerJob?.isActive != true) {
                                 session.isDutyActive = true
                                 withContext(Dispatchers.Main) {
@@ -211,22 +212,16 @@ class LocationTrackingService : Service() {
     }
 
     private fun stopGpsTicker() {
+        val wasTracking = tickerJob != null
         tickerJob?.cancel()
         tickerJob = null
-        try {
-            releaseBurstListener()
-        } catch (e: Exception) {}
-
-        serviceScope.launch {
-            val token = session.token
-            if (!token.isNullOrBlank()) {
-                ApiClient.stopLocation(session.serverUrl, token)
-            }
+        releaseBurstListener()
+        if (wasTracking) serviceScope.launch {
+            session.token?.let { ApiClient.stopLocation(session.serverUrl, it) }
         }
     }
-
     private fun ensureForegroundAndTicker() {
-        if (!TrackingScheduleManager.isTrackingMandatory(session.activeTicketsCount)) {
+        if (!canTrackNow()) {
             session.isDutyActive = false
             stopGpsTicker()
             updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (GPS Nonaktif)")
@@ -234,14 +229,15 @@ class LocationTrackingService : Service() {
             return
         }
 
-        updateForegroundNotification("GPS Aktif (1 mnt Hemat Daya) • ${session.activeTicketsCount} Tiket Aktif")
+        if (!updateForegroundNotification("GPS aktif · " + session.activeTicketsCount + " tiket")) return
+        session.isDutyActive = true
         ensureNotificationPoller()
 
         if (tickerJob?.isActive == true) return
 
         tickerJob = serviceScope.launch {
             while (isActive) {
-                if (TrackingScheduleManager.shouldAutoTurnOff(session.activeTicketsCount)) {
+                if (!canTrackNow()) {
                     session.isDutyActive = false
                     stopGpsTicker()
                     updateForegroundNotification("HelpDesk Teknisi • Siaga Tugas (GPS Nonaktif)")
@@ -258,70 +254,52 @@ class LocationTrackingService : Service() {
      * Wakes up location providers briefly (up to 7 seconds), captures a single fresh fix,
      * immediately unregisters the listener so the GPS hardware turns OFF, and uploads the fix.
      */
-    @SuppressLint("MissingPermission")
     private suspend fun acquireAndSendLocationOnce() {
-        var capturedLocation: Location? = null
+        if (!canTrackNow() || !locationMutex.tryLock()) return
+        try { acquireFixAndSend() } finally { locationMutex.unlock() }
+    }
 
-        val burstListener = object : LocationListener {
+    @SuppressLint("MissingPermission")
+    private suspend fun acquireFixAndSend() {
+        if (!canTrackNow()) return
+        val captured = AtomicReference<Location?>(null)
+        val listener = object : LocationListener {
             override fun onLocationChanged(location: Location) {
-                if (capturedLocation == null || location.accuracy < (capturedLocation?.accuracy ?: 999f)) {
-                    capturedLocation = location
-                }
+                val previous = captured.get()
+                if (previous == null || location.accuracy < previous.accuracy) captured.set(location)
             }
             override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
             override fun onProviderEnabled(provider: String) {}
             override fun onProviderDisabled(provider: String) {}
         }
-
         try {
             withContext(Dispatchers.Main) {
                 releaseBurstListener()
-                activeBurstListener = burstListener
-
-                if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                    locationManager.requestLocationUpdates(
-                        LocationManager.NETWORK_PROVIDER,
-                        0L,
-                        0f,
-                        burstListener,
-                        Looper.getMainLooper()
-                    )
-                }
-                if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                    locationManager.requestLocationUpdates(
-                        LocationManager.GPS_PROVIDER,
-                        0L,
-                        0f,
-                        burstListener,
-                        Looper.getMainLooper()
-                    )
+                activeBurstListener = listener
+                listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER).forEach { provider ->
+                    if (locationManager.isProviderEnabled(provider))
+                        locationManager.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper())
                 }
             }
-
             var waited = 0L
-            while (waited < GPS_ACQUIRE_TIMEOUT_MS) {
-                val loc = capturedLocation
-                if (loc != null && loc.accuracy <= 35f) {
-                    break
-                }
+            while (waited < GPS_ACQUIRE_TIMEOUT_MS && canTrackNow()) {
+                val fix = captured.get()
+                if (fix != null && fix.accuracy <= 35f) break
                 delay(500L)
                 waited += 500L
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: SecurityException) {
+            session.isDutyActive = false
+        } catch (_: IllegalArgumentException) {
+            // A location provider may disappear while the device changes location settings.
         } finally {
-            // CRITICAL: Always remove listener immediately so GPS hardware chip powers down!
-            withContext(Dispatchers.Main) {
-                releaseBurstListener()
-            }
+            withContext(NonCancellable + Dispatchers.Main) { releaseBurstListener() }
         }
-
-        val finalLocation = capturedLocation ?: getBestLastKnownLocation()
-        if (finalLocation != null) {
-            dispatchLocationUpdate(finalLocation)
-        }
+        val fix = captured.get() ?: getBestLastKnownLocation()
+        if (fix != null && canTrackNow()) dispatchLocationUpdate(fix)
     }
-
     @SuppressLint("MissingPermission")
     private fun getBestLastKnownLocation(): Location? {
         return try {
@@ -331,7 +309,7 @@ class LocationTrackingService : Service() {
                 locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER) else null
             val passive = locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER)
 
-            listOfNotNull(gps, net, passive).maxByOrNull { it.time }
+            listOfNotNull(gps, net, passive).filter { LocationPolicy.isFresh(it.time) && it.hasAccuracy() && it.accuracy <= LocationPolicy.MAX_ACCURACY_METERS }.maxByOrNull { it.time }
         } catch (e: Exception) {
             null
         }
@@ -363,6 +341,8 @@ class LocationTrackingService : Service() {
     }
 
     private suspend fun dispatchLocationUpdate(loc: Location) {
+        if (!canTrackNow() || !session.isDutyActive || !LocationPolicy.isFresh(loc.time) ||
+            !LocationPolicy.hasCoordinates(loc.latitude, loc.longitude) || !loc.hasAccuracy() || loc.accuracy > LocationPolicy.MAX_ACCURACY_METERS) return
         // GT-05: Filter out inaccurate GPS jumps (>50m accuracy when a recent valid fix exists)
         if (!OfflineSyncManager.isLocationValid(
                 loc,
@@ -380,7 +360,7 @@ class LocationTrackingService : Service() {
         session.lastLatitude = loc.latitude
         session.lastLongitude = loc.longitude
         session.lastAccuracy = loc.accuracy
-        session.lastUpdateTime = now
+        session.lastUpdateTime = loc.time
 
         val accuracyStr = if (loc.hasAccuracy()) "±${loc.accuracy.toInt()}m" else ""
         val speedKmh = if (loc.hasSpeed()) loc.speed * 3.6f else 0f
@@ -402,7 +382,7 @@ class LocationTrackingService : Service() {
                 putExtra("acc", loc.accuracy)
                 putExtra("speed", speedKmh)
                 putExtra("battery", batteryLevel)
-                putExtra("time", now)
+                putExtra("time", loc.time)
             }
             sendBroadcast(broadcast)
         }
@@ -423,7 +403,7 @@ class LocationTrackingService : Service() {
                 heading = if (loc.hasBearing()) loc.bearing else null,
                 battery = batteryLevel,
                 activeTicketId = activeTicketId,
-                deviceTime = now
+                deviceTime = loc.time
             )
             OfflineSyncManager.sendOrBufferLocation(this, session, payload)
         }

@@ -7,2182 +7,583 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.graphics.Typeface
-import android.graphics.drawable.GradientDrawable
-import android.location.Location
+import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import androidx.core.location.LocationManagerCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import net.infinityteknik.helpdesk.R
-import net.infinityteknik.helpdesk.data.ApiClient
-import net.infinityteknik.helpdesk.data.NotificationItem
-import net.infinityteknik.helpdesk.data.OfflineActionItem
-import net.infinityteknik.helpdesk.data.SessionManager
-import net.infinityteknik.helpdesk.data.TicketItem
+import net.infinityteknik.helpdesk.data.*
 import net.infinityteknik.helpdesk.service.LocationTrackingService
+import net.infinityteknik.helpdesk.util.LocationPolicy
 import net.infinityteknik.helpdesk.util.NotificationHelper
 import net.infinityteknik.helpdesk.util.OfflineSyncManager
-import net.infinityteknik.helpdesk.util.TrackingScheduleManager
 import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
-
     private lateinit var session: SessionManager
+    private lateinit var pages: FrameLayout
+    private lateinit var swipe: SwipeRefreshLayout
+    private lateinit var syncBanner: TextView
+    private lateinit var notificationCount: TextView
+    private lateinit var heading: TextView
+    private lateinit var navigation: LinearLayout
+    private lateinit var ticketsAdapter: TicketAdapter
+    private lateinit var ticketList: RecyclerView
+    private lateinit var ticketCount: TextView
+    private lateinit var ticketEmpty: TextView
+    private lateinit var searchInput: EditText
+    private lateinit var homeRecent: LinearLayout
+    private lateinit var gpsTitle: TextView
+    private lateinit var gpsSummary: TextView
+    private lateinit var accountGps: TextView
+    private lateinit var mapSummary: TextView
+    private lateinit var mapPreview: LinearLayout
+    private lateinit var fieldMap: FieldTechnicianMapView
+    private lateinit var chart: WeeklyTimelineChartView
+    private val statValues = mutableListOf<TextView>()
+    private val screens = mutableListOf<View>()
+    private val navIcons = mutableListOf<ImageView>()
+    private val navLabels = mutableListOf<TextView>()
+    private val filterLabels = mutableMapOf<String, TextView>()
+    private var allTickets = emptyList<TicketItem>()
+    private var notifications = emptyList<NotificationItem>()
+    private var activeTab = 0
+    private var ticketFilter = "active"
+    private var query = ""
+    private var loading = false
+    private var hasData = false
+    private var connected = true
+    private var polling: Job? = null
+    private var permissionsBusy = false
+    private var selectedTicket: TicketItem? = null
+    private val preferences by lazy { getSharedPreferences("helpdesk_permission_choices", MODE_PRIVATE) }
 
-    // Global Offline Sync Banner (FR-24)
-    private lateinit var layoutOfflineSyncBanner: LinearLayout
-    private lateinit var tvOfflineSyncStatus: TextView
-    private lateinit var btnFlushSyncNow: TextView
-
-    // 5 Main Tab Views
-    private lateinit var viewBottomTabHome: LinearLayout
-    private lateinit var viewBottomTabTasks: LinearLayout
-    private lateinit var viewBottomTabMap: LinearLayout
-    private lateinit var viewBottomTabHistory: LinearLayout
-    private lateinit var viewBottomTabProfile: ScrollView
-
-    // Bottom Navigation Views
-    private lateinit var navTabHome: LinearLayout
-    private lateinit var navTabTasks: LinearLayout
-    private lateinit var navTabMap: LinearLayout
-    private lateinit var navTabHistory: LinearLayout
-    private lateinit var navTabProfile: LinearLayout
-    private lateinit var ivNavHome: ImageView
-    private lateinit var ivNavTasks: ImageView
-    private lateinit var ivNavMap: ImageView
-    private lateinit var ivNavHistory: ImageView
-    private lateinit var ivNavProfile: ImageView
-    private lateinit var tvNavLabelHome: TextView
-    private lateinit var tvNavLabelTasks: TextView
-    private lateinit var tvNavLabelMap: TextView
-    private lateinit var tvNavLabelHistory: TextView
-    private lateinit var tvNavLabelProfile: TextView
-    private var currentBottomTab = 0
-
-    // Top Blue Hero Dashboard Views (Tab 1: Beranda)
-    private lateinit var cardProfileAvatar: CardView
-    private lateinit var tvTechnicianName: TextView
-    private lateinit var tvTechnicianRole: TextView
-    private lateinit var btnNotificationBell: FrameLayout
-    private lateinit var tvNotificationBadge: TextView
-    private lateinit var btnSettings: FrameLayout
-
-    // Bento Grid Left Column Cards
-    private lateinit var cardGpsStatus: LinearLayout
-    private lateinit var tvDutyStatus: TextView
-    private lateinit var tvGpsCoords: TextView
-    private lateinit var cardFilterActive: LinearLayout
-    private lateinit var tvCountActive: TextView
-    private lateinit var tvFilterActiveLabel: TextView
-    private lateinit var cardFilterResolved: LinearLayout
-    private lateinit var tvCountResolved: TextView
-    private lateinit var tvFilterResolvedLabel: TextView
-
-    // Bento Grid Right Column Timeline Card
-    private lateinit var cardTimeline: LinearLayout
-    private lateinit var chartWeeklyTimeline: WeeklyTimelineChartView
-
-    // Bottom Support Banner inside Hero Card
-    private lateinit var cardSupportBanner: CardView
-
-    // In-App Heads-Up Notification Pop-up Banner
-    private lateinit var cardHeadsUpBanner: CardView
-    private lateinit var tvHeadsUpCategory: TextView
-    private lateinit var tvHeadsUpTitle: TextView
-    private lateinit var tvHeadsUpMessage: TextView
-    private lateinit var btnHeadsUpOpen: MaterialButton
-    private lateinit var btnHeadsUpDismiss: ImageButton
-    private var currentHeadsUpNotif: NotificationItem? = null
-    private var headsUpAutoHideJob: Job? = null
-
-    // Workflow Pipeline Chips + Search & Filter Reset Row + Ticket List (Tab 1: Beranda)
-    private lateinit var chipHomeWfAll: TextView
-    private lateinit var chipHomeWfAssigned: TextView
-    private lateinit var chipHomeWfEnRoute: TextView
-    private lateinit var chipHomeWfOnSite: TextView
-    private lateinit var chipHomeWfWorking: TextView
-    private var homeWorkflowStage = "all" // all, assigned, accepted, on_site, in_progress
-    private lateinit var cardFilterAll: LinearLayout
-    private lateinit var etSearchTickets: EditText
-    private lateinit var tvTicketCount: TextView
-    private lateinit var swipeRefresh: SwipeRefreshLayout
-    private lateinit var rvTickets: RecyclerView
-    private lateinit var tvEmptyState: TextView
-
-    // Tab 2: Tugas (Full Filter & Sort)
-    private lateinit var tvTasksTabSubtitle: TextView
-    private lateinit var btnSortTasksTab: TextView
-    private lateinit var etSearchTasksTab: EditText
-    private lateinit var chipTaskTabAll: TextView
-    private lateinit var chipTaskTabNew: TextView
-    private lateinit var chipTaskTabRunning: TextView
-    private lateinit var chipTaskTabPending: TextView
-    private lateinit var chipTaskTabDone: TextView
-    private lateinit var rvTasksTab: RecyclerView
-    private var tasksTabFilterStatus = "all" // all, new, active, pending, done
-    private var tasksTabSortMode = 0 // 0 = Prioritas, 1 = Jarak Terdekat, 2 = Jadwal / SLA
-    private var tasksTabSearchQuery = ""
-
-    // Tab 3: Peta (Interactive Field Map)
-    private lateinit var tvMapHeaderStats: TextView
-    private lateinit var btnMapHeaderSyncGps: LinearLayout
-    private lateinit var btnMapRecenter: LinearLayout
-    private lateinit var btnMapZoomIn: MaterialButton
-    private lateinit var btnMapZoomOut: MaterialButton
-    private lateinit var fieldMapView: FieldTechnicianMapView
-    private lateinit var cardMapSelectedTicket: CardView
-    private lateinit var tvMapPreviewTitle: TextView
-    private lateinit var tvMapPreviewDistance: TextView
-    private lateinit var tvMapPreviewAddress: TextView
-    private lateinit var btnMapOpenNavigate: MaterialButton
-    private lateinit var btnMapOpenDetail: MaterialButton
-    private var selectedMapTicket: TicketItem? = null
-
-    // Tab 4: Riwayat & Performa
-    private lateinit var tvHistoryStatToday: TextView
-    private lateinit var tvHistoryStatWeek: TextView
-    private lateinit var tvHistoryStatTotal: TextView
-    private lateinit var chipHistoryAll: TextView
-    private lateinit var chipHistoryToday: TextView
-    private lateinit var chipHistoryWeek: TextView
-    private lateinit var rvHistoryTab: RecyclerView
-    private var historyPeriodFilter = 0 // 0 = Semua, 1 = Hari Ini, 2 = Minggu Ini
-
-    // Tab 5: Profil & Pengaturan
-    private lateinit var tvProfileFullName: TextView
-    private lateinit var tvProfileEmail: TextView
-    private lateinit var tvProfileVersion: TextView
-    private lateinit var tvProfileTrackingDetails: TextView
-    private lateinit var btnProfilePingGps: MaterialButton
-    private lateinit var btnProfileSyncQueue: MaterialButton
-    private lateinit var tvProfilePermissionsStatus: TextView
-    private lateinit var btnBatteryOptimizationGuide: MaterialButton
-    private lateinit var btnProfileContactDispatcher: MaterialButton
-    private lateinit var btnProfileLogout: MaterialButton
-
-    private lateinit var homeTicketAdapter: TicketAdapter
-    private lateinit var tasksTabAdapter: TicketAdapter
-    private lateinit var historyTabAdapter: TicketAdapter
-
-    private var allTickets = listOf<TicketItem>()
-    private var cachedNotifications = listOf<NotificationItem>()
-    private var unreadNotifCount = 0
-    private var selectedFilterIndex = 0 // 0 = All, 1 = Belum Selesai, 2 = Selesai
-    private var searchQuery = ""
-    private var realtimePollJob: Job? = null
-    private var latestWeeklyCounts = IntArray(6) { 0 }
-
-    private var hasShownNotifDialogThisResume = false
-
-    private val detailLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            loadTickets(silent = true)
-        }
-        refreshOfflineBannerAndProfile()
-        syncNotificationsNow()
+    private val detailLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { refreshTickets(false) }
+    private val locationPermission = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        permissionsBusy = false; updateGpsUi(); ensureService()
     }
-
-    private val notifPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted && NotificationHelper.areSystemNotificationsEnabled(this)) {
-            Toast.makeText(this, "Izin Notifikasi HelpDesk Aktif!", Toast.LENGTH_SHORT).show()
-            syncNotificationsNow()
-            requestLocationPermissionsIfNeeded()
-        } else {
-            showNotificationPermissionFallbackDialog()
-        }
-        refreshOfflineBannerAndProfile()
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        permissionsBusy = false; maybeRequestLocation()
     }
-
-    private val locationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        if (fineGranted || coarseGranted) {
-            evaluateTrackingRules(session.activeTicketsCount)
-        } else {
-            Toast.makeText(
-                this,
-                "Izin lokasi GPS diperlukan saat mengerjakan tiket tugas lapangan",
-                Toast.LENGTH_LONG
-            ).show()
-        }
-        refreshOfflineBannerAndProfile()
-    }
-
-    private val systemEventReceiver = object : BroadcastReceiver() {
+    private val updates = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                LocationTrackingService.ACTION_LOCATION_UPDATED -> {
-                    val lat = intent.getDoubleExtra("lat", 0.0)
-                    val lng = intent.getDoubleExtra("lng", 0.0)
-                    val acc = intent.getFloatExtra("acc", 0f)
-                    val battery = intent.getIntExtra("battery", -1)
-                    updateGpsDisplay(lat, lng, acc, battery, System.currentTimeMillis())
-                    fieldMapView.setMapData(lat, lng, allTickets, selectedMapTicket?.id)
-                    refreshOfflineBannerAndProfile()
-                }
-                OfflineSyncManager.ACTION_SYNC_STATE_CHANGED -> {
-                    refreshOfflineBannerAndProfile()
-                }
-                NotificationHelper.ACTION_NOTIFICATION_SYNCED -> {
-                    val payload = NotificationHelper.latestCachedPayload
-                    if (payload != null) {
-                        cachedNotifications = payload.notifications
-                        unreadNotifCount = payload.unreadCount
-                        updateNotificationBadge(unreadNotifCount)
-                    } else {
-                        val count = intent.getIntExtra("unreadCount", unreadNotifCount)
-                        unreadNotifCount = count
-                        updateNotificationBadge(count)
-                    }
-
-                    val newNotifId = intent.getStringExtra("newNotifId")
-                    if (!newNotifId.isNullOrBlank()) {
-                        val triggered = cachedNotifications.find { it.id == newNotifId }
-                            ?: NotificationItem(
-                                id = newNotifId,
-                                type = intent.getStringExtra("newNotifType") ?: "ticket_updated",
-                                title = intent.getStringExtra("newNotifTitle") ?: "Notifikasi Baru",
-                                message = intent.getStringExtra("newNotifMessage") ?: "",
-                                ticketId = intent.getStringExtra("newNotifTicketId")?.takeIf { it.isNotBlank() },
-                                ticketNumber = 0,
-                                ticketTitle = intent.getStringExtra("newNotifTitle") ?: "",
-                                ticketStatus = "assigned",
-                                ticketPriority = "medium",
-                                ticketType = null,
-                                reporterName = null,
-                                reporterPhone = null,
-                                reporterAddress = null,
-                                reporterMapUrl = null,
-                                ticketDescription = null,
-                                isRead = false,
-                                createdAt = ""
-                            )
-                        showInAppHeadsUpBanner(triggered)
-                    }
-                }
+            if (intent?.action == NotificationHelper.ACTION_NOTIFICATION_SYNCED) {
+                NotificationHelper.latestCachedPayload?.let { notifications = it.notifications }
+                renderNotificationCount()
             }
+            updateGpsUi(); updateSyncBanner()
+            if (activeTab == 2) renderMap()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
         session = SessionManager(this)
+        if (!session.isLoggedIn) { openLogin(); return }
+        session.userId?.let { OfflineSyncManager.prepareAccount(this, it) }
+        activeTab = savedInstanceState?.getInt("tab", 0) ?: 0
+        ticketFilter = savedInstanceState?.getString("filter") ?: "active"
+        query = savedInstanceState?.getString("query") ?: ""
+        setContentView(R.layout.activity_main)
+        pages = findViewById(R.id.workspacePages)
+        swipe = findViewById(R.id.swipeWorkspace)
+        syncBanner = findViewById(R.id.tvSyncBanner)
+        notificationCount = findViewById(R.id.tvNotificationCount)
+        heading = findViewById(R.id.tvWorkspaceTitle)
+        navigation = findViewById(R.id.bottomNavigation)
+        findViewById<ImageButton>(R.id.btnNotifications).setOnClickListener { showNotifications() }
+        swipe.setColorSchemeColors(HelpdeskTheme.blue)
+        swipe.setProgressBackgroundColorSchemeColor(HelpdeskTheme.surface)
+        swipe.setOnRefreshListener { refreshTickets(true) }
+        swipe.setOnChildScrollUpCallback { _, _ ->
+            when (activeTab) { 1 -> ticketList.canScrollVertically(-1); 2 -> true; else -> screens[activeTab].canScrollVertically(-1) }
+        }
+        buildOverview(); buildTickets(); buildMap(); buildAccount(); buildNavigation()
+        selectTab(activeTab)
+        allTickets = OfflineSyncManager.getCachedTickets(this)
+        hasData = allTickets.isNotEmpty()
+        notifications = session.getLocalNotifications()
+        render()
         NotificationHelper.ensureAlertChannel(this)
-
-        initViews()
-        setupRecyclerViews()
-        setupBottomNavigation()
-
-        // Load offline cached tickets immediately so UI is responsive even offline (FR-23)
-        val cachedTickets = OfflineSyncManager.getCachedTickets(this)
-        if (cachedTickets.isNotEmpty()) {
-            allTickets = cachedTickets
-            renderAllTabsWithTickets(cachedTickets)
-        }
-
-        cachedNotifications = session.getLocalNotifications()
-        unreadNotifCount = cachedNotifications.count { !it.isRead }
-        updateNotificationBadge(unreadNotifCount)
-
-        checkAndRequestPermissions()
-
-        // Rule: GPS is ONLY active when there are active unfinished tickets
-        evaluateTrackingRules(session.activeTicketsCount)
-
-        loadTickets(silent = false)
-        loadUserProfile()
-        refreshOfflineBannerAndProfile()
     }
 
-    private fun initViews() {
-        layoutOfflineSyncBanner = findViewById(R.id.layoutOfflineSyncBanner)
-        tvOfflineSyncStatus = findViewById(R.id.tvOfflineSyncStatus)
-        btnFlushSyncNow = findViewById(R.id.btnFlushSyncNow)
-
-        viewBottomTabHome = findViewById(R.id.viewBottomTabHome)
-        viewBottomTabTasks = findViewById(R.id.viewBottomTabTasks)
-        viewBottomTabMap = findViewById(R.id.viewBottomTabMap)
-        viewBottomTabHistory = findViewById(R.id.viewBottomTabHistory)
-        viewBottomTabProfile = findViewById(R.id.viewBottomTabProfile)
-
-        navTabHome = findViewById(R.id.navTabHome)
-        navTabTasks = findViewById(R.id.navTabTasks)
-        navTabMap = findViewById(R.id.navTabMap)
-        navTabHistory = findViewById(R.id.navTabHistory)
-        navTabProfile = findViewById(R.id.navTabProfile)
-        ivNavHome = findViewById(R.id.ivNavHome)
-        ivNavTasks = findViewById(R.id.ivNavTasks)
-        ivNavMap = findViewById(R.id.ivNavMap)
-        ivNavHistory = findViewById(R.id.ivNavHistory)
-        ivNavProfile = findViewById(R.id.ivNavProfile)
-        tvNavLabelHome = findViewById(R.id.tvNavLabelHome)
-        tvNavLabelTasks = findViewById(R.id.tvNavLabelTasks)
-        tvNavLabelMap = findViewById(R.id.tvNavLabelMap)
-        tvNavLabelHistory = findViewById(R.id.tvNavLabelHistory)
-        tvNavLabelProfile = findViewById(R.id.tvNavLabelProfile)
-
-        // Tab 1: Beranda Views
-        cardProfileAvatar = findViewById(R.id.cardProfileAvatar)
-        tvTechnicianName = findViewById(R.id.tvTechnicianName)
-        tvTechnicianRole = findViewById(R.id.tvTechnicianRole)
-        btnNotificationBell = findViewById(R.id.btnNotificationBell)
-        tvNotificationBadge = findViewById(R.id.tvNotificationBadge)
-        btnSettings = findViewById(R.id.btnSettings)
-
-        cardGpsStatus = findViewById(R.id.cardGpsStatus)
-        tvDutyStatus = findViewById(R.id.tvDutyStatus)
-        tvGpsCoords = findViewById(R.id.tvGpsCoords)
-
-        cardFilterActive = findViewById(R.id.cardFilterActive)
-        tvCountActive = findViewById(R.id.tvCountActive)
-        tvFilterActiveLabel = findViewById(R.id.tvFilterActiveLabel)
-
-        cardFilterResolved = findViewById(R.id.cardFilterResolved)
-        tvCountResolved = findViewById(R.id.tvCountResolved)
-        tvFilterResolvedLabel = findViewById(R.id.tvFilterResolvedLabel)
-
-        cardTimeline = findViewById(R.id.cardTimeline)
-        chartWeeklyTimeline = findViewById(R.id.chartWeeklyTimeline)
-        cardSupportBanner = findViewById(R.id.cardSupportBanner)
-
-        cardHeadsUpBanner = findViewById(R.id.cardHeadsUpBanner)
-        tvHeadsUpCategory = findViewById(R.id.tvHeadsUpCategory)
-        tvHeadsUpTitle = findViewById(R.id.tvHeadsUpTitle)
-        tvHeadsUpMessage = findViewById(R.id.tvHeadsUpMessage)
-        btnHeadsUpOpen = findViewById(R.id.btnHeadsUpOpen)
-        btnHeadsUpDismiss = findViewById(R.id.btnHeadsUpDismiss)
-
-        chipHomeWfAll = findViewById(R.id.chipHomeWfAll)
-        chipHomeWfAssigned = findViewById(R.id.chipHomeWfAssigned)
-        chipHomeWfEnRoute = findViewById(R.id.chipHomeWfEnRoute)
-        chipHomeWfOnSite = findViewById(R.id.chipHomeWfOnSite)
-        chipHomeWfWorking = findViewById(R.id.chipHomeWfWorking)
-
-        cardFilterAll = findViewById(R.id.cardFilterAll)
-        etSearchTickets = findViewById(R.id.etSearchTickets)
-        tvTicketCount = findViewById(R.id.tvTicketCount)
-        swipeRefresh = findViewById(R.id.swipeRefresh)
-        rvTickets = findViewById(R.id.rvTickets)
-        tvEmptyState = findViewById(R.id.tvEmptyState)
-
-        // Tab 2: Tugas Views
-        tvTasksTabSubtitle = findViewById(R.id.tvTasksTabSubtitle)
-        btnSortTasksTab = findViewById(R.id.btnSortTasksTab)
-        etSearchTasksTab = findViewById(R.id.etSearchTasksTab)
-        chipTaskTabAll = findViewById(R.id.chipTaskTabAll)
-        chipTaskTabNew = findViewById(R.id.chipTaskTabNew)
-        chipTaskTabRunning = findViewById(R.id.chipTaskTabRunning)
-        chipTaskTabPending = findViewById(R.id.chipTaskTabPending)
-        chipTaskTabDone = findViewById(R.id.chipTaskTabDone)
-        rvTasksTab = findViewById(R.id.rvTasksTab)
-
-        // Tab 3: Peta Views
-        tvMapHeaderStats = findViewById(R.id.tvMapHeaderStats)
-        btnMapHeaderSyncGps = findViewById(R.id.btnMapHeaderSyncGps)
-        btnMapRecenter = findViewById(R.id.btnMapRecenter)
-        btnMapZoomIn = findViewById(R.id.btnMapZoomIn)
-        btnMapZoomOut = findViewById(R.id.btnMapZoomOut)
-        fieldMapView = findViewById(R.id.fieldMapView)
-        cardMapSelectedTicket = findViewById(R.id.cardMapSelectedTicket)
-        tvMapPreviewTitle = findViewById(R.id.tvMapPreviewTitle)
-        tvMapPreviewDistance = findViewById(R.id.tvMapPreviewDistance)
-        tvMapPreviewAddress = findViewById(R.id.tvMapPreviewAddress)
-        btnMapOpenNavigate = findViewById(R.id.btnMapOpenNavigate)
-        btnMapOpenDetail = findViewById(R.id.btnMapOpenDetail)
-
-        // Tab 4: Riwayat Views
-        tvHistoryStatToday = findViewById(R.id.tvHistoryStatToday)
-        tvHistoryStatWeek = findViewById(R.id.tvHistoryStatWeek)
-        tvHistoryStatTotal = findViewById(R.id.tvHistoryStatTotal)
-        chipHistoryAll = findViewById(R.id.chipHistoryAll)
-        chipHistoryToday = findViewById(R.id.chipHistoryToday)
-        chipHistoryWeek = findViewById(R.id.chipHistoryWeek)
-        rvHistoryTab = findViewById(R.id.rvHistoryTab)
-
-        // Tab 5: Profil Views
-        tvProfileFullName = findViewById(R.id.tvProfileFullName)
-        tvProfileEmail = findViewById(R.id.tvProfileEmail)
-        tvProfileVersion = findViewById(R.id.tvProfileVersion)
-        tvProfileTrackingDetails = findViewById(R.id.tvProfileTrackingDetails)
-        btnProfilePingGps = findViewById(R.id.btnProfilePingGps)
-        btnProfileSyncQueue = findViewById(R.id.btnProfileSyncQueue)
-        tvProfilePermissionsStatus = findViewById(R.id.tvProfilePermissionsStatus)
-        btnBatteryOptimizationGuide = findViewById(R.id.btnBatteryOptimizationGuide)
-        btnProfileContactDispatcher = findViewById(R.id.btnProfileContactDispatcher)
-        btnProfileLogout = findViewById(R.id.btnProfileLogout)
-
-        tvTechnicianName.text = session.userName ?: "Teknisi"
-        tvTechnicianRole.text = "Teknisi"
-        chartWeeklyTimeline.setWeeklyCounts(latestWeeklyCounts)
-
-        // Offline Banner Action
-        btnFlushSyncNow.setOnClickListener {
-            flushOfflineQueuesManual()
-        }
-
-        // Tab 1 Listeners
-        cardProfileAvatar.setOnClickListener {
-            selectBottomTab(4)
-        }
-        btnNotificationBell.setOnClickListener {
-            showNotificationDrawerDialog()
-        }
-        btnSettings.setOnClickListener {
-            showSettingsAndAccountDialog()
-        }
-        cardGpsStatus.setOnClickListener {
-            handleGpsCardClick()
-        }
-        cardFilterActive.setOnClickListener {
-            val next = if (selectedFilterIndex == 1) 0 else 1
-            selectFilter(next)
-            val label = if (next == 1) "Menampilkan Tiket Belum Selesai" else "Menampilkan Semua Tiket"
-            Toast.makeText(this, label, Toast.LENGTH_SHORT).show()
-        }
-        cardFilterResolved.setOnClickListener {
-            val next = if (selectedFilterIndex == 2) 0 else 2
-            selectFilter(next)
-            val label = if (next == 2) "Menampilkan Tiket Selesai" else "Menampilkan Semua Tiket"
-            Toast.makeText(this, label, Toast.LENGTH_SHORT).show()
-        }
-        cardTimeline.setOnClickListener {
-            showWeeklyTimelineDetailDialog()
-        }
-        cardSupportBanner.setOnClickListener {
-            showSupportAndQuickChatDialog()
-        }
-        chipHomeWfAll.setOnClickListener { setHomeWorkflowChip("all") }
-        chipHomeWfAssigned.setOnClickListener { setHomeWorkflowChip("assigned") }
-        chipHomeWfEnRoute.setOnClickListener { setHomeWorkflowChip("accepted") }
-        chipHomeWfOnSite.setOnClickListener { setHomeWorkflowChip("on_site") }
-        chipHomeWfWorking.setOnClickListener { setHomeWorkflowChip("in_progress") }
-
-        cardFilterAll.setOnClickListener {
-            homeWorkflowStage = "all"
-            updateHomeWorkflowChipStyles()
-            selectFilter(0)
-        }
-        btnHeadsUpDismiss.setOnClickListener {
-            cardHeadsUpBanner.visibility = View.GONE
-        }
-        btnHeadsUpOpen.setOnClickListener {
-            val notif = currentHeadsUpNotif
-            cardHeadsUpBanner.visibility = View.GONE
-            if (notif != null) {
-                handleNotificationClicked(notif)
+    private fun dp(value: Int) = HelpdeskTheme.dp(this, value)
+    private fun label(value: String, size: Float = 14f, color: Int = HelpdeskTheme.text, bold: Boolean = false) =
+        HelpdeskTheme.text(this, value, size, color, bold)
+    private fun column(padding: Int = 0) = HelpdeskTheme.column(this, padding)
+    private fun gap(parent: LinearLayout, value: Int = 16) { parent.addView(View(this), LinearLayout.LayoutParams(1, dp(value))) }
+    private fun addScreen(screen: View) { screens.add(screen); pages.addView(screen, FrameLayout.LayoutParams(-1, -1)) }
+    private fun scroll(content: LinearLayout) = ScrollView(this).apply { isFillViewport = true; clipToPadding = false; addView(content) }
+    private fun panel(padding: Int = 20) = column(padding).apply { background = HelpdeskTheme.shape(this@MainActivity) }
+    private fun row() = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+    private fun button(parent: LinearLayout, title: String, primary: Boolean = false, action: () -> Unit) {
+        parent.addView(HelpdeskTheme.button(this, title, primary, action), LinearLayout.LayoutParams(-1, dp(48)))
+    }
+    private fun buildOverview() {
+        val root = column(20)
+        root.addView(label("SUPPORT WORKSPACE", 10f, HelpdeskTheme.muted).apply { letterSpacing = .13f })
+        gap(root, 10)
+        root.addView(label("Halo, " + (session.userName ?: "Teknisi").substringBefore(" ") + "!", 30f, bold = true))
+        gap(root, 6)
+        root.addView(label("Tiket dan aktivitas lapangan, dalam satu tempat.", 13f, HelpdeskTheme.muted))
+        gap(root, 24)
+        val titles = listOf("Total tiket", "Dalam proses", "SLA terlewat", "Tiket selesai")
+        for (r in 0..1) {
+            val grid = row()
+            for (c in 0..1) {
+                val index = r * 2 + c
+                val featured = index == 0
+                val card = panel(17)
+                card.background = HelpdeskTheme.shape(this, if (featured) Color.rgb(250, 250, 250) else HelpdeskTheme.surface)
+                card.minimumHeight = dp(152)
+                val foreground = if (featured) Color.rgb(24, 24, 27) else HelpdeskTheme.text
+                card.addView(label(titles[index] + "  ↗", 12f, foreground, true))
+                gap(card, 20)
+                val number = label("—", 34f, foreground, true)
+                card.addView(number); statValues.add(number)
+                card.addView(label(listOf("Seluruh tiket penugasan", "Sedang ditangani", "Perlu perhatian", "Selesai & ditutup")[index], 10f, if (featured) Color.rgb(112, 112, 123) else HelpdeskTheme.muted))
+                card.isClickable = true; card.isFocusable = true; card.contentDescription = titles[index]
+                card.setOnClickListener {
+                    ticketFilter = when (index) { 1 -> "working"; 2 -> "overdue"; 3 -> "done"; else -> "all" }
+                    selectTab(1); renderTickets()
+                }
+                grid.addView(card, LinearLayout.LayoutParams(0, -2, 1f).apply { if (c == 0) marginEnd = dp(6) else marginStart = dp(6) })
             }
+            root.addView(grid); gap(root, 12)
         }
-        cardHeadsUpBanner.setOnClickListener {
-            val notif = currentHeadsUpNotif
-            cardHeadsUpBanner.visibility = View.GONE
-            if (notif != null) {
-                handleNotificationClicked(notif)
-            }
-        }
-        swipeRefresh.setOnRefreshListener {
-            loadTickets(silent = false)
-            loadUserProfile()
-            syncNotificationsNow()
-        }
-        etSearchTickets.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                searchQuery = s?.toString()?.trim() ?: ""
-                applyFiltersAndRender()
-            }
-            override fun afterTextChanged(s: Editable?) {}
+        gap(root, 4)
+        val activity = panel()
+        activity.addView(label("Aktivitas tiket", 17f, bold = true))
+        activity.addView(label("Tiket masuk · 7 hari terakhir · WIB", 11f, HelpdeskTheme.muted))
+        chart = WeeklyTimelineChartView(this)
+        activity.addView(chart, LinearLayout.LayoutParams(-1, dp(190)).apply { topMargin = dp(14) })
+        root.addView(activity); gap(root)
+        val gps = panel(18)
+        gpsTitle = label("Status lokasi", 14f, bold = true)
+        gpsSummary = label("", 12f, HelpdeskTheme.muted)
+        gps.addView(gpsTitle); gap(gps, 6); gps.addView(gpsSummary)
+        gps.setOnClickListener { showLocationHelp() }; gps.isFocusable = true
+        root.addView(gps); gap(root, 24)
+        val titleRow = row()
+        titleRow.addView(label("Tiket terbaru", 18f, bold = true), LinearLayout.LayoutParams(0, -2, 1f))
+        titleRow.addView(label("Lihat semua ↗", 12f, Color.rgb(156,174,255)).apply {
+            setPadding(dp(8), dp(14), 0, dp(14))
+            setOnClickListener { ticketFilter = "active"; selectTab(1); renderTickets() }
+            isFocusable = true
         })
-
-        // Tab 2 (Tugas) Listeners
-        btnSortTasksTab.setOnClickListener {
-            val sortOptions = arrayOf(
-                "Urutkan: Prioritas Tertinggi",
-                "Urutkan: Jarak Terdekat (GPS)",
-                "Urutkan: Jadwal / Target SLA Terdekat"
-            )
-            AlertDialog.Builder(this)
-                .setTitle("Urutkan Daftar Tugas")
-                .setSingleChoiceItems(sortOptions, tasksTabSortMode) { d, which ->
-                    tasksTabSortMode = which
-                    btnSortTasksTab.text = when (which) {
-                        1 -> "Urut: Jarak"
-                        2 -> "Urut: SLA"
-                        else -> "Urut: Prioritas"
-                    }
-                    renderTasksTab()
-                    d.dismiss()
-                }
-                .show()
-        }
-        etSearchTasksTab.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                tasksTabSearchQuery = s?.toString()?.trim() ?: ""
-                renderTasksTab()
-            }
-            override fun afterTextChanged(s: Editable?) {}
-        })
-        chipTaskTabAll.setOnClickListener { setTasksTabStatusChip("all") }
-        chipTaskTabNew.setOnClickListener { setTasksTabStatusChip("new") }
-        chipTaskTabRunning.setOnClickListener { setTasksTabStatusChip("active") }
-        chipTaskTabPending.setOnClickListener { setTasksTabStatusChip("pending") }
-        chipTaskTabDone.setOnClickListener { setTasksTabStatusChip("done") }
-
-        // Tab 3 (Peta) Listeners
-        btnMapHeaderSyncGps.setOnClickListener {
-            handleGpsCardClick()
-            loadTickets(silent = false)
-        }
-        btnMapRecenter.setOnClickListener {
-            fieldMapView.recenterOnTechnician()
-            Toast.makeText(this, "Peta dipusatkan ke posisi teknisi", Toast.LENGTH_SHORT).show()
-        }
-        btnMapZoomIn.setOnClickListener {
-            fieldMapView.zoomIn()
-        }
-        btnMapZoomOut.setOnClickListener {
-            fieldMapView.zoomOut()
-        }
-        fieldMapView.setOnTicketPinClickListener { ticket ->
-            selectedMapTicket = ticket
-            updateMapSelectedTicketCard(ticket)
-        }
-        btnMapOpenNavigate.setOnClickListener {
-            val t = selectedMapTicket ?: return@setOnClickListener
-            openExternalMapsForTicket(t)
-        }
-        btnMapOpenDetail.setOnClickListener {
-            val t = selectedMapTicket ?: return@setOnClickListener
-            openTicketDetail(t, initialTab = 0)
-        }
-
-        // Tab 4 (Riwayat) Listeners
-        chipHistoryAll.setOnClickListener { setHistoryPeriodChip(0) }
-        chipHistoryToday.setOnClickListener { setHistoryPeriodChip(1) }
-        chipHistoryWeek.setOnClickListener { setHistoryPeriodChip(2) }
-
-        // Tab 5 (Profil) Listeners
-        btnProfilePingGps.setOnClickListener {
-            handleGpsCardClick()
-        }
-        btnProfileSyncQueue.setOnClickListener {
-            flushOfflineQueuesManual()
-        }
-        btnBatteryOptimizationGuide.setOnClickListener {
-            showVendorBatteryOptimizationDialog()
-        }
-        btnProfileContactDispatcher.setOnClickListener {
-            showSupportAndQuickChatDialog()
-        }
-        btnProfileLogout.setOnClickListener {
-            confirmLogout()
-        }
-
-        updateDutyUi(session.activeTicketsCount > 0)
-        if (session.lastLatitude != 0.0) {
-            fieldMapView.setMapData(session.lastLatitude, session.lastLongitude, allTickets, null)
-            if (session.activeTicketsCount > 0) {
-                updateGpsDisplay(
-                    session.lastLatitude,
-                    session.lastLongitude,
-                    session.lastAccuracy,
-                    -1,
-                    session.lastUpdateTime
-                )
-            }
-        }
+        root.addView(titleRow)
+        homeRecent = column(); root.addView(homeRecent); gap(root, 24)
+        root.addView(label("HelpDesk  /  Your support, simplified.", 10f, HelpdeskTheme.muted))
+        addScreen(scroll(root))
     }
-
-    private fun setupBottomNavigation() {
-        navTabHome.setOnClickListener { selectBottomTab(0) }
-        navTabTasks.setOnClickListener { selectBottomTab(1) }
-        navTabMap.setOnClickListener { selectBottomTab(2) }
-        navTabHistory.setOnClickListener { selectBottomTab(3) }
-        navTabProfile.setOnClickListener { selectBottomTab(4) }
-        selectBottomTab(0)
-    }
-
-    private fun selectBottomTab(index: Int) {
-        currentBottomTab = index
-        viewBottomTabHome.visibility = if (index == 0) View.VISIBLE else View.GONE
-        viewBottomTabTasks.visibility = if (index == 1) View.VISIBLE else View.GONE
-        viewBottomTabMap.visibility = if (index == 2) View.VISIBLE else View.GONE
-        viewBottomTabHistory.visibility = if (index == 3) View.VISIBLE else View.GONE
-        viewBottomTabProfile.visibility = if (index == 4) View.VISIBLE else View.GONE
-
-        val activeColor = Color.parseColor("#004C9E")
-        val inactiveColor = Color.parseColor("#64748B")
-        val labels = arrayOf(tvNavLabelHome, tvNavLabelTasks, tvNavLabelMap, tvNavLabelHistory, tvNavLabelProfile)
-        val icons = arrayOf(ivNavHome, ivNavTasks, ivNavMap, ivNavHistory, ivNavProfile)
-
-        for (i in 0..4) {
-            val isSelected = i == index
-            labels[i].setTextColor(if (isSelected) activeColor else inactiveColor)
-            labels[i].setTypeface(null, if (isSelected) Typeface.BOLD else Typeface.NORMAL)
-            icons[i].setColorFilter(if (isSelected) activeColor else inactiveColor)
+    private fun buildTickets() {
+        val root = column(20)
+        root.addView(label("Tiket kamu", 28f, bold = true))
+        ticketCount = label("Memuat penugasan...", 12f, HelpdeskTheme.muted)
+        root.addView(ticketCount); gap(root, 18)
+        searchInput = EditText(this).apply {
+            hint = "Cari nomor, judul, atau pelanggan"
+            textSize = 13f
+            setTextColor(HelpdeskTheme.text); setHintTextColor(HelpdeskTheme.muted)
+            background = HelpdeskTheme.shape(this@MainActivity, radius = 16)
+            setPadding(dp(16), 0, dp(16), 0)
+            isSingleLine = true
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            setText(query); contentDescription = "Cari tiket"
+            addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { query = s?.toString().orEmpty(); renderTickets() }
+                override fun afterTextChanged(s: Editable?) {}
+            })
         }
-
-        when (index) {
-            1 -> renderTasksTab()
-            2 -> renderMapTab()
-            3 -> renderHistoryTab()
-            4 -> refreshOfflineBannerAndProfile()
-        }
-    }
-
-    private fun refreshOfflineBannerAndProfile() {
-        val pendingActions = OfflineSyncManager.getQueuedActions(this).size
-        val pendingGps = OfflineSyncManager.getBufferedGpsPoints(this).size
-        val totalPending = pendingActions + pendingGps
-
-        if (totalPending > 0) {
-            layoutOfflineSyncBanner.visibility = View.VISIBLE
-            tvOfflineSyncStatus.text =
-                "Antrean Offline: $pendingActions laporan/status • $pendingGps titik GPS menunggu sinkronisasi"
-        } else {
-            layoutOfflineSyncBanner.visibility = View.GONE
-        }
-
-        // Update Profile Tab views
-        tvProfileFullName.text = session.userName ?: "Teknisi Lapangan"
-        tvProfileEmail.text = "${session.userEmail ?: "-"} • ${session.userRole?.uppercase() ?: "TEKNISI"}"
-        tvProfileVersion.text = "HelpDesk Teknisi v2.1.0 (Build 8) • ${session.serverUrl}"
-
-        val gpsStatusLine = if (session.activeTicketsCount > 0) {
-            val lastCoord = if (session.lastLatitude != 0.0) {
-                String.format(Locale.US, "%.6f, %.6f (+/-%.0fm)", session.lastLatitude, session.lastLongitude, session.lastAccuracy)
-            } else {
-                "Mencari sinyal satelit..."
-            }
-            "[AKTIF] Status GPS: AKTIF (${session.activeTicketsCount} Tiket Belum Selesai)\n" +
-                "• Koordinat Terakhir: $lastCoord\n" +
-                "• Interval Hemat Daya: 1 Menit (Anti Panas)\n"
-        } else {
-            "[SIAGA] Status GPS: NONAKTIF (0 Tiket Aktif)\n" +
-                "• GPS otomatis berhenti saat semua tiket selesai untuk menghemat baterai.\n"
-        }
-
-        val lastSyncMs = OfflineSyncManager.getLastSyncTime(this)
-        val lastSyncStr = if (lastSyncMs > 0L) {
-            SimpleDateFormat("dd MMM HH:mm:ss", Locale.getDefault()).format(Date(lastSyncMs))
-        } else "Belum pernah"
-
-        tvProfileTrackingDetails.text = gpsStatusLine +
-            "• Buffer Lokasi Offline: $pendingGps titik GPS\n" +
-            "• Antrean Status/Laporan Offline: $pendingActions item\n" +
-            "• Sinkronisasi Terakhir: $lastSyncStr"
-
-        // Permission checklist (No emojis, clean status tags)
-        val locOk = hasLocationPermission()
-        val notifOk = NotificationHelper.areSystemNotificationsEnabled(this)
-        val camOk = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
-        val batteryUnrestricted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            pm?.isIgnoringBatteryOptimizations(packageName) == true
-        } else true
-
-        val sb = StringBuilder()
-        sb.append(if (locOk) "[AKTIF] " else "[PERLU IZIN] ").append("Izin Lokasi GPS Presisi: ").append(if (locOk) "Diizinkan\n" else "Belum Diizinkan\n")
-        sb.append(if (notifOk) "[AKTIF] " else "[PERLU IZIN] ").append("Izin Notifikasi Tugas & Chat: ").append(if (notifOk) "Diizinkan\n" else "Belum Diizinkan\n")
-        sb.append(if (camOk) "[AKTIF] " else "[SIAP] ").append("Izin Kamera Dokumentasi & Barcode: ").append(if (camOk) "Diizinkan\n" else "Diminta saat foto\n")
-        sb.append(if (batteryUnrestricted) "[AKTIF] " else "[SARAN] ").append("Pengecualian Optimasi Baterai Background: ").append(if (batteryUnrestricted) "Aktif (Tanpa Pembatasan)" else "Disarankan Diaktifkan")
-        tvProfilePermissionsStatus.text = sb.toString()
-    }
-
-    private fun flushOfflineQueuesManual() {
-        Toast.makeText(this, "Menyinkronkan antrean offline ke server...", Toast.LENGTH_SHORT).show()
-        lifecycleScope.launch {
-            val flushedCount = OfflineSyncManager.flushAllPendingQueues(this@MainActivity, session)
-            refreshOfflineBannerAndProfile()
-            if (flushedCount > 0) {
-                Toast.makeText(
-                    this@MainActivity,
-                    "Sinkronisasi berhasil ($flushedCount item terkirim ke server)!",
-                    Toast.LENGTH_LONG
-                ).show()
-                loadTickets(silent = true)
-            } else {
-                val rem = OfflineSyncManager.getTotalPendingSyncCount(this@MainActivity)
-                if (rem == 0) {
-                    Toast.makeText(this@MainActivity, "Semua data sudah tersinkronisasi.", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this@MainActivity, "Masih menunggu koneksi server stabil ($rem item).", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    private fun showVendorBatteryOptimizationDialog() {
-        val manufacturer = Build.MANUFACTURER.lowercase(Locale.ROOT)
-        val vendorGuide = when {
-            manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") ->
-                "Perangkat Xiaomi / Redmi / POCO (MIUI / HyperOS):\n" +
-                    "1. Ketuk 'Matikan Optimasi Baterai' di bawah.\n" +
-                    "2. Di Info Aplikasi → Penghemat Baterai → Pilih 'Tidak ada pembatasan'.\n" +
-                    "3. Aktifkan 'Mulai Otomatis' (Autostart) agar GPS & Notifikasi tidak dimatikan sistem."
-            manufacturer.contains("oppo") || manufacturer.contains("realme") || manufacturer.contains("oneplus") ->
-                "Perangkat OPPO / Realme (ColorOS):\n" +
-                    "1. Ketuk 'Matikan Optimasi Baterai' di bawah.\n" +
-                    "2. Di Info Aplikasi → Penggunaan Baterai → Aktifkan 'Izinkan Aktivitas Latar Belakang' & 'Mulai Otomatis'."
-            manufacturer.contains("vivo") || manufacturer.contains("iqoo") ->
-                "Perangkat Vivo (FuntouchOS):\n" +
-                    "1. Ketuk 'Matikan Optimasi Baterai' di bawah.\n" +
-                    "2. Di Pengaturan Baterai → Konsumsi Daya Latar Belakang Tinggi → Aktifkan untuk HelpDesk Teknisi."
-            manufacturer.contains("samsung") ->
-                "Perangkat Samsung (One UI):\n" +
-                    "1. Ketuk 'Matikan Optimasi Baterai' di bawah.\n" +
-                    "2. Di Info Aplikasi → Baterai → Pilih 'Tidak dibatasi' (Unrestricted)."
-            else ->
-                "Panduan Optimasi Baterai Android:\n" +
-                    "1. Ketuk 'Matikan Optimasi Baterai' di bawah.\n" +
-                    "2. Pilih 'Tidak dibatasi' (Unrestricted) pada pengaturan baterai aplikasi agar pelacakan GPS & Notifikasi berjalan lancar."
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Panduan Baterai & Background (${Build.MANUFACTURER})")
-            .setMessage(vendorGuide)
-            .setPositiveButton("Matikan Optimasi Baterai") { _, _ ->
-                try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
-                        if (pm?.isIgnoringBatteryOptimizations(packageName) == false) {
-                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                data = Uri.parse("package:$packageName")
-                            }
-                            startActivity(intent)
-                        } else {
-                            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                            startActivity(intent)
-                        }
-                    }
-                } catch (_: Exception) {
-                    try {
-                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                            data = Uri.parse("package:$packageName")
-                        }
-                        startActivity(intent)
-                    } catch (_: Exception) {}
-                }
-            }
-            .setNeutralButton("Periksa Izin Lokasi/Notif") { _, _ ->
-                checkAndRequestPermissions()
-            }
-            .setNegativeButton("Tutup", null)
-            .show()
-    }
-
-    private fun handleGpsCardClick() {
-        if (session.activeTicketsCount > 0) {
-            if (!hasLocationPermission()) {
-                requestLocationPermissionsIfNeeded()
-                return
-            }
-            startTrackingService()
-            val forceIntent = Intent(this, LocationTrackingService::class.java).apply {
-                action = LocationTrackingService.ACTION_FORCE_PING
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(forceIntent)
-            } else {
-                startService(forceIntent)
-            }
-            Toast.makeText(
-                this,
-                "GPS Aktif (${session.activeTicketsCount} tiket belum selesai) • Mengirim ping lokasi sekarang...",
-                Toast.LENGTH_SHORT
-            ).show()
-        } else {
-            Toast.makeText(
-                this,
-                "GPS Nonaktif: Fitur GPS hanya aktif otomatis jika ada tiket yang belum selesai.",
-                Toast.LENGTH_LONG
-            ).show()
-        }
-    }
-
-    private fun updateNotificationBadge(count: Int) {
-        if (count > 0) {
-            tvNotificationBadge.visibility = View.VISIBLE
-            tvNotificationBadge.text = if (count > 9) "9+" else count.toString()
-        } else {
-            tvNotificationBadge.visibility = View.GONE
-        }
-    }
-
-    private fun showInAppHeadsUpBanner(notif: NotificationItem) {
-        currentHeadsUpNotif = notif
-        val categoryLabel = NotificationHelper.getTypeLabel(notif.type).uppercase(Locale.getDefault())
-        tvHeadsUpCategory.text = categoryLabel
-        tvHeadsUpTitle.text = notif.title
-        tvHeadsUpMessage.text = notif.message
-
-        val isChat = notif.type == "new_message" || notif.type == "new_internal_note"
-        btnHeadsUpOpen.text = if (isChat) "Balas Chat" else "Buka Tiket"
-
-        cardHeadsUpBanner.visibility = View.VISIBLE
-
-        headsUpAutoHideJob?.cancel()
-        headsUpAutoHideJob = lifecycleScope.launch {
-            delay(8_000L)
-            cardHeadsUpBanner.visibility = View.GONE
-        }
-    }
-
-    private fun syncNotificationsNow() {
-        lifecycleScope.launch {
-            val ticketsArg = allTickets.takeIf { it.isNotEmpty() }
-            val payload = NotificationHelper.syncAndDispatchNotifications(this@MainActivity, session, ticketsArg)
-            if (payload != null) {
-                cachedNotifications = payload.notifications
-                unreadNotifCount = payload.unreadCount
-                updateNotificationBadge(unreadNotifCount)
-            }
-        }
-    }
-
-    private fun handleNotificationClicked(notif: NotificationItem) {
-        val token = session.token
-        session.markLocalNotificationRead(notif.id)
-        if (!token.isNullOrBlank() && !notif.isRead) {
-            lifecycleScope.launch {
-                ApiClient.markNotificationRead(session.serverUrl, token, notif.id)
-                syncNotificationsNow()
-            }
-        } else {
-            syncNotificationsNow()
-        }
-
-        val isChat = notif.type == "new_message" || notif.type == "new_internal_note"
-        val targetTab = if (isChat) 1 else 0
-
-        if (!notif.ticketId.isNullOrBlank()) {
-            val matchedTicket = allTickets.find { it.id == notif.ticketId }
-            if (matchedTicket != null) {
-                openTicketDetail(matchedTicket, initialTab = targetTab)
-            } else {
-                val fallback = TicketItem(
-                    id = notif.ticketId,
-                    ticketNumber = notif.ticketNumber,
-                    title = notif.ticketTitle.ifBlank { notif.title },
-                    description = notif.ticketDescription ?: notif.message,
-                    status = notif.ticketStatus.ifBlank { "assigned" },
-                    priority = notif.ticketPriority.ifBlank { "medium" },
-                    ticketType = notif.ticketType,
-                    reporterName = notif.reporterName,
-                    reporterPhone = notif.reporterPhone,
-                    reporterAddress = notif.reporterAddress,
-                    reporterMapUrl = notif.reporterMapUrl,
-                    latitude = null,
-                    longitude = null,
-                    isLead = true,
-                    createdAt = notif.createdAt,
-                    updatedAt = notif.createdAt
-                )
-                openTicketDetail(fallback, initialTab = targetTab)
-            }
-        }
-    }
-
-    private fun showSettingsAndAccountDialog() {
-        val gpsStateText = if (session.activeTicketsCount > 0) {
-            "GPS Aktif (${session.activeTicketsCount} tiket belum selesai)"
-        } else {
-            "GPS Nonaktif (Tidak ada tiket aktif)"
-        }
-        val coordsText = if (session.activeTicketsCount > 0 && session.lastLatitude != 0.0) {
-            String.format(Locale.US, "%.13f, %.13f", session.lastLatitude, session.lastLongitude)
-        } else {
-            "-"
-        }
-
-        val options = arrayOf(
-            "Segarkan Data & Tiket Sekarang",
-            "Sinkronkan Antrean Offline Sekarang",
-            "Panduan Optimasi Baterai Background",
-            "Tes Notifikasi Pop-up & Suara",
-            "Pengaturan Izin Notifikasi HP",
-            "Ping Lokasi GPS Sekarang",
-            "Buka Tab Profil & Diagnostik",
-            "Keluar Akun (Logout)"
-        )
-
-        AlertDialog.Builder(this)
-            .setTitle("${session.userName ?: "Teknisi"} • Pengaturan (v2.1.0)")
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> {
-                        Toast.makeText(this, "Menyegarkan data tiket & notifikasi...", Toast.LENGTH_SHORT).show()
-                        loadTickets(silent = false)
-                        loadUserProfile()
-                        syncNotificationsNow()
-                    }
-                    1 -> flushOfflineQueuesManual()
-                    2 -> showVendorBatteryOptimizationDialog()
-                    3 -> triggerTestNotification()
-                    4 -> NotificationHelper.openNotificationSettings(this)
-                    5 -> handleGpsCardClick()
-                    6 -> selectBottomTab(4)
-                    7 -> confirmLogout()
-                }
-            }
-            .setNeutralButton("Info Status") { _, _ ->
-                AlertDialog.Builder(this)
-                    .setTitle("Status Perangkat Teknisi")
-                    .setMessage(
-                        "Nama: ${session.userName}\n" +
-                            "Email: ${session.userEmail}\n" +
-                            "Status GPS: $gpsStateText\n" +
-                            "Koordinat: $coordsText\n" +
-                            "Server: ${session.serverUrl}\n" +
-                            "Versi Aplikasi: v2.1.0 (Build 8)"
-                    )
-                    .setPositiveButton("Tutup", null)
-                    .show()
-            }
-            .setNegativeButton("Tutup", null)
-            .show()
-    }
-
-    private fun showWeeklyTimelineDetailDialog() {
-        val days = arrayOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu")
-        val counts = latestWeeklyCounts
-        val totalWeek = counts.sum()
-
-        val sb = StringBuilder()
-        sb.append("Akumulasi tiket yang dikerjakan minggu ini:\n\n")
-        for (i in days.indices) {
-            val c = if (i < counts.size) counts[i] else 0
-            sb.append("• ${days[i]}: $c tiket\n")
-        }
-        sb.append("\nTotal Minggu Ini: $totalWeek tiket")
-        sb.append("\nTiket Belum Selesai: ${session.activeTicketsCount} tiket")
-
-        AlertDialog.Builder(this)
-            .setTitle("Statistik Timeline Mingguan")
-            .setMessage(sb.toString())
-            .setPositiveButton("Buka Tab Riwayat") { _, _ ->
-                selectBottomTab(3)
-            }
-            .setNegativeButton("Tutup", null)
-            .show()
-    }
-
-    private fun showSupportAndQuickChatDialog() {
-        val activeTicket = allTickets.firstOrNull { t ->
-            val s = t.status.lowercase(Locale.ROOT)
-            s != "resolved" && s != "closed" && s != "cancelled"
-        } ?: allTickets.firstOrNull()
-
-        if (activeTicket != null) {
-            AlertDialog.Builder(this)
-                .setTitle("Bantuan Teknisi & Koordinasi NOC")
-                .setMessage(
-                    "Hubungi NOC Dispatcher langsung melalui ruang Chat Tim pada tiket aktif #${activeTicket.ticketNumber} (${activeTicket.title})."
-                )
-                .setPositiveButton("Buka Chat Tim #${activeTicket.ticketNumber}") { _, _ ->
-                    openTicketDetail(activeTicket, initialTab = 1)
-                }
-                .setNeutralButton("Tes Notifikasi") { _, _ ->
-                    triggerTestNotification()
-                }
-                .setNegativeButton("Tutup", null)
-                .show()
-        } else {
-            AlertDialog.Builder(this)
-                .setTitle("Koordinasi NOC Dispatcher")
-                .setMessage(
-                    "Saat ini Anda belum memiliki tiket tugas aktif.\n\n" +
-                        "Ketika ada tiket yang ditugaskan kepada Anda, ketuk tombol ini untuk langsung membuka ruang Chat Tim bersama NOC Dispatcher."
-                )
-                .setPositiveButton("Tes Notifikasi") { _, _ ->
-                    triggerTestNotification()
-                }
-                .setNegativeButton("Tutup", null)
-                .show()
-        }
-    }
-
-    private fun showNotificationDrawerDialog() {
-        val dp = { value: Int ->
-            TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                value.toFloat(),
-                resources.displayMetrics
-            ).toInt()
-        }
-
-        val rootLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#FFFFFF"))
-            setPadding(0, 0, 0, dp(12))
-        }
-
-        val headerRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.parseColor("#004C9E"))
-            setPadding(dp(16), dp(14), dp(14), dp(14))
-        }
-
-        val logoFrame = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(26), dp(26))
-            setBackgroundResource(R.drawable.logo_square_white_bg)
-        }
-        val logoImg = ImageView(this).apply {
-            layoutParams = FrameLayout.LayoutParams(dp(14), dp(14), Gravity.CENTER)
-            setImageResource(R.drawable.ic_web_logo_triangle)
-        }
-        logoFrame.addView(logoImg)
-        headerRow.addView(logoFrame)
-
-        val titleCol = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginStart = dp(10)
-            }
-        }
-
-        val tvHeaderTitle = TextView(this).apply {
-            text = "Panel Notifikasi"
-            setTextColor(Color.WHITE)
-            textSize = 15f
-            setTypeface(typeface, Typeface.BOLD)
-        }
-        val tvHeaderSub = TextView(this).apply {
-            text = if (unreadNotifCount > 0) "$unreadNotifCount belum dibaca" else "Semua notifikasi telah dibaca"
-            setTextColor(Color.parseColor("#E0F2FE"))
-            textSize = 11f
-        }
-        titleCol.addView(tvHeaderTitle)
-        titleCol.addView(tvHeaderSub)
-        headerRow.addView(titleCol)
-
-        var dialogRef: AlertDialog? = null
-
-        val btnTestNotif = TextView(this).apply {
-            text = "Tes Pop-up"
-            setTextColor(Color.parseColor("#A7F3D0"))
-            textSize = 11f
-            setTypeface(typeface, Typeface.BOLD)
-            setPadding(dp(8), dp(6), dp(8), dp(6))
-            setOnClickListener {
-                dialogRef?.dismiss()
-                triggerTestNotification()
-            }
-        }
-        headerRow.addView(btnTestNotif)
-
-        if (unreadNotifCount > 0) {
-            val btnMarkAll = TextView(this).apply {
-                text = "Tandai Dibaca"
-                setTextColor(Color.parseColor("#BAE6FD"))
-                textSize = 11f
-                setTypeface(typeface, Typeface.BOLD)
-                setPadding(dp(8), dp(6), dp(8), dp(6))
-                setOnClickListener {
-                    session.markAllLocalNotificationsRead()
-                    val token = session.token
-                    lifecycleScope.launch {
-                        if (!token.isNullOrBlank()) {
-                            ApiClient.markAllNotificationsRead(session.serverUrl, token)
-                        }
-                        syncNotificationsNow()
-                        dialogRef?.dismiss()
-                        Toast.makeText(this@MainActivity, "Semua notifikasi ditandai telah dibaca", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-            headerRow.addView(btnMarkAll)
-        }
-
-        rootLayout.addView(headerRow)
-
-        if (!NotificationHelper.areSystemNotificationsEnabled(this)) {
-            val permWarningRow = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setBackgroundColor(Color.parseColor("#FEF2F2"))
-                setPadding(dp(16), dp(12), dp(16), dp(12))
-                isClickable = true
+        root.addView(searchInput, LinearLayout.LayoutParams(-1, dp(50))); gap(root, 14)
+        val chips = row()
+        listOf("active" to "Aktif", "working" to "Dikerjakan", "pending" to "Menunggu", "done" to "Selesai", "all" to "Semua").forEach { (key, name) ->
+            val chip = label(name, 11f).apply {
+                gravity = Gravity.CENTER; minHeight = dp(44)
+                setPadding(dp(15), 0, dp(15), 0)
+                setOnClickListener { ticketFilter = key; renderTickets() }
                 isFocusable = true
-                setOnClickListener {
-                    dialogRef?.dismiss()
-                    NotificationHelper.openNotificationSettings(this@MainActivity)
-                }
             }
-            val tvPermTitle = TextView(this).apply {
-                text = "Izin Notifikasi Android Belum Aktif"
-                setTextColor(Color.parseColor("#B91C1C"))
-                textSize = 12f
-                setTypeface(typeface, Typeface.BOLD)
-            }
-            val tvPermDesc = TextView(this).apply {
-                text = "Ketuk di sini untuk mengaktifkan izin Status Bar & Pop-up Notifikasi di pengaturan HP Anda ->"
-                setTextColor(Color.parseColor("#DC2626"))
-                textSize = 11f
-                setPadding(0, dp(2), 0, 0)
-            }
-            permWarningRow.addView(tvPermTitle)
-            permWarningRow.addView(tvPermDesc)
-            rootLayout.addView(permWarningRow)
+            filterLabels[key] = chip
+            chips.addView(chip, LinearLayout.LayoutParams(-2, dp(44)).apply { marginEnd = dp(7) })
         }
-
-        val scrollView = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        }
-
-        val listContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        }
-
-        if (cachedNotifications.isEmpty()) {
-            val emptyTv = TextView(this).apply {
-                text = "Belum ada notifikasi masuk saat ini.\nNotifikasi chat tim, perubahan status, dan detail tiket akan tampil di sini."
-                setTextColor(Color.parseColor("#71717A"))
-                textSize = 13f
-                gravity = Gravity.CENTER
-                setPadding(dp(24), dp(36), dp(24), dp(36))
-            }
-            listContainer.addView(emptyTv)
-        } else {
-            cachedNotifications.forEach { item ->
-                val itemRow = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setBackgroundColor(
-                        if (!item.isRead) Color.parseColor("#F4F4F5") else Color.parseColor("#FFFFFF")
-                    )
-                    setPadding(dp(16), dp(12), dp(16), dp(12))
-                    isClickable = true
-                    isFocusable = true
-                    setOnClickListener {
-                        dialogRef?.dismiss()
-                        handleNotificationClicked(item)
-                    }
-                }
-
-                val metaRow = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                }
-
-                if (!item.isRead) {
-                    val unreadDot = View(this).apply {
-                        layoutParams = LinearLayout.LayoutParams(dp(8), dp(8)).apply {
-                            marginEnd = dp(6)
-                        }
-                        background = GradientDrawable().apply {
-                            shape = GradientDrawable.OVAL
-                            setColor(Color.parseColor("#2563EB"))
-                        }
-                    }
-                    metaRow.addView(unreadDot)
-                }
-
-                val tvCategory = TextView(this).apply {
-                    text = NotificationHelper.getTypeLabel(item.type).uppercase(Locale.getDefault())
-                    val badgeColor = when (item.type) {
-                        "new_message", "new_internal_note" -> "#0284C7"
-                        "status_changed" -> "#7C3AED"
-                        "ticket_updated" -> "#D97706"
-                        "ticket_assigned", "ticket_created" -> "#16A34A"
-                        else -> "#52525B"
-                    }
-                    setTextColor(Color.parseColor(badgeColor))
-                    textSize = 10f
-                    setTypeface(typeface, Typeface.BOLD)
-                    layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                }
-                metaRow.addView(tvCategory)
-
-                val ticketNum = item.ticketNumber
-                if (ticketNum > 0) {
-                    val tvTicketPill = TextView(this).apply {
-                        text = "#$ticketNum"
-                        setTextColor(Color.parseColor("#18181B"))
-                        textSize = 10f
-                        setTypeface(Typeface.MONOSPACE, Typeface.BOLD)
-                        setBackgroundResource(R.drawable.badge_bg)
-                        setPadding(dp(6), dp(2), dp(6), dp(2))
-                    }
-                    metaRow.addView(tvTicketPill)
-                }
-
-                itemRow.addView(metaRow)
-
-                val tvTitle = TextView(this).apply {
-                    text = item.title
-                    setTextColor(Color.parseColor("#09090B"))
-                    textSize = 13f
-                    setTypeface(typeface, if (!item.isRead) Typeface.BOLD else Typeface.NORMAL)
-                    setPadding(0, dp(4), 0, dp(2))
-                }
-                itemRow.addView(tvTitle)
-
-                val tvMsg = TextView(this).apply {
-                    text = item.message
-                    setTextColor(Color.parseColor("#52525B"))
-                    textSize = 12f
-                }
-                itemRow.addView(tvMsg)
-
-                val actionHint = TextView(this).apply {
-                    val isChat = item.type == "new_message" || item.type == "new_internal_note"
-                    text = if (isChat) "Ketuk untuk membuka Chat Tim ->" else "Ketuk untuk membuka Detail Tiket ->"
-                    setTextColor(Color.parseColor("#18181B"))
-                    textSize = 10f
-                    setTypeface(typeface, Typeface.BOLD)
-                    setPadding(0, dp(6), 0, 0)
-                }
-                itemRow.addView(actionHint)
-
-                val divider = View(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        dp(1)
-                    )
-                    setBackgroundColor(Color.parseColor("#E4E4E7"))
-                }
-
-                listContainer.addView(itemRow)
-                listContainer.addView(divider)
-            }
-        }
-
-        scrollView.addView(listContainer)
-        rootLayout.addView(scrollView)
-
-        dialogRef = AlertDialog.Builder(this)
-            .setView(rootLayout)
-            .setNegativeButton("Tutup", null)
-            .create()
-
-        dialogRef.show()
+        root.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(chips) })
+        gap(root, 16)
+        ticketEmpty = label("Belum ada tiket yang cocok.", 13f, HelpdeskTheme.muted).apply { gravity = Gravity.CENTER; setPadding(0, dp(32), 0, dp(24)) }
+        root.addView(ticketEmpty)
+        ticketsAdapter = TicketAdapter(this, { openTicket(it, if (it.status == "in_progress") 2 else 0) }, { openTicket(it) }, { openTicket(it, 1) })
+        ticketList = RecyclerView(this).apply { layoutManager = LinearLayoutManager(this@MainActivity); adapter = ticketsAdapter; clipToPadding = false }
+        root.addView(ticketList, LinearLayout.LayoutParams(-1, 0, 1f))
+        addScreen(root)
     }
 
-    private fun setHomeWorkflowChip(stage: String) {
-        homeWorkflowStage = if (homeWorkflowStage == stage && stage != "all") "all" else stage
-        if (homeWorkflowStage != "all") {
-            selectedFilterIndex = 0
-            cardFilterActive.setBackgroundResource(R.drawable.bg_glass_blue_card)
-            cardFilterResolved.setBackgroundResource(R.drawable.bg_glass_blue_card)
+    private fun buildMap() {
+        val root = column(20)
+        root.addView(label("Peta penugasan", 28f, bold = true))
+        mapSummary = label("", 12f, HelpdeskTheme.muted); root.addView(mapSummary); gap(root, 12)
+        root.addView(label("Sebaran koordinat tiket. Buka navigasi untuk rute jalan.", 11f, HelpdeskTheme.muted)); gap(root, 16)
+        val controls = row()
+        listOf("Pusatkan" to { fieldMap.recenterOnTechnician() }, "+" to { fieldMap.zoomIn() }, "−" to { fieldMap.zoomOut() }).forEach { (name, action) ->
+            controls.addView(HelpdeskTheme.button(this, name, false, action), LinearLayout.LayoutParams(0, dp(46), 1f).apply { marginEnd = dp(8) })
         }
-        updateHomeWorkflowChipStyles()
-        applyFiltersAndRender()
+        root.addView(controls); gap(root, 12)
+        fieldMap = FieldTechnicianMapView(this).apply {
+            background = HelpdeskTheme.shape(this@MainActivity); clipToOutline = true
+            setOnTicketPinClickListener { selectedTicket = it; renderMapPreview(it) }
+        }
+        root.addView(fieldMap, LinearLayout.LayoutParams(-1, 0, 1f))
+        mapPreview = panel(16)
+        root.addView(mapPreview, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+        addScreen(root)
     }
 
-    private fun updateHomeWorkflowChipStyles() {
-        val map = mapOf(
-            "all" to chipHomeWfAll,
-            "assigned" to chipHomeWfAssigned,
-            "accepted" to chipHomeWfEnRoute,
-            "on_site" to chipHomeWfOnSite,
-            "in_progress" to chipHomeWfWorking
-        )
-        for ((k, tv) in map) {
-            if (k == homeWorkflowStage) {
-                tv.setBackgroundResource(R.drawable.bg_chip_selected_blue)
-                tv.setTextColor(Color.WHITE)
-            } else {
-                tv.setBackgroundResource(R.drawable.bg_chip_unselected)
-                tv.setTextColor(Color.parseColor("#334155"))
+    private fun buildAccount() {
+        val root = column(20)
+        root.addView(label("Akun kamu", 28f, bold = true)); gap(root, 24)
+        val identity = panel()
+        identity.addView(label(session.userName ?: "Teknisi", 20f, bold = true))
+        identity.addView(label(session.userEmail.orEmpty(), 13f, HelpdeskTheme.muted)); gap(identity, 10)
+        identity.addView(label("Workspace teknisi · v" + packageManager.getPackageInfo(packageName, 0).versionName, 11f, Color.rgb(156, 174, 255)))
+        root.addView(identity); gap(root)
+        val tracking = panel()
+        tracking.addView(label("Lokasi & notifikasi", 17f, bold = true)); gap(tracking, 8)
+        accountGps = label("", 12f, HelpdeskTheme.muted); tracking.addView(accountGps); gap(tracking)
+        button(tracking, "Periksa izin lokasi") { showLocationHelp() }; gap(tracking, 10)
+        button(tracking, "Pengaturan notifikasi") { NotificationHelper.openNotificationSettings(this) }; gap(tracking, 10)
+        button(tracking, "Pengaturan baterai aplikasi") { safeOpen(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + packageName))) }
+        root.addView(tracking); gap(root)
+        button(root, "Sinkronkan data sekarang") { refreshTickets(true) }; gap(root, 10)
+        button(root, "Buka helpdesk di browser") { safeOpen(Intent(Intent.ACTION_VIEW, Uri.parse(session.serverUrl))) }; gap(root, 24)
+        button(root, "Keluar dari akun") { confirmLogout() }; gap(root, 24)
+        root.addView(label("Draf dan antrean offline disimpan per akun. GPS hanya aktif saat ada pekerjaan yang belum selesai.", 11f, HelpdeskTheme.muted))
+        addScreen(scroll(root))
+    }
+
+    private fun buildNavigation() {
+        val labels = listOf("Ringkasan", "Tiket", "Peta", "Akun")
+        val icons = listOf(R.drawable.ic_ln_home, R.drawable.ic_ln_tasks, R.drawable.ic_ln_map, R.drawable.ic_ln_user)
+        labels.forEachIndexed { index, name ->
+            val item = column().apply {
+                gravity = Gravity.CENTER; isClickable = true; isFocusable = true; contentDescription = name
+                setOnClickListener { selectTab(index) }
             }
+            val icon = ImageView(this).apply { setImageResource(icons[index]); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+            val text = label(name, 10f)
+            navIcons.add(icon); navLabels.add(text)
+            item.addView(icon, LinearLayout.LayoutParams(dp(22), dp(22)))
+            item.addView(text, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(4) })
+            navigation.addView(item, LinearLayout.LayoutParams(0, dp(58), 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
         }
     }
 
-    private fun selectFilter(index: Int) {
-        selectedFilterIndex = index
-        if (index != 0) {
-            homeWorkflowStage = "all"
-            updateHomeWorkflowChipStyles()
+    private fun selectTab(index: Int) {
+        activeTab = index.coerceIn(0, 3)
+        screens.forEachIndexed { i, screen -> screen.visibility = if (i == activeTab) View.VISIBLE else View.GONE }
+        for (i in 0..3) {
+            val active = i == activeTab
+            navigation.getChildAt(i).background = HelpdeskTheme.shape(this, if (active) HelpdeskTheme.surface else HelpdeskTheme.canvas, 20, Color.TRANSPARENT)
+            navigation.getChildAt(i).isSelected = active
+            navIcons[i].setColorFilter(if (active) Color.rgb(156, 174, 255) else HelpdeskTheme.muted)
+            navLabels[i].setTextColor(if (active) HelpdeskTheme.text else HelpdeskTheme.muted)
         }
-
-        cardFilterActive.setBackgroundResource(
-            if (index == 1) R.drawable.bg_glass_blue_card_selected else R.drawable.bg_glass_blue_card
-        )
-        cardFilterResolved.setBackgroundResource(
-            if (index == 2) R.drawable.bg_glass_blue_card_selected else R.drawable.bg_glass_blue_card
-        )
-
-        applyFiltersAndRender()
+        heading.text = listOf("HelpDesk", "Daftar tiket", "Peta lapangan", "Profil")[activeTab]
+        swipe.isEnabled = activeTab != 2
+        if (activeTab == 1) renderTickets()
+        if (activeTab == 2) renderMap()
     }
 
-    private fun applyFiltersAndRender() {
-        // Update live workflow stage counts on Home Pipeline Chips
-        var cAssigned = 0
-        var cEnRoute = 0
-        var cOnSite = 0
-        var cWorking = 0
-        for (t in allTickets) {
-            when (t.status.lowercase(Locale.ROOT)) {
-                "open", "assigned", "reopened" -> cAssigned++
-                "accepted" -> cEnRoute++
-                "on_site", "pending", "waiting_for_user", "waiting_for_third_party" -> cOnSite++
-                "in_progress" -> cWorking++
-            }
+    private fun render() {
+        val active = allTickets.count { !LocationPolicy.isFinished(it.status) }
+        val working = allTickets.count { it.status in setOf("accepted", "on_site", "in_progress") }
+        val overdue = allTickets.count { !LocationPolicy.isFinished(it.status) && (TicketAdapter.parseIsoDate(it.slaResolutionDue)?.time ?: Long.MAX_VALUE) < System.currentTimeMillis() }
+        val done = allTickets.count { it.status in setOf("resolved", "closed") }
+        listOf(allTickets.size, working, overdue, done).forEachIndexed { index, count -> statValues[index].text = if (hasData) count.toString() else "—" }
+        if (hasData) session.activeTicketsCount = active
+        val zone = TimeZone.getTimeZone("Asia/Jakarta")
+        val day = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = zone }
+        val keys = (6 downTo 0).map { offset -> Calendar.getInstance(zone).apply { add(Calendar.DAY_OF_YEAR, -offset) }.time }
+        chart.setData(keys.map { date -> allTickets.count { TicketAdapter.parseIsoDate(it.createdAt)?.let { created -> day.format(created) == day.format(date) } == true } }.toIntArray(),
+            keys.map { SimpleDateFormat("EEE", Locale("id", "ID")).apply { timeZone = zone }.format(it) })
+        homeRecent.removeAllViews()
+        val recent = allTickets.filter { !LocationPolicy.isFinished(it.status) }.take(3)
+        if (recent.isEmpty()) homeRecent.addView(label(if (hasData) "Tidak ada tiket aktif. Semua sudah tertangani." else "Tiket akan tampil setelah data berhasil dimuat.", 13f, HelpdeskTheme.muted))
+        recent.forEach { ticket ->
+            val card = panel(17)
+            card.addView(label("#" + ticket.ticketNumber + "  ·  " + NotificationHelper.formatStatusName(ticket.status), 10f, Color.rgb(156, 174, 255))); gap(card, 8)
+            card.addView(label(ticket.title, 14f, bold = true)); gap(card, 5)
+            card.addView(label(ticket.reporterName ?: "Pelanggan", 11f, HelpdeskTheme.muted))
+            card.isClickable = true; card.isFocusable = true; card.setOnClickListener { openTicket(ticket) }
+            homeRecent.addView(card); gap(homeRecent, 10)
         }
-        chipHomeWfAssigned.text = "1. Ditugaskan ($cAssigned)"
-        chipHomeWfEnRoute.text = "2. Perjalanan ($cEnRoute)"
-        chipHomeWfOnSite.text = "3. Di Lokasi ($cOnSite)"
-        chipHomeWfWorking.text = "4. Dikerjakan ($cWorking)"
+        updateGpsUi(); updateSyncBanner(); renderTickets(); renderNotificationCount()
+        if (activeTab == 2) renderMap()
+    }
 
-        val filtered = allTickets.filter { t ->
-            val s = t.status.lowercase(Locale.ROOT)
-            val isResolved = s == "resolved" || s == "closed" || s == "cancelled"
-
-            val matchesTab = when (selectedFilterIndex) {
-                1 -> !isResolved
-                2 -> isResolved
+    private fun renderTickets() {
+        if (!::ticketsAdapter.isInitialized) return
+        val filtered = allTickets.filter { ticket ->
+            val matches = when (ticketFilter) {
+                "active" -> !LocationPolicy.isFinished(ticket.status)
+                "working" -> ticket.status in setOf("accepted", "on_site", "in_progress")
+                "pending" -> ticket.status in setOf("pending", "waiting_for_user", "waiting_for_third_party")
+                "done" -> ticket.status in setOf("resolved", "closed")
+                "overdue" -> !LocationPolicy.isFinished(ticket.status) && (TicketAdapter.parseIsoDate(ticket.slaResolutionDue)?.time ?: Long.MAX_VALUE) < System.currentTimeMillis()
                 else -> true
             }
-
-            val matchesWorkflowStage = when (homeWorkflowStage) {
-                "assigned" -> s == "open" || s == "assigned" || s == "reopened"
-                "accepted" -> s == "accepted"
-                "on_site" -> s == "on_site" || s == "pending" || s == "waiting_for_user" || s == "waiting_for_third_party"
-                "in_progress" -> s == "in_progress"
-                else -> true
-            }
-
-            val q = searchQuery.lowercase(Locale.ROOT)
-            val matchesQuery = if (q.isEmpty()) {
-                true
-            } else {
-                t.ticketNumber.toString().contains(q) ||
-                    t.title.lowercase(Locale.ROOT).contains(q) ||
-                    (t.reporterName?.lowercase(Locale.ROOT)?.contains(q) == true) ||
-                    (t.reporterAddress?.lowercase(Locale.ROOT)?.contains(q) == true)
-            }
-
-            matchesTab && matchesWorkflowStage && matchesQuery
-        }
-
-        homeTicketAdapter.submitList(filtered)
-        val filterName = when {
-            homeWorkflowStage == "assigned" -> "Ditugaskan (${filtered.size})"
-            homeWorkflowStage == "accepted" -> "Perjalanan (${filtered.size})"
-            homeWorkflowStage == "on_site" -> "Di Lokasi (${filtered.size})"
-            homeWorkflowStage == "in_progress" -> "Dikerjakan (${filtered.size})"
-            selectedFilterIndex == 1 -> "Belum Selesai (${filtered.size})"
-            selectedFilterIndex == 2 -> "Selesai (${filtered.size})"
-            else -> "Semua (${filtered.size})"
-        }
-        tvTicketCount.text = filterName
-
-        if (filtered.isEmpty()) {
-            tvEmptyState.visibility = View.VISIBLE
-            rvTickets.visibility = View.GONE
-        } else {
-            tvEmptyState.visibility = View.GONE
-            rvTickets.visibility = View.VISIBLE
+            matches && (query.isBlank() || listOf(ticket.title, ticket.ticketNumber.toString(), ticket.reporterName.orEmpty(), ticket.reporterAddress.orEmpty()).any { it.contains(query.trim(), ignoreCase = true) })
+        }.sortedWith(compareBy<TicketItem> { if (LocationPolicy.isFinished(it.status)) 1 else 0 }.thenBy { listOf("critical", "high", "medium", "low").indexOf(it.priority).let { rank -> if (rank < 0) 4 else rank } }.thenBy { TicketAdapter.parseIsoDate(it.slaResolutionDue)?.time ?: Long.MAX_VALUE })
+        ticketsAdapter.submitList(filtered)
+        ticketCount.text = filtered.size.toString() + " tiket · " + if (ticketFilter == "overdue") "SLA terlewat" else "urut prioritas & batas SLA"
+        ticketEmpty.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
+        filterLabels.forEach { (key, chip) ->
+            val active = key == ticketFilter
+            chip.background = HelpdeskTheme.shape(this, if (active) HelpdeskTheme.blue else HelpdeskTheme.surface, 24)
+            chip.setTextColor(if (active) Color.WHITE else HelpdeskTheme.muted); chip.isSelected = active
         }
     }
 
-    private fun setTasksTabStatusChip(statusKey: String) {
-        tasksTabFilterStatus = statusKey
-        val map = mapOf(
-            "all" to chipTaskTabAll,
-            "new" to chipTaskTabNew,
-            "active" to chipTaskTabRunning,
-            "pending" to chipTaskTabPending,
-            "done" to chipTaskTabDone
-        )
-        for ((k, tv) in map) {
-            if (k == statusKey) {
-                tv.setBackgroundResource(R.drawable.bg_chip_selected_blue)
-                tv.setTextColor(Color.WHITE)
-            } else {
-                tv.setBackgroundResource(R.drawable.bg_chip_unselected)
-                tv.setTextColor(Color.parseColor("#334155"))
-            }
-        }
-        renderTasksTab()
-    }
-
-    private fun renderTasksTab() {
-        val filtered = allTickets.filter { t ->
-            val s = t.status.lowercase(Locale.ROOT)
-            val matchesStatus = when (tasksTabFilterStatus) {
-                "new" -> s == "open" || s == "assigned" || s == "reopened"
-                "active" -> s == "accepted" || s == "on_site" || s == "in_progress"
-                "pending" -> s == "pending" || s == "waiting_for_user" || s == "waiting_for_third_party"
-                "done" -> s == "resolved" || s == "closed"
-                else -> true
-            }
-            val q = tasksTabSearchQuery.lowercase(Locale.ROOT)
-            val matchesQuery = if (q.isEmpty()) {
-                true
-            } else {
-                t.ticketNumber.toString().contains(q) ||
-                    t.title.lowercase(Locale.ROOT).contains(q) ||
-                    (t.reporterName?.lowercase(Locale.ROOT)?.contains(q) == true) ||
-                    (t.reporterAddress?.lowercase(Locale.ROOT)?.contains(q) == true)
-            }
-            matchesStatus && matchesQuery
-        }
-
-        val sorted = when (tasksTabSortMode) {
-            1 -> { // Jarak Terdekat
-                val techLat = session.lastLatitude
-                val techLng = session.lastLongitude
-                if (techLat != 0.0 && techLng != 0.0) {
-                    filtered.sortedBy { t ->
-                        if (t.latitude != null && t.longitude != null && t.latitude != 0.0 && t.longitude != 0.0) {
-                            val res = FloatArray(1)
-                            Location.distanceBetween(techLat, techLng, t.latitude, t.longitude, res)
-                            res[0]
-                        } else {
-                            Float.MAX_VALUE
-                        }
-                    }
-                } else filtered
-            }
-            2 -> { // Jadwal / Target SLA Terdekat
-                filtered.sortedBy { t ->
-                    parseTicketTimestamp(t.slaResolutionDue)?.time ?: Long.MAX_VALUE
-                }
-            }
-            else -> { // Prioritas Tertinggi
-                filtered.sortedWith(
-                    compareBy<TicketItem> { t ->
-                        when (t.priority.lowercase(Locale.ROOT)) {
-                            "critical" -> 0
-                            "high" -> 1
-                            "medium" -> 2
-                            "low" -> 3
-                            else -> 4
-                        }
-                    }.thenByDescending { it.ticketNumber }
-                )
-            }
-        }
-
-        tvTasksTabSubtitle.text = "Menampilkan ${sorted.size} dari ${allTickets.size} tugas lapangan"
-        tasksTabAdapter.submitList(sorted)
-    }
-
-    private fun renderMapTab() {
-        val activeCount = allTickets.count {
-            val s = it.status.lowercase(Locale.ROOT)
-            s != "resolved" && s != "closed" && s != "cancelled"
-        }
-        tvMapHeaderStats.text = "$activeCount Aktif / ${allTickets.size} Total Tiket"
-
-        val sel = selectedMapTicket ?: allTickets.firstOrNull {
-            val s = it.status.lowercase(Locale.ROOT)
-            s != "resolved" && s != "closed" && s != "cancelled"
-        } ?: allTickets.firstOrNull()
-
-        selectedMapTicket = sel
-        fieldMapView.setMapData(session.lastLatitude, session.lastLongitude, allTickets, sel?.id)
-        if (sel != null) {
-            updateMapSelectedTicketCard(sel)
+    private fun renderMap() {
+        val active = allTickets.filter { !LocationPolicy.isFinished(it.status) }
+        val mapped = active.count { LocationPolicy.hasCoordinates(it.latitude, it.longitude) }
+        mapSummary.text = mapped.toString() + " titik tersedia · " + (active.size - mapped) + " tiket belum memiliki koordinat"
+        val fresh = LocationPolicy.isFresh(session.lastUpdateTime)
+        fieldMap.setMapData(if (fresh) session.lastLatitude else 0.0, if (fresh) session.lastLongitude else 0.0, active, selectedTicket?.id)
+        val chosen = selectedTicket?.let { selected -> active.firstOrNull { it.id == selected.id } }
+        if (chosen != null) renderMapPreview(chosen)
+        else {
+            mapPreview.removeAllViews()
+            mapPreview.addView(label(if (mapped == 0) "Belum ada koordinat tiket. Perbarui titik pelanggan dari halaman detail." else "Ketuk pin untuk melihat tiket dan membuka navigasi.", 12f, HelpdeskTheme.muted))
         }
     }
-
-    private fun updateMapSelectedTicketCard(ticket: TicketItem) {
-        cardMapSelectedTicket.visibility = View.VISIBLE
-        val statusName = NotificationHelper.formatStatusName(ticket.status)
-        tvMapPreviewTitle.text = "#${ticket.ticketNumber} • ${ticket.title} ($statusName)"
-        tvMapPreviewAddress.text = "${ticket.reporterName ?: "Pelanggan"} — ${ticket.reporterAddress ?: "Alamat belum dilengkapi"}"
-
-        val techLat = session.lastLatitude
-        val techLng = session.lastLongitude
-        val tLat = ticket.latitude
-        val tLng = ticket.longitude
-        if (techLat != 0.0 && techLng != 0.0 && tLat != null && tLng != null && tLat != 0.0 && tLng != 0.0) {
-            val res = FloatArray(1)
-            Location.distanceBetween(techLat, techLng, tLat, tLng, res)
-            val m = res[0]
-            tvMapPreviewDistance.text = if (m < 1000f) "${m.toInt()} m" else String.format(Locale.US, "%.1f km", m / 1000f)
-        } else {
-            tvMapPreviewDistance.text = "Titik Area"
-        }
+    private fun renderMapPreview(ticket: TicketItem) {
+        selectedTicket = ticket; mapPreview.removeAllViews()
+        mapPreview.addView(label("#" + ticket.ticketNumber + " · " + ticket.title, 14f, bold = true))
+        mapPreview.addView(label(ticket.reporterAddress ?: "Alamat belum tersedia", 11f, HelpdeskTheme.muted)); gap(mapPreview, 12)
+        button(mapPreview, "Buka detail & navigasi", true) { openTicket(ticket) }
     }
-
-    private fun openExternalMapsForTicket(ticket: TicketItem) {
-        val mapUrl = ticket.reporterMapUrl
-        val lat = ticket.latitude
-        val lng = ticket.longitude
-        val uri = when {
-            !mapUrl.isNullOrBlank() && (mapUrl.startsWith("http://") || mapUrl.startsWith("https://")) -> Uri.parse(mapUrl)
-            lat != null && lng != null && lat != 0.0 && lng != 0.0 -> Uri.parse("google.navigation:q=$lat,$lng")
-            !ticket.reporterAddress.isNullOrBlank() -> Uri.parse("geo:0,0?q=${Uri.encode(ticket.reporterAddress)}")
-            else -> null
-        }
-        if (uri != null) {
-            try {
-                startActivity(Intent(Intent.ACTION_VIEW, uri))
-            } catch (_: Exception) {
-                Toast.makeText(this, "Aplikasi Peta tidak ditemukan", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun setHistoryPeriodChip(period: Int) {
-        historyPeriodFilter = period
-        val chips = arrayOf(chipHistoryAll, chipHistoryToday, chipHistoryWeek)
-        for (i in chips.indices) {
-            if (i == period) {
-                chips[i].setBackgroundResource(R.drawable.bg_chip_selected_blue)
-                chips[i].setTextColor(Color.WHITE)
-            } else {
-                chips[i].setBackgroundResource(R.drawable.bg_chip_unselected)
-                chips[i].setTextColor(Color.parseColor("#475569"))
-            }
-        }
-        renderHistoryTab()
-    }
-
-    private fun renderHistoryTab() {
-        val wibTz = TimeZone.getTimeZone("Asia/Jakarta")
-        val dayFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = wibTz }
-        val nowCal = Calendar.getInstance(wibTz)
-        val todayKey = dayFmt.format(nowCal.time)
-
-        val mondayCal = (nowCal.clone() as Calendar).apply {
-            firstDayOfWeek = Calendar.MONDAY
-            val dow = get(Calendar.DAY_OF_WEEK)
-            val diffToMonday = if (dow == Calendar.SUNDAY) -6 else (Calendar.MONDAY - dow)
-            add(Calendar.DAY_OF_YEAR, diffToMonday)
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-
-        val completedAll = allTickets.filter {
-            val s = it.status.lowercase(Locale.ROOT)
-            s == "resolved" || s == "closed"
-        }
-
-        var todayCount = 0
-        var weekCount = 0
-
-        completedAll.forEach { t ->
-            val dt = parseTicketTimestamp(t.resolvedAt) ?: parseTicketTimestamp(t.updatedAt) ?: parseTicketTimestamp(t.createdAt)
-            if (dt != null) {
-                if (dayFmt.format(dt) == todayKey) todayCount++
-                if (dt.time >= mondayCal.timeInMillis) weekCount++
-            }
-        }
-
-        tvHistoryStatToday.text = todayCount.toString()
-        tvHistoryStatWeek.text = weekCount.toString()
-        tvHistoryStatTotal.text = completedAll.size.toString()
-
-        val filteredHistory = completedAll.filter { t ->
-            val dt = parseTicketTimestamp(t.resolvedAt) ?: parseTicketTimestamp(t.updatedAt) ?: parseTicketTimestamp(t.createdAt)
-            when (historyPeriodFilter) {
-                1 -> dt != null && dayFmt.format(dt) == todayKey
-                2 -> dt != null && dt.time >= mondayCal.timeInMillis
-                else -> true
-            }
-        }
-
-        historyTabAdapter.submitList(filteredHistory)
-    }
-
-    /**
-     * FR-29: Menampilkan ringkasan laporan pekerjaan yang telah dikirim pada tiket selesai.
-     */
-    private fun showCompletedTicketReportSummaryDialog(ticket: TicketItem) {
-        val report = ticket.latestReport
-        val sb = StringBuilder()
-        sb.append("Tiket: #${ticket.ticketNumber} — ${ticket.title}\n")
-        sb.append("Pelanggan: ${ticket.reporterName ?: "-"}\n")
-        sb.append("Status: ${NotificationHelper.formatStatusName(ticket.status)}\n\n")
-
-        if (report != null) {
-            sb.append("RINGKASAN LAPORAN TEKNISI:\n")
-            sb.append("• Ringkasan: ${report.summary}\n")
-            sb.append("• Tindakan: ${report.actionTaken}\n")
-            if (!report.materialsUsed.isNullOrBlank()) {
-                sb.append("• Material Digunakan: ${report.materialsUsed}\n")
-            }
-            if (!report.finalResult.isNullOrBlank()) {
-                sb.append("• Hasil Akhir: ${report.finalResult}\n")
-            }
-            sb.append("• Foto Dokumentasi: ${report.beforePhotos.size} Before, ${report.afterPhotos.size} After\n")
-            sb.append("• Waktu Laporan: ${report.createdAt}\n")
-        } else if (!ticket.resolution.isNullOrBlank()) {
-            sb.append("RINGKASAN PENYELESAIAN:\n${ticket.resolution}\n")
-        } else {
-            sb.append("Tiket ini telah diselesaikan. Ketuk 'Buka Detail & Foto' untuk melihat dokumentasi lengkap.\n")
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Laporan Selesai #${ticket.ticketNumber}")
-            .setMessage(sb.toString())
-            .setPositiveButton("Buka Detail & Foto") { _, _ ->
-                openTicketDetail(ticket, initialTab = 0)
-            }
-            .setNeutralButton("Chat Tim") { _, _ ->
-                openTicketDetail(ticket, initialTab = 1)
-            }
-            .setNegativeButton("Tutup", null)
-            .show()
-    }
-
-    private fun setupRecyclerViews() {
-        homeTicketAdapter = TicketAdapter(
-            context = this,
-            onPrimaryActionClick = { ticket -> handlePrimaryAction(ticket) },
-            onDetailClick = { ticket -> openTicketDetail(ticket, initialTab = 0) },
-            onChatClick = { ticket -> openTicketDetail(ticket, initialTab = 1) }
-        )
-        rvTickets.layoutManager = LinearLayoutManager(this)
-        rvTickets.adapter = homeTicketAdapter
-
-        tasksTabAdapter = TicketAdapter(
-            context = this,
-            onPrimaryActionClick = { ticket -> handlePrimaryAction(ticket) },
-            onDetailClick = { ticket -> openTicketDetail(ticket, initialTab = 0) },
-            onChatClick = { ticket -> openTicketDetail(ticket, initialTab = 1) }
-        )
-        rvTasksTab.layoutManager = LinearLayoutManager(this)
-        rvTasksTab.adapter = tasksTabAdapter
-
-        historyTabAdapter = TicketAdapter(
-            context = this,
-            onPrimaryActionClick = { ticket -> showCompletedTicketReportSummaryDialog(ticket) },
-            onDetailClick = { ticket -> showCompletedTicketReportSummaryDialog(ticket) },
-            onChatClick = { ticket -> openTicketDetail(ticket, initialTab = 1) }
-        )
-        rvHistoryTab.layoutManager = LinearLayoutManager(this)
-        rvHistoryTab.adapter = historyTabAdapter
-    }
-
-    private fun handlePrimaryAction(ticket: TicketItem) {
-        val nextStatus = when (ticket.status.lowercase()) {
-            "open", "assigned" -> "accepted"
-            "accepted" -> "on_site"
-            "on_site" -> "in_progress"
-            "in_progress" -> {
-                openTicketDetail(ticket, initialTab = 2)
-                return
-            }
-            else -> {
-                openTicketDetail(ticket, initialTab = 0)
-                return
-            }
-        }
-
-        // Check-In Radius Validation (FR-12) when transitioning to on_site
-        val techLat = session.lastLatitude
-        val techLng = session.lastLongitude
-        var distMeters: Double? = null
-        if (nextStatus == "on_site" && techLat != 0.0 && techLng != 0.0 &&
-            ticket.latitude != null && ticket.longitude != null && ticket.latitude != 0.0 && ticket.longitude != 0.0
-        ) {
-            val res = FloatArray(1)
-            Location.distanceBetween(techLat, techLng, ticket.latitude, ticket.longitude, res)
-            distMeters = res[0].toDouble()
-            if (res[0] > 100f) {
-                openTicketDetail(ticket, initialTab = 0)
-                return
-            }
-        }
-
-        val actionDesc = when (nextStatus) {
-            "accepted" -> "Menerima tiket #${ticket.ticketNumber}..."
-            "on_site" -> "Konfirmasi tiba di lokasi #${ticket.ticketNumber}..."
-            "in_progress" -> "Memulai pengerjaan #${ticket.ticketNumber}..."
-            else -> "Memperbarui status..."
-        }
-
+    private fun refreshTickets(showLoading: Boolean) {
+        if (loading || !session.isLoggedIn) { swipe.isRefreshing = false; return }
         val token = session.token ?: return
-        Toast.makeText(this, actionDesc, Toast.LENGTH_SHORT).show()
-        NotificationHelper.recordSelfStatusChange(ticket.id, nextStatus)
-
+        loading = true
+        if (showLoading) swipe.isRefreshing = true
         lifecycleScope.launch {
-            val result = ApiClient.updateTicketStatus(
-                serverUrl = session.serverUrl,
-                token = token,
-                ticketId = ticket.id,
-                status = nextStatus,
-                notes = "Diperbarui langsung dari aplikasi teknisi",
-                summary = null,
-                latitude = techLat.takeIf { it != 0.0 },
-                longitude = techLng.takeIf { it != 0.0 },
-                distanceMeters = distMeters
-            )
-            result.onSuccess {
-                val statusLabel = NotificationHelper.formatStatusName(nextStatus)
-                Toast.makeText(this@MainActivity, "Status tiket #${ticket.ticketNumber}: $statusLabel", Toast.LENGTH_SHORT).show()
-                loadTickets(silent = true)
-            }.onFailure {
-                OfflineSyncManager.enqueueOfflineAction(
-                    this@MainActivity,
-                    OfflineActionItem(
-                        id = UUID.randomUUID().toString(),
-                        actionType = "status_update",
-                        ticketId = ticket.id,
-                        ticketNumber = ticket.ticketNumber,
-                        status = nextStatus,
-                        notes = "Diperbarui dari aplikasi teknisi (Tersimpan Offline)",
-                        latitude = techLat.takeIf { it != 0.0 },
-                        longitude = techLng.takeIf { it != 0.0 },
-                        distanceMeters = distMeters
-                    )
-                )
-                OfflineSyncManager.updateCachedTicketStatusLocally(this@MainActivity, ticket.id, nextStatus)
-                refreshOfflineBannerAndProfile()
-                Toast.makeText(
-                    this@MainActivity,
-                    "Koneksi lemah: Status disimpan di antrean offline & akan dikirim otomatis.",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
+            try {
+                if (OfflineSyncManager.isOnline(this@MainActivity)) OfflineSyncManager.flushAllPendingQueues(this@MainActivity, session)
+                val result = ApiClient.getTickets(session.serverUrl, token)
+                result.onSuccess {
+                    connected = true; allTickets = it; hasData = true
+                    OfflineSyncManager.saveCachedTickets(this@MainActivity, it)
+                    NotificationHelper.syncAndDispatchNotifications(this@MainActivity, session, it)?.let { payload -> notifications = payload.notifications }
+                }.onFailure {
+                    connected = false
+                    if (it is ApiException && it.statusCode in setOf(401, 403)) { expireSession(); return@launch }
+                    val cached = OfflineSyncManager.getCachedTickets(this@MainActivity)
+                    if (!hasData && cached.isNotEmpty()) { allTickets = cached; hasData = true }
+                }
+                render(); ensureService(); maybeRequestLocation()
+            } finally { loading = false; swipe.isRefreshing = false }
         }
     }
 
-    private fun openTicketDetail(ticket: TicketItem, initialTab: Int = 0) {
-        val intent = Intent(this, TicketDetailActivity::class.java).apply {
+    private fun hasLocationPermission() = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    private fun locationEnabled() = LocationManagerCompat.isLocationEnabled(getSystemService(LOCATION_SERVICE) as LocationManager)
+
+    private fun maybeRequestLocation() {
+        if (permissionsBusy || session.userRole != "agent" || session.activeTicketsCount <= 0 || hasLocationPermission()) return
+        if (!preferences.getBoolean("asked_location", false)) {
+            preferences.edit().putBoolean("asked_location", true).apply()
+            permissionsBusy = true
+            locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+        }
+    }
+
+    private fun showLocationHelp() {
+        if (session.userRole != "agent") { toast("Pelacakan lokasi hanya untuk akun teknisi."); return }
+        if (session.activeTicketsCount <= 0) { toast("GPS otomatis aktif saat kamu memiliki tiket yang belum selesai."); return }
+        if (!hasLocationPermission()) {
+            if (!preferences.getBoolean("asked_location", false) || shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                permissionsBusy = true; preferences.edit().putBoolean("asked_location", true).apply()
+                locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+            } else safeOpen(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + packageName)))
+        } else if (!locationEnabled()) safeOpen(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+        else {
+            try {
+                ContextCompat.startForegroundService(this, Intent(this, LocationTrackingService::class.java).setAction(LocationTrackingService.ACTION_FORCE_PING))
+                toast("Memperbarui lokasi...")
+            } catch (_: RuntimeException) { toast("Lokasi belum dapat dimulai. Coba buka ulang aplikasi.") }
+        }
+    }
+
+    private fun ensureService() {
+        if (!session.isLoggedIn || isFinishing) return
+        try { ContextCompat.startForegroundService(this, Intent(this, LocationTrackingService::class.java).setAction(LocationTrackingService.ACTION_START)) }
+        catch (_: RuntimeException) { session.isDutyActive = false; updateGpsUi() }
+    }
+
+    private fun updateGpsUi() {
+        if (!::gpsTitle.isInitialized) return
+        val ready = LocationPolicy.canTrack(session.isLoggedIn, session.userRole, session.activeTicketsCount, hasLocationPermission(), locationEnabled())
+        val fresh = LocationPolicy.isFresh(session.lastUpdateTime)
+        val title = when {
+            session.userRole != "agent" -> "Lokasi khusus teknisi"
+            session.activeTicketsCount <= 0 -> "GPS siaga · Tidak ada tiket aktif"
+            !hasLocationPermission() -> "GPS memerlukan izin lokasi"
+            !locationEnabled() -> "GPS perangkat belum aktif"
+            !ready || !session.isDutyActive -> "GPS sedang disiapkan"
+            !fresh -> "Mencari lokasi terbaru..."
+            !OfflineSyncManager.isOnline(this) -> "GPS aktif · Menunggu koneksi"
+            else -> "GPS aktif · Lokasi terbaru"
+        }
+        val summary = if (ready && fresh && LocationPolicy.hasCoordinates(session.lastLatitude, session.lastLongitude)) {
+            String.format(Locale.US, "%.5f, %.5f · ±%.0f m", session.lastLatitude, session.lastLongitude, session.lastAccuracy)
+        } else "Aktif otomatis saat ada tiket. Ketuk untuk memeriksa lokasi."
+        gpsTitle.text = title
+        gpsTitle.setTextColor(if (ready && fresh && session.isDutyActive) HelpdeskTheme.green else HelpdeskTheme.text)
+        gpsSummary.text = summary
+        accountGps.text = title + "\n\nGPS mengirim lokasi setiap menit selama ada pekerjaan aktif. Izin notifikasi tidak menghalangi izin lokasi."
+    }
+
+    private fun updateSyncBanner() {
+        val pending = OfflineSyncManager.getTotalPendingSyncCount(this)
+        syncBanner.visibility = if (!connected || !OfflineSyncManager.isOnline(this) || pending > 0) View.VISIBLE else View.GONE
+        syncBanner.text = when {
+            pending > 0 -> pending.toString() + " perubahan tersimpan · Akan dikirim saat terhubung. Ketuk untuk mencoba."
+            hasData -> "Koneksi belum tersedia · Menampilkan tiket tersimpan. Tarik untuk mencoba lagi."
+            else -> "Data belum dapat dimuat · Periksa koneksi lalu tarik untuk mencoba lagi."
+        }
+        syncBanner.setOnClickListener { refreshTickets(true) }
+    }
+
+    private fun renderNotificationCount() {
+        val count = notifications.count { !it.isRead }
+        notificationCount.visibility = if (count > 0) View.VISIBLE else View.GONE
+        notificationCount.text = if (count > 9) "9+" else count.toString()
+    }
+
+    private fun showNotifications() {
+        val content = column(20)
+        content.addView(label("Notifikasi", 22f, bold = true)); gap(content)
+        val dialog = AlertDialog.Builder(this).setView(scroll(content)).setPositiveButton("Tutup", null).create()
+        if (notifications.isEmpty()) content.addView(label("Belum ada notifikasi baru.", 13f, HelpdeskTheme.muted))
+        notifications.take(20).forEach { notification ->
+            val item = panel(14)
+            item.addView(label(notification.title, 14f, bold = !notification.isRead))
+            item.addView(label(notification.message, 12f, HelpdeskTheme.muted))
+            item.isClickable = true; item.isFocusable = true
+            item.setOnClickListener {
+                session.markLocalNotificationRead(notification.id)
+                notifications = notifications.map { if (it.id == notification.id) it.copy(isRead = true) else it }
+                renderNotificationCount()
+                lifecycleScope.launch { session.token?.let { ApiClient.markNotificationRead(session.serverUrl, it, notification.id) } }
+                dialog.dismiss()
+                notification.ticketId?.let { id ->
+                    val cached = allTickets.firstOrNull { it.id == id }
+                    if (cached != null) openTicket(cached, if (notification.type == "new_message") 1 else 0)
+                    else detailLauncher.launch(Intent(this, TicketDetailActivity::class.java)
+                        .putExtra(TicketDetailActivity.EXTRA_TICKET_ID, id)
+                        .putExtra(TicketDetailActivity.EXTRA_TICKET_NUMBER, notification.ticketNumber)
+                        .putExtra(TicketDetailActivity.EXTRA_TITLE, notification.ticketTitle)
+                        .putExtra(TicketDetailActivity.EXTRA_INITIAL_TAB, if (notification.type == "new_message") 1 else 0))
+                }
+            }
+            content.addView(item); gap(content, 8)
+        }
+        dialog.show()
+    }
+
+    private fun openTicket(ticket: TicketItem, tab: Int = 0) {
+        detailLauncher.launch(Intent(this, TicketDetailActivity::class.java).apply {
             putExtra(TicketDetailActivity.EXTRA_TICKET_ID, ticket.id)
             putExtra(TicketDetailActivity.EXTRA_TICKET_NUMBER, ticket.ticketNumber)
             putExtra(TicketDetailActivity.EXTRA_TITLE, ticket.title)
             putExtra(TicketDetailActivity.EXTRA_STATUS, ticket.status)
             putExtra(TicketDetailActivity.EXTRA_PRIORITY, ticket.priority)
-            putExtra(TicketDetailActivity.EXTRA_TYPE, ticket.ticketType ?: "")
-            putExtra(TicketDetailActivity.EXTRA_REPORTER_NAME, ticket.reporterName ?: "")
-            putExtra(TicketDetailActivity.EXTRA_REPORTER_PHONE, ticket.reporterPhone ?: "")
-            putExtra(TicketDetailActivity.EXTRA_REPORTER_ADDRESS, ticket.reporterAddress ?: "")
-            putExtra(TicketDetailActivity.EXTRA_REPORTER_MAP_URL, ticket.reporterMapUrl ?: "")
+            putExtra(TicketDetailActivity.EXTRA_TYPE, ticket.ticketType)
+            putExtra(TicketDetailActivity.EXTRA_REPORTER_NAME, ticket.reporterName)
+            putExtra(TicketDetailActivity.EXTRA_REPORTER_PHONE, ticket.reporterPhone)
+            putExtra(TicketDetailActivity.EXTRA_REPORTER_ADDRESS, ticket.reporterAddress)
+            putExtra(TicketDetailActivity.EXTRA_REPORTER_MAP_URL, ticket.reporterMapUrl)
             putExtra(TicketDetailActivity.EXTRA_LATITUDE, ticket.latitude ?: 0.0)
             putExtra(TicketDetailActivity.EXTRA_LONGITUDE, ticket.longitude ?: 0.0)
-            putExtra(TicketDetailActivity.EXTRA_DESCRIPTION, ticket.description ?: "")
-            putExtra(TicketDetailActivity.EXTRA_INITIAL_TAB, initialTab)
-        }
-        detailLauncher.launch(intent)
-    }
-
-    private fun hasLocationPermission(): Boolean {
-        val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        val coarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        return fine || coarse
-    }
-
-    private fun checkAndRequestPermissions() {
-        if (!NotificationHelper.areSystemNotificationsEnabled(this)) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            } else {
-                showNotificationPermissionFallbackDialog()
-            }
-        } else {
-            requestLocationPermissionsIfNeeded()
-        }
-    }
-
-    private fun requestLocationPermissionsIfNeeded() {
-        val permissions = listOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-        val needed = permissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-        if (needed.isNotEmpty()) {
-            locationPermissionLauncher.launch(needed.toTypedArray())
-        } else {
-            evaluateTrackingRules(session.activeTicketsCount)
-        }
-    }
-
-    private fun showNotificationPermissionFallbackDialog() {
-        if (hasShownNotifDialogThisResume || isFinishing) return
-        hasShownNotifDialogThisResume = true
-
-        AlertDialog.Builder(this)
-            .setTitle("Izin Notifikasi Diperlukan")
-            .setMessage(
-                "Aplikasi HelpDesk Teknisi memerlukan izin Notifikasi agar peringatan Chat Tim, Perubahan Status, dan Tugas Tiket Baru dapat muncul di Status Bar, Panel Notifikasi, dan Pop-up Layar.\n\nKetuk 'Aktifkan Sekarang' lalu nyalakan sakelar Izinkan Notifikasi."
-            )
-            .setCancelable(false)
-            .setPositiveButton("Aktifkan Sekarang") { _, _ ->
-                NotificationHelper.openNotificationSettings(this)
-                requestLocationPermissionsIfNeeded()
-            }
-            .setNegativeButton("Nanti") { _, _ ->
-                requestLocationPermissionsIfNeeded()
-            }
-            .show()
-    }
-
-    private fun triggerTestNotification() {
-        if (!NotificationHelper.areSystemNotificationsEnabled(this)) {
-            hasShownNotifDialogThisResume = false
-            showNotificationPermissionFallbackDialog()
-            return
-        }
-
-        val nowStr = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
-        val sampleTicket = allTickets.firstOrNull()
-        val testItem = if (sampleTicket != null) {
-            NotificationItem(
-                id = "test_notif_${System.currentTimeMillis()}",
-                type = "new_internal_note",
-                title = "Chat Tim #${sampleTicket.ticketNumber} • NOC Dispatcher",
-                message = "Notifikasi Status Bar, Panel Drawer, dan Pop-up Heads-Up aktif untuk tiket \"${sampleTicket.title}\".",
-                ticketId = sampleTicket.id,
-                ticketNumber = sampleTicket.ticketNumber,
-                ticketTitle = sampleTicket.title,
-                ticketStatus = sampleTicket.status,
-                ticketPriority = sampleTicket.priority,
-                ticketType = sampleTicket.ticketType,
-                reporterName = sampleTicket.reporterName,
-                reporterPhone = sampleTicket.reporterPhone,
-                reporterAddress = sampleTicket.reporterAddress,
-                reporterMapUrl = sampleTicket.reporterMapUrl,
-                ticketDescription = sampleTicket.description,
-                isRead = false,
-                createdAt = nowStr
-            )
-        } else {
-            NotificationItem(
-                id = "test_notif_${System.currentTimeMillis()}",
-                type = "new_internal_note",
-                title = "Notifikasi HelpDesk Teknisi Aktif",
-                message = "Status Bar, Panel Notifikasi, dan Pop-up Heads-Up telah aktif dan siap menerima pesan Chat Tim & Tiket.",
-                ticketId = null,
-                ticketNumber = 0,
-                ticketTitle = "",
-                ticketStatus = "assigned",
-                ticketPriority = "medium",
-                ticketType = null,
-                reporterName = null,
-                reporterPhone = null,
-                reporterAddress = null,
-                reporterMapUrl = null,
-                ticketDescription = null,
-                isRead = false,
-                createdAt = nowStr
-            )
-        }
-
-        NotificationHelper.dispatchCustomNotification(this, session, testItem)
-        Toast.makeText(this, "Notifikasi Status Bar, Drawer & Pop-up dikirim!", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun startTrackingService() {
-        val intent = Intent(this, LocationTrackingService::class.java).apply {
-            action = LocationTrackingService.ACTION_START
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
-        updateDutyUi(true)
-    }
-
-    private fun stopTrackingService() {
-        val intent = Intent(this, LocationTrackingService::class.java).apply {
-            action = LocationTrackingService.ACTION_STOP
-        }
-        startService(intent)
-        updateDutyUi(false)
-    }
-
-    private fun updateDutyUi(isActive: Boolean) {
-        if (isActive && session.activeTicketsCount > 0) {
-            tvDutyStatus.text = "GPS Aktif"
-            if (session.lastLatitude != 0.0 && session.lastLongitude != 0.0) {
-                tvGpsCoords.text = String.format(
-                    Locale.US,
-                    "%.13f, %.13f",
-                    session.lastLatitude,
-                    session.lastLongitude
-                )
-            } else {
-                tvGpsCoords.text = "Mencari titik koordinat..."
-            }
-        } else {
-            tvDutyStatus.text = "GPS Nonaktif"
-            tvGpsCoords.text = "Tidak ada tiket aktif"
-        }
-    }
-
-    @Suppress("UNUSED_PARAMETER")
-    private fun updateGpsDisplay(lat: Double, lng: Double, acc: Float, battery: Int, time: Long) {
-        if (session.activeTicketsCount > 0 && lat != 0.0 && lng != 0.0) {
-            tvDutyStatus.text = "GPS Aktif"
-            tvGpsCoords.text = String.format(Locale.US, "%.13f, %.13f", lat, lng)
-        } else {
-            updateDutyUi(session.activeTicketsCount > 0)
-        }
-    }
-
-    private fun parseTicketTimestamp(raw: String?): Date? {
-        if (raw.isNullOrBlank()) return null
-        val trimmed = raw.trim()
-        val patterns = arrayOf(
-            "yyyy-MM-dd'T'HH:mm:ss.SSSX",
-            "yyyy-MM-dd'T'HH:mm:ssX",
-            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss'Z'",
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd HH:mm",
-            "yyyy-MM-dd"
-        )
-        for (p in patterns) {
-            try {
-                val sdf = SimpleDateFormat(p, Locale.US)
-                if (p.endsWith("'Z'")) {
-                    sdf.timeZone = TimeZone.getTimeZone("UTC")
-                }
-                val parsed = sdf.parse(trimmed)
-                if (parsed != null) return parsed
-            } catch (_: Exception) {}
-        }
-        return null
-    }
-
-    private fun computeDashboardMetrics(tickets: List<TicketItem>): Pair<Int, IntArray> {
-        val wibTz = TimeZone.getTimeZone("Asia/Jakarta")
-        val dayFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
-            timeZone = wibTz
-        }
-        val nowCal = Calendar.getInstance(wibTz)
-        val todayKey = dayFmt.format(nowCal.time)
-
-        val mondayCal = (nowCal.clone() as Calendar).apply {
-            firstDayOfWeek = Calendar.MONDAY
-            val dow = get(Calendar.DAY_OF_WEEK)
-            val diffToMonday = if (dow == Calendar.SUNDAY) -6 else (Calendar.MONDAY - dow)
-            add(Calendar.DAY_OF_YEAR, diffToMonday)
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        val sundayEndCal = (mondayCal.clone() as Calendar).apply {
-            add(Calendar.DAY_OF_YEAR, 6)
-            set(Calendar.HOUR_OF_DAY, 23)
-            set(Calendar.MINUTE, 59)
-            set(Calendar.SECOND, 59)
-            set(Calendar.MILLISECOND, 999)
-        }
-
-        var resolvedTodayCount = 0
-        val weeklyCounts = IntArray(6) { 0 }
-
-        for (t in tickets) {
-            val statusLower = t.status.lowercase(Locale.ROOT)
-            if (statusLower == "cancelled") continue
-
-            val eventDate = parseTicketTimestamp(t.updatedAt) ?: parseTicketTimestamp(t.createdAt)
-            if (eventDate != null) {
-                val eventDayKey = dayFmt.format(eventDate)
-                val isResolvedOrClosed = statusLower == "resolved" || statusLower == "closed"
-                if (isResolvedOrClosed && eventDayKey == todayKey) {
-                    resolvedTodayCount++
-                }
-
-                if (eventDate.time in mondayCal.timeInMillis..sundayEndCal.timeInMillis) {
-                    val tCal = Calendar.getInstance(wibTz).apply { time = eventDate }
-                    val dayIndex = when (tCal.get(Calendar.DAY_OF_WEEK)) {
-                        Calendar.MONDAY -> 0
-                        Calendar.TUESDAY -> 1
-                        Calendar.WEDNESDAY -> 2
-                        Calendar.THURSDAY -> 3
-                        Calendar.FRIDAY -> 4
-                        Calendar.SATURDAY, Calendar.SUNDAY -> 5
-                        else -> -1
-                    }
-                    if (dayIndex in 0..5) {
-                        weeklyCounts[dayIndex]++
-                    }
-                }
-            }
-        }
-
-        return Pair(resolvedTodayCount, weeklyCounts)
-    }
-
-    private fun renderAllTabsWithTickets(tickets: List<TicketItem>) {
-        val activeCount = tickets.count { t ->
-            val s = t.status.lowercase()
-            s != "resolved" && s != "closed" && s != "cancelled"
-        }
-
-        val (resolvedTodayCount, weeklyCounts) = computeDashboardMetrics(tickets)
-        latestWeeklyCounts = weeklyCounts
-
-        tvCountActive.text = activeCount.toString()
-        tvCountResolved.text = resolvedTodayCount.toString()
-        chartWeeklyTimeline.setWeeklyCounts(weeklyCounts)
-
-        session.activeTicketsCount = activeCount
-        evaluateTrackingRules(activeCount)
-        applyFiltersAndRender()
-        renderTasksTab()
-        renderMapTab()
-        renderHistoryTab()
-        refreshOfflineBannerAndProfile()
-    }
-
-    private fun loadTickets(silent: Boolean = false) {
-        if (!silent) {
-            swipeRefresh.isRefreshing = true
-        }
-        lifecycleScope.launch {
-            val token = session.token ?: return@launch
-
-            // Opportunistically flush any pending offline actions first
-            if (OfflineSyncManager.getTotalPendingSyncCount(this@MainActivity) > 0) {
-                OfflineSyncManager.flushAllPendingQueues(this@MainActivity, session)
-            }
-
-            val result = ApiClient.getTickets(session.serverUrl, token)
-            if (!silent) {
-                swipeRefresh.isRefreshing = false
-            }
-
-            result.onSuccess { tickets ->
-                allTickets = tickets
-                OfflineSyncManager.saveCachedTickets(this@MainActivity, tickets)
-                renderAllTabsWithTickets(tickets)
-
-                val payload = NotificationHelper.syncAndDispatchNotifications(this@MainActivity, session, tickets)
-                if (payload != null) {
-                    cachedNotifications = payload.notifications
-                    unreadNotifCount = payload.unreadCount
-                    updateNotificationBadge(unreadNotifCount)
-                }
-            }.onFailure { err ->
-                val cached = OfflineSyncManager.getCachedTickets(this@MainActivity)
-                if (cached.isNotEmpty() && allTickets.isEmpty()) {
-                    allTickets = cached
-                    renderAllTabsWithTickets(cached)
-                }
-                if (!silent) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Mode Offline Aktif: Menampilkan data tiket tersimpan (${err.message})",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-        }
-    }
-
-    private fun evaluateTrackingRules(activeCount: Int) {
-        if (TrackingScheduleManager.isTrackingMandatory(activeCount)) {
-            session.isDutyActive = true
-            updateDutyUi(true)
-            if (hasLocationPermission()) {
-                startTrackingService()
-            }
-        } else {
-            session.isDutyActive = false
-            stopTrackingService()
-        }
-    }
-
-    private fun loadUserProfile() {
-        lifecycleScope.launch {
-            val token = session.token ?: return@launch
-            ApiClient.getMe(session.serverUrl, token).onSuccess { profile ->
-                session.userId = profile.id
-                session.userName = profile.name
-                session.userEmail = profile.email
-                session.userRole = profile.role
-                tvTechnicianName.text = profile.name
-                tvTechnicianRole.text = "Teknisi"
-                refreshOfflineBannerAndProfile()
-            }
-        }
+            putExtra(TicketDetailActivity.EXTRA_DESCRIPTION, ticket.description)
+            putExtra(TicketDetailActivity.EXTRA_INITIAL_TAB, tab)
+        })
     }
 
     private fun confirmLogout() {
-        AlertDialog.Builder(this)
-            .setTitle("Keluar Aplikasi")
-            .setMessage("Apakah Anda yakin ingin keluar dari akun teknisi?")
-            .setPositiveButton("Keluar") { _, _ ->
-                session.activeTicketsCount = 0
-                val logoutIntent = Intent(this, LocationTrackingService::class.java).apply {
-                    action = LocationTrackingService.ACTION_LOGOUT
-                }
-                startService(logoutIntent)
-                session.logout()
-                startActivity(Intent(this, LoginActivity::class.java))
-                finish()
-            }
-            .setNegativeButton("Batal", null)
-            .show()
+        val pending = OfflineSyncManager.getTotalPendingSyncCount(this)
+        AlertDialog.Builder(this).setTitle("Keluar dari HelpDesk?")
+            .setMessage(if (pending > 0) pending.toString() + " perubahan offline tetap tersimpan untuk akun ini. Masuk kembali untuk menyinkronkannya." else "Kamu dapat masuk kembali lewat web atau akun.")
+            .setNegativeButton("Batal", null).setPositiveButton("Keluar") { _, _ -> expireSession() }.show()
+    }
+    private fun expireSession() {
+        val oldToken = session.token
+        stopService(Intent(this, LocationTrackingService::class.java))
+        polling?.cancel()
+        session.logout()
+        lifecycleScope.launch {
+            if (oldToken != null) kotlinx.coroutines.withTimeoutOrNull(2500) { ApiClient.stopLocation(session.serverUrl, oldToken) }
+            openLogin()
+        }
+    }
+    private fun openLogin() {
+        startActivity(Intent(this, LoginActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        finish()
+    }
+    private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    private fun safeOpen(intent: Intent) {
+        try { startActivity(intent) } catch (_: RuntimeException) { toast("Aplikasi yang diperlukan belum tersedia.") }
     }
 
     override fun onResume() {
         super.onResume()
-        evaluateTrackingRules(session.activeTicketsCount)
-        refreshOfflineBannerAndProfile()
-        val filter = IntentFilter().apply {
+        if (!::swipe.isInitialized || !session.isLoggedIn) return
+        ContextCompat.registerReceiver(this, updates, IntentFilter().apply {
             addAction(LocationTrackingService.ACTION_LOCATION_UPDATED)
             addAction(OfflineSyncManager.ACTION_SYNC_STATE_CHANGED)
             addAction(NotificationHelper.ACTION_NOTIFICATION_SYNCED)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(systemEventReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(systemEventReceiver, filter)
-        }
-
-        syncNotificationsNow()
-
-        realtimePollJob?.cancel()
-        realtimePollJob = lifecycleScope.launch {
-            while (isActive) {
-                delay(6_000L)
-                loadTickets(silent = true)
+            addAction(LocationManager.PROVIDERS_CHANGED_ACTION)
+        }, ContextCompat.RECEIVER_NOT_EXPORTED)
+        ensureService(); refreshTickets(false)
+        polling?.cancel()
+        polling = lifecycleScope.launch { while (isActive) { delay(15_000); refreshTickets(false) } }
+        if (Build.VERSION.SDK_INT >= 33 && !preferences.getBoolean("asked_notifications", false)) {
+            preferences.edit().putBoolean("asked_notifications", true).apply()
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsBusy = true; notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+        updateGpsUi()
     }
-
     override fun onPause() {
+        polling?.cancel(); polling = null
+        try { unregisterReceiver(updates) } catch (_: IllegalArgumentException) {}
         super.onPause()
-        realtimePollJob?.cancel()
-        realtimePollJob = null
-        try {
-            unregisterReceiver(systemEventReceiver)
-        } catch (e: Exception) {}
+    }
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("tab", activeTab); outState.putString("filter", ticketFilter); outState.putString("query", query)
+        super.onSaveInstanceState(outState)
     }
 }

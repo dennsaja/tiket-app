@@ -6,13 +6,13 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <uses-feature
@@ -20,18 +20,18 @@
         android:required="false" />
 
     <application
-        android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:icon="@drawable/ic_brand_mark"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@drawable/ic_brand_mark"
         android:supportsRtl="true"
         android:theme="@style/Theme.HelpDesk"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="false">
 
         <activity
             android:name=".ui.SplashActivity"
             android:exported="true"
-            android:theme="@style/Theme.HelpDesk.NoActionBar">
+            android:theme="@style/Theme.HelpDesk.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -42,16 +42,12 @@
             android:name=".ui.LoginActivity"
             android:exported="false"
             android:theme="@style/Theme.HelpDesk.NoActionBar"
-            android:windowSoftInputMode="adjustResize" />
-
-        <activity
-            android:name=".ui.WebLoginActivity"
-            android:exported="false"
-            android:theme="@style/Theme.HelpDesk.NoActionBar" />
+            android:windowSoftInputMode="stateAlwaysHidden|adjustResize" />
 
         <!-- Deep Link Intent Filter for helpdesk://auth -->
         <activity
             android:name=".ui.AuthCallbackActivity"
+            android:launchMode="singleTop"
             android:exported="true"
             android:theme="@style/Theme.HelpDesk.NoActionBar">
             <intent-filter>
@@ -79,7 +75,7 @@
             android:name=".service.LocationTrackingService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="location" />
+            android:foregroundServiceType="location|dataSync" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

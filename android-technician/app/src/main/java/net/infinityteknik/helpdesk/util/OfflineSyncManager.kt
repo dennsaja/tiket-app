@@ -11,6 +11,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Manages:
@@ -21,6 +23,7 @@ import java.util.UUID
  * - Work Report Auto-Draft Storage per Ticket (FR-20)
  */
 object OfflineSyncManager {
+    private val flushMutex = Mutex()
 
     const val ACTION_SYNC_STATE_CHANGED = "net.infinityteknik.helpdesk.SYNC_STATE_CHANGED"
 
@@ -33,8 +36,29 @@ object OfflineSyncManager {
     private const val KEY_LAST_GPS_SENT_TIME = "last_gps_sent_timestamp"
 
     private fun prefs(context: Context) =
-        context.getSharedPreferences(PREF_OFFLINE, Context.MODE_PRIVATE)
+        context.getSharedPreferences(PREF_OFFLINE + "_" + (SessionManager(context).userId ?: "signed_out"), Context.MODE_PRIVATE)
 
+    @Synchronized
+    fun prepareAccount(context: Context, userId: String) {
+        val legacy = context.getSharedPreferences(PREF_OFFLINE, Context.MODE_PRIVATE)
+        val previousUser = SessionManager(context).userId
+        if (legacy.getBoolean("account_store_migrated", false) || previousUser != userId) return
+        val destination = context.getSharedPreferences(PREF_OFFLINE + "_" + userId, Context.MODE_PRIVATE)
+        if (destination.all.isEmpty()) {
+            val editor = destination.edit()
+            legacy.all.forEach { (key, value) ->
+                when (value) {
+                    is String -> editor.putString(key, value)
+                    is Long -> editor.putLong(key, value)
+                    is Int -> editor.putInt(key, value)
+                    is Boolean -> editor.putBoolean(key, value)
+                    is Float -> editor.putFloat(key, value)
+                }
+            }
+            editor.commit()
+        }
+        legacy.edit().putBoolean("account_store_migrated", true).commit()
+    }
     fun isOnline(context: Context): Boolean {
         return try {
             val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
@@ -199,44 +223,29 @@ object OfflineSyncManager {
      * Sends a live GPS point AND flushes any buffered offline GPS points in chronological order.
      * If offline or HTTP fails, buffers the point locally so zero GPS history is lost.
      */
-    suspend fun sendOrBufferLocation(
-        context: Context,
-        session: SessionManager,
-        point: LocationPayload
-    ): Boolean {
-        val token = session.token
-        if (token.isNullOrBlank()) return false
-
+    suspend fun sendOrBufferLocation(context: Context, session: SessionManager, point: LocationPayload): Boolean = flushMutex.withLock {
+        val token = session.token ?: return@withLock false
+        val owner = session.userId
+        if (!session.isDutyActive || session.activeTicketsCount <= 0) return@withLock false
         if (!isOnline(context)) {
             enqueueGpsPoint(context, point)
-            return false
+            return@withLock false
         }
-
         val buffered = getBufferedGpsPoints(context)
-        if (buffered.isNotEmpty()) {
-            val combined = (buffered + point).sortedBy { it.deviceTime }
-            val batchRes = ApiClient.sendLocationBatch(session.serverUrl, token, combined)
-            if (batchRes.isSuccess) {
-                saveBufferedGpsPoints(context, emptyList())
-                markGpsSentNow(context)
-                broadcastSyncState(context)
-                return true
-            } else {
-                enqueueGpsPoint(context, point)
-                return false
-            }
+        val combined = (buffered + point).sortedBy { it.deviceTime }
+        val result = if (buffered.isEmpty()) ApiClient.sendLocation(session.serverUrl, token, point)
+            else ApiClient.sendLocationBatch(session.serverUrl, token, combined)
+        if (session.userId != owner || session.token != token) return@withLock false
+        if (result.isSuccess) {
+            removeSentGps(context, combined.map { it.deviceTime }.toSet())
+            markGpsSentNow(context)
+            broadcastSyncState(context)
+            true
         } else {
-            val res = ApiClient.sendLocation(session.serverUrl, token, point)
-            if (res.isSuccess) {
-                markGpsSentNow(context)
-                return true
-            } else {
-                enqueueGpsPoint(context, point)
-                return false
-            }
+            if (result.exceptionOrNull() is java.io.IOException || !isOnline(context)) enqueueGpsPoint(context, point)
+            false
         }
     }
-
     // =========================================================================
     // 3. OFFLINE ACTION & WORK REPORT QUEUE (FR-23, FR-24, FR-25)
     // =========================================================================
@@ -316,6 +325,14 @@ object OfflineSyncManager {
         prefs(context).edit().putString(KEY_ACTION_QUEUE, arr.toString()).apply()
     }
 
+    @Synchronized
+    private fun removeSentActions(context: Context, ids: Set<String>) {
+        saveQueuedActions(context, getQueuedActions(context).filterNot { it.id in ids })
+    }
+    @Synchronized
+    private fun removeSentGps(context: Context, times: Set<Long>) {
+        saveBufferedGpsPoints(context, getBufferedGpsPoints(context).filterNot { it.deviceTime in times })
+    }
     fun getTotalPendingSyncCount(context: Context): Int {
         return getBufferedGpsPoints(context).size + getQueuedActions(context).size
     }
@@ -326,18 +343,21 @@ object OfflineSyncManager {
     /**
      * Flushes both buffered GPS points and queued offline ticket actions/reports when online.
      */
-    suspend fun flushAllPendingQueues(context: Context, session: SessionManager): Int {
-        if (!isOnline(context)) return 0
-        val token = session.token ?: return 0
+    suspend fun flushAllPendingQueues(context: Context, session: SessionManager): Int = flushMutex.withLock {
+        if (!isOnline(context)) return@withLock 0
+        val token = session.token ?: return@withLock 0
+        val ownerId = session.userId
         var flushedCount = 0
 
         // 1. Flush GPS Buffer
         val gpsPoints = getBufferedGpsPoints(context)
         if (gpsPoints.isNotEmpty()) {
             val res = ApiClient.sendLocationBatch(session.serverUrl, token, gpsPoints.sortedBy { it.deviceTime })
+            if (session.userId != ownerId || session.token != token) return@withLock flushedCount
             if (res.isSuccess) {
                 flushedCount += gpsPoints.size
-                saveBufferedGpsPoints(context, emptyList())
+                removeSentGps(context, gpsPoints.map { it.deviceTime }.toSet())
+                if (!session.isDutyActive) ApiClient.stopLocation(session.serverUrl, token)
                 markGpsSentNow(context)
             }
         }
@@ -345,8 +365,9 @@ object OfflineSyncManager {
         // 2. Flush Queued Status Updates / Coordinate Updates / Work Reports
         val actions = getQueuedActions(context)
         if (actions.isNotEmpty()) {
-            val remaining = ArrayList<OfflineActionItem>()
+            val successfulIds = mutableSetOf<String>()
             for (act in actions.sortedBy { it.createdAt }) {
+                if (session.userId != ownerId || session.token != token) return@withLock flushedCount
                 val success = when (act.actionType) {
                     "status_update" -> {
                         ApiClient.updateTicketStatus(
@@ -390,28 +411,29 @@ object OfflineSyncManager {
                             afterPhotos = afterFiles,
                             technicalDataJson = act.reportTechnicalJson
                         )
+                        if (session.userId != ownerId || session.token != token) return@withLock flushedCount
                         if (res.isSuccess) {
                             clearReportDraft(context, act.ticketId)
                         }
                         res.isSuccess
                     }
-                    else -> true
+                    else -> false
                 }
 
+                if (session.userId != ownerId || session.token != token) return@withLock flushedCount
                 if (success) {
                     flushedCount++
-                } else {
-                    remaining.add(act)
-                }
+                    successfulIds.add(act.id)
+                } else break
             }
-            saveQueuedActions(context, remaining)
+            removeSentActions(context, successfulIds)
         }
 
         if (flushedCount > 0) {
             prefs(context).edit().putLong(KEY_LAST_SYNC_TIME, System.currentTimeMillis()).apply()
         }
         broadcastSyncState(context)
-        return flushedCount
+        flushedCount
     }
 
     // =========================================================================
@@ -441,6 +463,8 @@ object OfflineSyncManager {
                 put("rootCauseIndex", draft.rootCauseIndex)
                 put("customerRecipientName", draft.customerRecipientName)
                 put("checkedIndices", checkedArr)
+                put("beforePhotoPaths", JSONArray(draft.beforePhotoPaths))
+                put("afterPhotoPaths", JSONArray(draft.afterPhotoPaths))
                 put("updatedAt", System.currentTimeMillis())
             }
             mapObj.put(draft.ticketId, dObj)
@@ -476,6 +500,8 @@ object OfflineSyncManager {
                 rootCauseIndex = dObj.optInt("rootCauseIndex", 0),
                 customerRecipientName = dObj.optString("customerRecipientName", ""),
                 checkedIndices = checkedSet,
+                beforePhotoPaths = dObj.optJSONArray("beforePhotoPaths")?.let { arr -> (0 until arr.length()).map { arr.optString(it) }.filter { it.isNotBlank() } }.orEmpty(),
+                afterPhotoPaths = dObj.optJSONArray("afterPhotoPaths")?.let { arr -> (0 until arr.length()).map { arr.optString(it) }.filter { it.isNotBlank() } }.orEmpty(),
                 updatedAt = dObj.optLong("updatedAt", 0L)
             )
         } catch (e: Exception) {

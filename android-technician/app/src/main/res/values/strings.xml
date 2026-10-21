@@ -1,4 +1,5 @@
 <resources>
+    <string name="helpdesk_font_family" translatable="false">sans-serif</string>
     <string name="app_name">HelpDesk Teknisi</string>
     <string name="title_login">Masuk Teknisi</string>
     <string name="subtitle_login">Pantau dan kelola tiket tugas lapangan secara realtime</string>

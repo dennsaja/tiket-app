@@ -88,8 +88,11 @@ object PhotoWatermarkHelper {
                 longitude,
                 accuracy
             )
+            val persistent = if (processed.absolutePath == tempFile.absolutePath) {
+                tempFile.copyTo(File(context.filesDir, "photo_" + ticketNumber + "_" + System.currentTimeMillis() + ".jpg"))
+            } else processed
             try { tempFile.delete() } catch (_: Exception) {}
-            processed
+            persistent
         } catch (e: Exception) {
             e.printStackTrace()
             null

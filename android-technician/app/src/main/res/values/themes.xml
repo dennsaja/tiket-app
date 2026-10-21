@@ -1,20 +1,48 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.HelpDesk" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+    <style name="Theme.HelpDesk" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryVariant">@color/primary_dark</item>
         <item name="colorOnPrimary">@color/white</item>
         <item name="colorSecondary">@color/accent</item>
-        <item name="colorSecondaryVariant">@color/accent</item>
         <item name="colorOnSecondary">@color/white</item>
-        <item name="android:statusBarColor">@color/primary_dark</item>
-    </style>
-
-    <style name="Theme.HelpDesk.NoActionBar" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/primary</item>
-        <item name="colorPrimaryVariant">@color/primary_dark</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <item name="colorSecondary">@color/accent</item>
-        <item name="android:statusBarColor">@color/primary_dark</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="android:colorBackground">@color/background</item>
         <item name="android:windowBackground">@color/background</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
+        <!-- Resource references avoid Android 7's theme/XML string-pool mismatch. -->
+        <item name="android:fontFamily">@string/helpdesk_font_family</item>
+        <item name="fontFamily">@string/helpdesk_font_family</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:forceDarkAllowed" tools:targetApi="29">false</item>
+        <item name="alertDialogTheme">@style/ThemeOverlay.HelpDesk.Dialog</item>
+    </style>
+    <style name="Theme.HelpDesk.NoActionBar" parent="Theme.HelpDesk" />
+    <style name="Theme.HelpDesk.Splash" parent="Theme.HelpDesk">
+        <item name="android:windowBackground">@drawable/bg_splash</item>
+    </style>
+    <style name="ThemeOverlay.HelpDesk.Dialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorPrimary">@color/accent</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:windowBackground">@color/surface</item>
+    </style>
+    <style name="Helpdesk.Input" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">56dp</item>
+        <item name="android:background">@drawable/input_field_bg</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textColorHint">@color/text_muted</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:singleLine">true</item>
     </style>
 </resources>

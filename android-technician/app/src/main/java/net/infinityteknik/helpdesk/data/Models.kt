@@ -121,6 +121,8 @@ data class ReportDraftData(
     val rootCauseIndex: Int = 0,
     val customerRecipientName: String = "",
     val checkedIndices: Set<Int> = emptySet(),
+    val beforePhotoPaths: List<String> = emptyList(),
+    val afterPhotoPaths: List<String> = emptyList(),
     val updatedAt: Long = System.currentTimeMillis()
 )
 

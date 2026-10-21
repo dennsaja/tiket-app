@@ -9,6 +9,7 @@ import android.view.MotionEvent
 import android.view.View
 import net.infinityteknik.helpdesk.data.TicketItem
 import java.util.Locale
+import net.infinityteknik.helpdesk.util.LocationPolicy
 import kotlin.math.*
 
 /**
@@ -34,8 +35,8 @@ class FieldTechnicianMapView @JvmOverloads constructor(
         var screenY: Float = 0f
     )
 
-    private var techLat: Double = -6.712675
-    private var techLng: Double = 110.860641
+    private var techLat: Double = 0.0
+    private var techLng: Double = 0.0
     private var hasValidTechGps: Boolean = false
     private var pins = listOf<PlottedPin>()
     private var selectedTicketId: String? = null
@@ -53,23 +54,23 @@ class FieldTechnicianMapView @JvmOverloads constructor(
 
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#E2E8F0")
+        color = Color.parseColor("#29292F")
         style = Paint.Style.STROKE
         strokeWidth = dp(1f)
     }
     private val roadPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#CBD5E1")
+        color = Color.parseColor("#29292F")
         style = Paint.Style.STROKE
         strokeWidth = dp(2.2f)
     }
     private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#BAE6FD")
+        color = Color.parseColor("#3B4261")
         style = Paint.Style.STROKE
         strokeWidth = dp(1.2f)
         pathEffect = DashPathEffect(floatArrayOf(dp(6f), dp(6f)), 0f)
     }
     private val routePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#2563EB")
+        color = Color.parseColor("#7890FF")
         style = Paint.Style.STROKE
         strokeWidth = dp(3f)
         pathEffect = DashPathEffect(floatArrayOf(dp(10f), dp(6f)), 0f)
@@ -93,7 +94,7 @@ class FieldTechnicianMapView @JvmOverloads constructor(
         style = Paint.Style.FILL
     }
     private val legendPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#475569")
+        color = Color.parseColor("#C1C1CC")
         textSize = sp(9.5f)
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
@@ -131,12 +132,12 @@ class FieldTechnicianMapView @JvmOverloads constructor(
         tickets: List<TicketItem>,
         currentSelectedId: String? = selectedTicketId
     ) {
-        if (technicianLat != 0.0 && technicianLng != 0.0) {
+        if (LocationPolicy.hasCoordinates(technicianLat, technicianLng)) {
             techLat = technicianLat
             techLng = technicianLng
             hasValidTechGps = true
         } else {
-            val firstWithCoord = tickets.firstOrNull { (it.latitude ?: 0.0) != 0.0 && (it.longitude ?: 0.0) != 0.0 }
+            val firstWithCoord = tickets.firstOrNull { LocationPolicy.hasCoordinates(it.latitude, it.longitude) }
             if (firstWithCoord != null) {
                 techLat = firstWithCoord.latitude!!
                 techLng = firstWithCoord.longitude!!
@@ -145,27 +146,15 @@ class FieldTechnicianMapView @JvmOverloads constructor(
         }
 
         val built = ArrayList<PlottedPin>()
-        tickets.forEachIndexed { idx, t ->
-            val tLat = t.latitude
-            val tLng = t.longitude
-            if (tLat != null && tLng != null && tLat != 0.0 && tLng != 0.0) {
-                built.add(PlottedPin(t, tLat, tLng, false))
-            } else {
-                // Place tickets without explicit GPS coords in a neat deterministic ring around center so they are still selectable on map
-                val angle = (idx * 65.0) * (PI / 180.0)
-                val radiusDeg = 0.008 + ((idx % 3) * 0.004)
-                built.add(
-                    PlottedPin(
-                        t,
-                        techLat + sin(angle) * radiusDeg,
-                        techLng + cos(angle) * radiusDeg,
-                        true
-                    )
-                )
+        tickets.forEach { ticket ->
+            val lat = ticket.latitude
+            val lng = ticket.longitude
+            if (LocationPolicy.hasCoordinates(lat, lng)) {
+                built.add(PlottedPin(ticket, lat!!, lng!!, false))
             }
         }
         pins = built
-        selectedTicketId = currentSelectedId ?: built.firstOrNull()?.ticket?.id
+        selectedTicketId = currentSelectedId?.takeIf { id -> built.any { it.ticket.id == id } }
         invalidate()
     }
 
@@ -222,11 +211,11 @@ class FieldTechnicianMapView @JvmOverloads constructor(
 
     private fun getPinColorForStatus(status: String): Int {
         return when (status.lowercase(Locale.ROOT)) {
-            "open", "assigned" -> Color.parseColor("#2563EB") // Baru = Biru
-            "accepted", "on_site", "in_progress" -> Color.parseColor("#EA580C") // Berjalan = Oranye
-            "resolved", "closed" -> Color.parseColor("#16A34A") // Selesai = Hijau
-            "pending", "waiting_for_user", "waiting_for_third_party" -> Color.parseColor("#D97706") // Tertunda = Kuning
-            else -> Color.parseColor("#DC2626") // Terlambat/Ditolak = Merah
+            "open", "assigned" -> Color.parseColor("#7890FF") // Baru = Biru
+            "accepted", "on_site", "in_progress" -> Color.parseColor("#FFB276") // Berjalan = Oranye
+            "resolved", "closed" -> Color.parseColor("#6BDFA7") // Selesai = Hijau
+            "pending", "waiting_for_user", "waiting_for_third_party" -> Color.parseColor("#F2D282") // Tertunda = Kuning
+            else -> Color.parseColor("#FF9AA5") // Terlambat/Ditolak = Merah
         }
     }
 
@@ -239,8 +228,8 @@ class FieldTechnicianMapView @JvmOverloads constructor(
         // 1. Map Canvas Background
         bgPaint.shader = LinearGradient(
             0f, 0f, 0f, h,
-            Color.parseColor("#F1F5F9"),
-            Color.parseColor("#E2E8F0"),
+            Color.parseColor("#17171C"),
+            Color.parseColor("#29292F"),
             Shader.TileMode.CLAMP
         )
         canvas.drawRect(0f, 0f, w, h, bgPaint)
@@ -319,7 +308,7 @@ class FieldTechnicianMapView @JvmOverloads constructor(
         }
         canvas.drawCircle(centerX, centerY, dp(22f), auraPaint)
 
-        pinFillPaint.color = Color.parseColor("#0284C7")
+        pinFillPaint.color = Color.parseColor("#9CAEFF")
         canvas.drawCircle(centerX, centerY, dp(10f), pinFillPaint)
         canvas.drawCircle(centerX, centerY, dp(10f), pinStrokePaint)
 
@@ -357,7 +346,7 @@ class FieldTechnicianMapView @JvmOverloads constructor(
                 p.screenX + nw / 2f,
                 p.screenY - radius - dp(4f)
             )
-            labelBgPaint.color = if (isSelected) Color.parseColor("#09090B") else Color.parseColor("#CC1E293B")
+            labelBgPaint.color = if (isSelected) Color.parseColor("#F6F6F8") else Color.parseColor("#CC1E293B")
             canvas.drawRoundRect(nRect, dp(6f), dp(6f), labelBgPaint)
             canvas.drawText(numStr, p.screenX, p.screenY - radius - dp(9.5f), textPaint)
         }

@@ -1,159 +1,117 @@
 package net.infinityteknik.helpdesk.ui
 
-import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
+import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
 import android.view.View
+import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.launch
 import net.infinityteknik.helpdesk.R
 import net.infinityteknik.helpdesk.data.ApiClient
 import net.infinityteknik.helpdesk.data.SessionManager
-import net.infinityteknik.helpdesk.util.NotificationHelper
 
 class LoginActivity : AppCompatActivity() {
-
-    private lateinit var etServerUrl: EditText
-    private lateinit var etEmail: EditText
-    private lateinit var etPassword: EditText
-    private lateinit var ivTogglePassword: ImageButton
-    private lateinit var btnLogin: MaterialButton
-    private lateinit var btnWebLogin: MaterialButton
-    private lateinit var pbLoading: ProgressBar
-    private lateinit var tvError: TextView
-
     private lateinit var session: SessionManager
-    private var isPasswordVisible = false
-
-    private val notifPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { _ -> }
+    private lateinit var email: EditText
+    private lateinit var password: EditText
+    private lateinit var error: TextView
+    private lateinit var login: MaterialButton
+    private lateinit var webLogin: MaterialButton
+    private lateinit var progress: ProgressBar
+    private var busy = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
-
         session = SessionManager(this)
-        NotificationHelper.ensureAlertChannel(this)
-
-        // Request Notification Permission on Login screen for Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        email = findViewById(R.id.etEmail)
+        password = findViewById(R.id.etPassword)
+        error = findViewById(R.id.tvError)
+        login = findViewById(R.id.btnLogin)
+        webLogin = findViewById(R.id.btnWebLogin)
+        progress = findViewById(R.id.pbLoading)
+        var visible = false
+        findViewById<ImageButton>(R.id.ivTogglePassword).apply {
+            setImageResource(R.drawable.ic_eye)
+            setOnClickListener {
+                visible = !visible
+                password.inputType = InputType.TYPE_CLASS_TEXT or if (visible) InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD else InputType.TYPE_TEXT_VARIATION_PASSWORD
+                password.typeface = android.graphics.Typeface.DEFAULT
+                password.setSelection(password.text.length)
+                contentDescription = if (visible) "Sembunyikan kata sandi" else "Tampilkan kata sandi"
             }
         }
-
-        etServerUrl = findViewById(R.id.etServerUrl)
-        etEmail = findViewById(R.id.etEmail)
-        etPassword = findViewById(R.id.etPassword)
-        ivTogglePassword = findViewById(R.id.ivTogglePassword)
-        btnLogin = findViewById(R.id.btnLogin)
-        btnWebLogin = findViewById(R.id.btnWebLogin)
-        pbLoading = findViewById(R.id.pbLoading)
-        tvError = findViewById(R.id.tvError)
-
-        etServerUrl.setText(session.serverUrl)
-
-        // Web SSO Button Click
-        btnWebLogin.setOnClickListener {
-            val serverUrl = etServerUrl.text.toString().trim().removeSuffix("/")
-            if (serverUrl.isNotBlank()) {
-                session.serverUrl = serverUrl
-            }
-            startActivity(Intent(this, WebLoginActivity::class.java))
+        password.setOnEditorActionListener { _, action, _ ->
+            if (action == EditorInfo.IME_ACTION_DONE) { performLogin(); true } else false
         }
-
-        // Toggle password visibility
-        ivTogglePassword.setOnClickListener {
-            isPasswordVisible = !isPasswordVisible
-            if (isPasswordVisible) {
-                etPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-            } else {
-                etPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        login.setOnClickListener { performLogin() }
+        webLogin.setOnClickListener {
+            if (busy) return@setOnClickListener
+            val state = session.beginWebLogin()
+            val uri = Uri.parse(session.serverUrl + "/mobile-auth").buildUpon().appendQueryParameter("state", state).build()
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE))
+            } catch (_: ActivityNotFoundException) {
+                session.clearWebLogin()
+                showError("Browser belum tersedia. Gunakan login akun di bawah.")
             }
-            etPassword.setSelection(etPassword.text.length)
-        }
-
-        // Manual Login Button Click
-        btnLogin.setOnClickListener {
-            performLogin()
         }
     }
 
     private fun performLogin() {
-        val serverUrl = etServerUrl.text.toString().trim().removeSuffix("/")
-        val email = etEmail.text.toString().trim()
-        val password = etPassword.text.toString().trim()
-
-        if (serverUrl.isBlank()) {
-            showError("URL Server tidak boleh kosong")
-            return
-        }
-        if (email.isBlank()) {
-            showError("Email teknisi tidak boleh kosong")
-            return
-        }
-        if (password.isBlank()) {
-            showError("Password tidak boleh kosong")
-            return
-        }
-
-        setLoading(true)
-        tvError.visibility = View.GONE
-
-        session.serverUrl = serverUrl
-
+        if (busy) return
+        val identifier = email.text.toString().trim()
+        // Passwords are sent exactly as entered, including intentional spaces.
+        val secret = password.text.toString()
+        if (identifier.isBlank()) { email.error = "Email akun wajib diisi"; email.requestFocus(); return }
+        if (secret.isEmpty()) { password.error = "Kata sandi wajib diisi"; password.requestFocus(); return }
+        setBusy(true)
+        error.visibility = View.GONE
         lifecycleScope.launch {
-            val result = ApiClient.login(serverUrl, email, password)
-            setLoading(false)
-
-            result.onSuccess { response ->
-                if (response.token != null && response.user != null) {
-                    session.saveUser(response.user, response.token)
-                    session.activeTicketsCount = response.user.activeTicketsCount
-                    session.isDutyActive = response.user.activeTicketsCount > 0
-
-                    Toast.makeText(
-                        this@LoginActivity,
-                        "Selamat datang, ${response.user.name}!",
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-                    startActivity(Intent(this@LoginActivity, MainActivity::class.java))
-                    finish()
-                } else {
-                    showError("Data respon server tidak lengkap")
-                }
-            }.onFailure { err ->
-                showError(err.message ?: "Gagal terhubung ke server. Periksa URL dan koneksi Anda.")
+            val result = ApiClient.login(session.serverUrl, identifier, secret)
+            val response = result.getOrNull()
+            val token = response?.token
+            if (token.isNullOrBlank()) {
+                setBusy(false)
+                showError(result.exceptionOrNull()?.message ?: "Login gagal. Periksa akun dan koneksi kamu.")
+                return@launch
             }
+            val profileResult = ApiClient.getMe(session.serverUrl, token)
+            val profile = profileResult.getOrNull()
+            if (profile == null || profile.role !in setOf("agent", "admin", "owner", "noc")) {
+                setBusy(false)
+                showError(if (profile == null) "Profil belum dapat diverifikasi. Coba masuk kembali." else "Akun ini belum memiliki akses aplikasi teknisi.")
+                return@launch
+            }
+            session.saveUser(profile, token)
+            session.activeTicketsCount = profile.activeTicketsCount
+            session.isDutyActive = false
+            session.clearWebLogin()
+            startActivity(Intent(this@LoginActivity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+            finish()
         }
     }
 
-    private fun setLoading(loading: Boolean) {
-        btnLogin.isEnabled = !loading
-        btnWebLogin.isEnabled = !loading
-        pbLoading.visibility = if (loading) View.VISIBLE else View.GONE
+    private fun setBusy(value: Boolean) {
+        busy = value
+        login.isEnabled = !value
+        webLogin.isEnabled = !value
+        email.isEnabled = !value
+        password.isEnabled = !value
+        progress.visibility = if (value) View.VISIBLE else View.GONE
+        login.text = if (value) "Memverifikasi akun..." else "Masuk"
     }
-
-    private fun showError(msg: String) {
-        tvError.text = msg
-        tvError.visibility = View.VISIBLE
+    private fun showError(message: String) {
+        error.text = message
+        error.visibility = View.VISIBLE
     }
 }

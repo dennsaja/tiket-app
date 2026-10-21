@@ -1,8 +1,10 @@
 {
-  "versionCode": 8,
-  "versionName": "2.1.0",
+  "versionCode": 9,
+  "versionName": "3.0.0",
   "minSupportedVersion": 1,
   "downloadUrl": "/downloads/helpdesk-teknisi.apk",
-  "updatedAt": "2026-10-19T06:30:00.000Z",
-  "releaseNotes": "v2.1.0: Pembaruan Desain Clean UI/UX — Dasbor Bento Hero Biru dengan Filter Pipeline Alur Kerja (1. Ditugaskan s/d 4. Dikerjakan), Header Peta Dispatch Glassmorphism (Realtime GPS Active, Sync GPS & Reset Peta), serta Set Ikon Vektor Custom (Bebas Emoji) di seluruh halaman."
+  "updatedAt": "2026-10-21T15:53:57.6515262Z",
+  "sha256": "813abeef244fc7594aba9911d432db580102be51c2b56115f16a20f25c9abe50",
+  "fileSizeBytes": 8066494,
+  "releaseNotes": "v3.0.0: UI gelap selaras web, splash dan login baru, login melalui browser eksternal atau email akun tanpa kolom server. Alur tiket dipersingkat, detail teknis opsional, draf teks/foto per akun, serta perbaikan izin GPS, koordinat kedaluwarsa, callback login, dan antrean offline. Perbarui web sebelum memakai login browser versi ini."
 }

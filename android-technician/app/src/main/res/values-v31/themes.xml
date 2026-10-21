@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.HelpDesk.Splash" parent="Theme.HelpDesk">
+        <item name="android:windowSplashScreenBackground">@color/background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_brand_mark</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/background</item>
+        <item name="android:windowBackground">@color/background</item>
+    </style>
+</resources>

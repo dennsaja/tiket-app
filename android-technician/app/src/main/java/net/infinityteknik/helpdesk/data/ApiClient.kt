@@ -13,6 +13,8 @@ import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.TimeUnit
 
+class ApiException(val statusCode: Int, message: String) : Exception(message)
+
 object ApiClient {
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -59,7 +61,7 @@ object ApiClient {
                         Result.success(LoginResponse(true, token, user, null))
                     } else {
                         val errMsg = resJson.optString("error", "Login gagal (${response.code})")
-                        Result.failure(Exception(errMsg))
+                        Result.failure(ApiException(response.code, errMsg))
                     }
                 }
             } catch (e: Exception) {
@@ -93,7 +95,7 @@ object ApiClient {
                         )
                         Result.success(user)
                     } else {
-                        Result.failure(Exception(resJson.optString("error", "Gagal memuat profil")))
+                        Result.failure(ApiException(response.code, resJson.optString("error", "Gagal memuat profil")))
                     }
                 }
             } catch (e: Exception) {
@@ -330,7 +332,7 @@ object ApiClient {
                         }
                         Result.success(list)
                     } else {
-                        Result.failure(Exception(resJson.optString("error", "Gagal mengambil daftar tiket")))
+                        Result.failure(ApiException(response.code, resJson.optString("error", "Gagal mengambil daftar tiket")))
                     }
                 }
             } catch (e: Exception) {
@@ -447,7 +449,7 @@ object ApiClient {
                     val bodyStr = response.body?.string() ?: ""
                     if (!response.isSuccessful) {
                         val errMsg = try { JSONObject(bodyStr).optString("error", bodyStr) } catch (e: Exception) { bodyStr }
-                        return@withContext Result.failure(Exception(errMsg))
+                        return@withContext Result.failure(ApiException(response.code, errMsg))
                     }
 
                     val o = JSONObject(bodyStr)
@@ -516,7 +518,7 @@ object ApiClient {
                         Result.success(true)
                     } else {
                         val errMsg = try { JSONObject(bodyStr).optString("error", bodyStr) } catch (e: Exception) { bodyStr }
-                        Result.failure(Exception(errMsg))
+                        Result.failure(ApiException(response.code, errMsg))
                     }
                 }
             } catch (e: Exception) {

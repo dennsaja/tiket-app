@@ -1,1558 +1,240 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#F8FAFC">
-
-    <!-- Top App Bar (Clean Royal Blue Dispatch Style) -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:background="#004C9E"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="12dp"
-        android:paddingEnd="16dp">
-
-        <ImageButton
-            android:id="@+id/btnBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_revert"
-            android:contentDescription="Kembali"
-            app:tint="#FFFFFF" />
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/tvDetailTicketNumber"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="#1001"
-                android:textColor="#FFFFFF"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvDetailTicketTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Judul Tiket"
-                android:textColor="#BAE6FD"
-                android:textSize="12sp"
-                android:maxLines="1"
-                android:ellipsize="end" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/tvDetailStatusBadge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/badge_bg"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp"
-            android:text="IN PROGRESS"
-            android:textColor="#2563EB"
-            android:textSize="10sp"
-            android:textStyle="bold" />
+﻿<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@color/background">
+  <!-- Top App Bar (Clean Royal Blue Dispatch Style) -->
+  <LinearLayout android:layout_width="match_parent" android:layout_height="60dp" android:background="@color/background" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="12dp" android:paddingEnd="16dp">
+    <ImageButton android:id="@+id/btnBack" android:layout_width="40dp" android:layout_height="40dp" android:background="?attr/selectableItemBackgroundBorderless" android:src="@android:drawable/ic_menu_revert" android:contentDescription="Kembali" app:tint="#FFFFFF" />
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:orientation="vertical">
+      <TextView android:id="@+id/tvDetailTicketNumber" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="#1001" android:textColor="#FFFFFF" android:textSize="15sp" android:textStyle="bold" />
+      <TextView android:id="@+id/tvDetailTicketTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Judul Tiket" android:textColor="#9CAEFF" android:textSize="12sp" android:maxLines="1" android:ellipsize="end" />
     </LinearLayout>
-
-    <!-- Navigation Tabs -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="46dp"
-        android:background="#FFFFFF"
-        android:elevation="1dp"
-        android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/tabDetail"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="Detail &amp; Alur"
-            android:textColor="#004C9E"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:background="?attr/selectableItemBackground" />
-
-        <TextView
-            android:id="@+id/tabChat"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="Chat Tim"
-            android:textColor="#71717A"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:background="?attr/selectableItemBackground" />
-
-        <TextView
-            android:id="@+id/tabReport"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="Laporan Kerja"
-            android:textColor="#71717A"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:background="?attr/selectableItemBackground" />
-    </LinearLayout>
-
-    <View
-        android:id="@+id/tabIndicator"
-        android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:background="#E4E4E7" />
-
-    <!-- Content Frame -->
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-        <!-- ============================================== -->
-        <!-- TAB 1: DETAIL, CHECK-IN RADIUS & WORKFLOW      -->
-        <!-- ============================================== -->
-        <ScrollView
-            android:id="@+id/viewTabDetail"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="visible">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <!-- Workflow Stepper Card -->
-                <androidx.cardview.widget.CardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="#FFFFFF">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="14dp">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="ALUR KERJA PENUGASAN (STATE MACHINE)"
-                                android:textColor="#71717A"
-                                android:textSize="10.5sp"
-                                android:textStyle="bold" />
-
-                            <LinearLayout
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:background="@drawable/badge_bg"
-                                android:gravity="center_vertical"
-                                android:orientation="horizontal"
-                                android:paddingStart="7dp"
-                                android:paddingEnd="7dp"
-                                android:paddingTop="3dp"
-                                android:paddingBottom="3dp">
-
-                                <ImageView
-                                    android:layout_width="11dp"
-                                    android:layout_height="11dp"
-                                    android:contentDescription="Jarak"
-                                    android:src="@drawable/ic_ln_pin"
-                                    app:tint="#0284C7" />
-
-                                <TextView
-                                    android:id="@+id/tvDetailDistanceRadius"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginStart="4dp"
-                                    android:text="Cek Jarak..."
-                                    android:textColor="#0284C7"
-                                    android:textSize="9.5sp"
-                                    android:textStyle="bold" />
-                            </LinearLayout>
-                        </LinearLayout>
-
-                        <!-- Stepper Visualizer -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:layout_marginTop="10dp"
-                            android:gravity="center_vertical">
-
-                            <TextView
-                                android:id="@+id/step1Text"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="center"
-                                android:text="1. Diterima"
-                                android:textColor="#0284C7"
-                                android:textSize="10.5sp"
-                                android:textStyle="bold" />
-
-                            <View
-                                android:id="@+id/stepLine1"
-                                android:layout_width="12dp"
-                                android:layout_height="2dp"
-                                android:background="#E2E8F0" />
-
-                            <TextView
-                                android:id="@+id/step2Text"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="center"
-                                android:text="2. Tiba"
-                                android:textColor="#94A3B8"
-                                android:textSize="10.5sp" />
-
-                            <View
-                                android:id="@+id/stepLine2"
-                                android:layout_width="12dp"
-                                android:layout_height="2dp"
-                                android:background="#E2E8F0" />
-
-                            <TextView
-                                android:id="@+id/step3Text"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="center"
-                                android:text="3. Kerjakan"
-                                android:textColor="#94A3B8"
-                                android:textSize="10.5sp" />
-
-                            <View
-                                android:id="@+id/stepLine3"
-                                android:layout_width="12dp"
-                                android:layout_height="2dp"
-                                android:background="#E2E8F0" />
-
-                            <TextView
-                                android:id="@+id/step4Text"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:gravity="center"
-                                android:text="4. Selesai"
-                                android:textColor="#94A3B8"
-                                android:textSize="10.5sp" />
-                        </LinearLayout>
-
-                        <!-- Single Prominent Progressive Action Button (FR-07) -->
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnWorkflowPrimary"
-                            android:layout_width="match_parent"
-                            android:layout_height="48dp"
-                            android:layout_marginTop="14dp"
-                            android:text="Terima Tugas &amp; Mulai Perjalanan"
-                            android:textColor="#FFFFFF"
-                            android:textSize="13sp"
-                            android:textStyle="bold"
-                            app:cornerRadius="10dp" />
-
-                        <TextView
-                            android:id="@+id/tvWorkflowSubtitle"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:gravity="center"
-                            android:text="Klik untuk menerima penugasan dan mulai menangani tiket ini."
-                            android:textColor="#64748B"
-                            android:textSize="11sp" />
-
-                        <!-- Secondary Branch Buttons: Direct Start & Pending/Eskalasi (FR-09) -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:orientation="horizontal">
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnDirectStart"
-                                style="@style/Widget.MaterialComponents.Button.TextButton"
-                                android:layout_width="0dp"
-                                android:layout_height="36dp"
-                                android:layout_weight="1"
-                                android:visibility="gone"
-                                android:text="Langsung Mulai Kerja"
-                                android:textAllCaps="false"
-                                android:textColor="#4F46E5"
-                                android:textSize="11sp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnPendingTask"
-                                style="@style/Widget.MaterialComponents.Button.TextButton"
-                                android:layout_width="0dp"
-                                android:layout_height="36dp"
-                                android:layout_weight="1"
-                                android:text="Tunda / Eskalasi Tugas"
-                                android:textAllCaps="false"
-                                android:textColor="#D97706"
-                                android:textSize="11sp"
-                                android:textStyle="bold"
-                                app:icon="@drawable/ic_ln_pause"
-                                app:iconGravity="textStart"
-                                app:iconPadding="5dp"
-                                app:iconSize="13dp"
-                                app:iconTint="#D97706" />
-                        </LinearLayout>
-
-                        <!-- Success completed banner -->
-                        <LinearLayout
-                            android:id="@+id/layoutResolvedBanner"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:orientation="vertical"
-                            android:background="#DCFCE7"
-                            android:padding="12dp"
-                            android:gravity="center"
-                            android:visibility="gone">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="TUGAS TELAH SELESAI (MENUNGGU / TERVERIFIKASI)"
-                                android:textColor="#166534"
-                                android:textSize="12sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="2dp"
-                                android:text="Laporan kerja teknis, watermark foto, dan tanda tangan telah diserahkan."
-                                android:textColor="#15803D"
-                                android:textSize="11sp" />
-                        </LinearLayout>
-
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-
-                <!-- Customer, Quick Actions & Coordinate Tagging Card (FR-05, FR-06, FR-11) -->
-                <androidx.cardview.widget.CardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="#FFFFFF">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="DATA PELANGGAN &amp; NAVIGASI LOKASI"
-                            android:textColor="#71717A"
-                            android:textSize="11sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tvInfoCustomerName"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="Pelapor: Bpk. Ahmad"
-                            android:textColor="#09090B"
-                            android:textSize="14sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tvInfoCustomerPhone"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Telepon: 08123456789"
-                            android:textColor="#334155"
-                            android:textSize="13sp" />
-
-                        <TextView
-                            android:id="@+id/tvInfoCustomerAddress"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Alamat: Jl. Merdeka No. 45"
-                            android:textColor="#334155"
-                            android:textSize="13sp" />
-
-                        <TextView
-                            android:id="@+id/tvInfoCoordinates"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:fontFamily="monospace"
-                            android:text="Koordinat: -"
-                            android:textColor="#0284C7"
-                            android:textSize="11.5sp"
-                            android:textStyle="bold" />
-
-                        <!-- Row 1 Quick Actions: Chat Tim, Telepon, WhatsApp, Rute Maps (FR-06) -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:orientation="horizontal">
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnDetailChatShortcut"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                                android:layout_width="0dp"
-                                android:layout_height="38dp"
-                                android:layout_weight="1"
-                                android:layout_marginEnd="3dp"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:paddingStart="4dp"
-                                android:paddingEnd="4dp"
-                                android:text="Chat Tim"
-                                android:textAllCaps="false"
-                                android:textColor="#09090B"
-                                android:textSize="10.5sp"
-                                android:textStyle="bold"
-                                app:backgroundTint="#F4F4F5"
-                                app:strokeColor="#D4D4D8"
-                                app:cornerRadius="8dp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnDetailCall"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                                android:layout_width="0dp"
-                                android:layout_height="38dp"
-                                android:layout_weight="0.9"
-                                android:layout_marginStart="2dp"
-                                android:layout_marginEnd="2dp"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:paddingStart="4dp"
-                                android:paddingEnd="4dp"
-                                android:text="Telepon"
-                                android:textAllCaps="false"
-                                android:textColor="#18181B"
-                                android:textSize="10.5sp"
-                                app:strokeColor="#E2E8F0"
-                                app:cornerRadius="8dp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnDetailWhatsApp"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                                android:layout_width="0dp"
-                                android:layout_height="38dp"
-                                android:layout_weight="1"
-                                android:layout_marginStart="2dp"
-                                android:layout_marginEnd="2dp"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:paddingStart="4dp"
-                                android:paddingEnd="4dp"
-                                android:text="WhatsApp"
-                                android:textAllCaps="false"
-                                android:textColor="#15803D"
-                                android:textSize="10.5sp"
-                                android:textStyle="bold"
-                                app:strokeColor="#BBF7D0"
-                                app:cornerRadius="8dp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnDetailMap"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                                android:layout_width="0dp"
-                                android:layout_height="38dp"
-                                android:layout_weight="1.05"
-                                android:layout_marginStart="3dp"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:paddingStart="4dp"
-                                android:paddingEnd="4dp"
-                                android:text="Rute Maps"
-                                android:textAllCaps="false"
-                                android:textColor="#1E40AF"
-                                android:textSize="10.5sp"
-                                android:textStyle="bold"
-                                app:strokeColor="#BFDBFE"
-                                app:cornerRadius="8dp" />
-                        </LinearLayout>
-
-                        <!-- Row 2 Location Tools: Salin Alamat, Ambil Koordinat Pelanggan, Ambil Koordinat ODP (FR-06 & FR-11) -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:orientation="horizontal">
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnCopyAddress"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                                android:layout_width="0dp"
-                                android:layout_height="36dp"
-                                android:layout_weight="0.85"
-                                android:layout_marginEnd="4dp"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:paddingStart="4dp"
-                                android:paddingEnd="4dp"
-                                android:text="Salin Alamat"
-                                android:textAllCaps="false"
-                                android:textColor="#475569"
-                                android:textSize="10sp"
-                                app:icon="@drawable/ic_ln_copy"
-                                app:iconGravity="textStart"
-                                app:iconPadding="4dp"
-                                app:iconSize="12dp"
-                                app:iconTint="#475569"
-                                app:strokeColor="#CBD5E1"
-                                app:cornerRadius="8dp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnUpdateCustomerCoord"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                                android:layout_width="0dp"
-                                android:layout_height="36dp"
-                                android:layout_weight="1.15"
-                                android:layout_marginStart="2dp"
-                                android:layout_marginEnd="2dp"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:paddingStart="4dp"
-                                android:paddingEnd="4dp"
-                                android:text="Set Titik Pelanggan"
-                                android:textAllCaps="false"
-                                android:textColor="#0284C7"
-                                android:textSize="10sp"
-                                android:textStyle="bold"
-                                app:icon="@drawable/ic_ln_pin"
-                                app:iconGravity="textStart"
-                                app:iconPadding="4dp"
-                                app:iconSize="12dp"
-                                app:iconTint="#0284C7"
-                                app:strokeColor="#BAE6FD"
-                                app:cornerRadius="8dp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnUpdateOdpCoord"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                                android:layout_width="0dp"
-                                android:layout_height="36dp"
-                                android:layout_weight="1.05"
-                                android:layout_marginStart="4dp"
-                                android:insetTop="0dp"
-                                android:insetBottom="0dp"
-                                android:paddingStart="4dp"
-                                android:paddingEnd="4dp"
-                                android:text="Set Titik ODP"
-                                android:textAllCaps="false"
-                                android:textColor="#7C3AED"
-                                android:textSize="10sp"
-                                android:textStyle="bold"
-                                app:icon="@drawable/ic_ln_locate"
-                                app:iconGravity="textStart"
-                                app:iconPadding="4dp"
-                                app:iconSize="12dp"
-                                app:iconTint="#7C3AED"
-                                app:strokeColor="#DDD6FE"
-                                app:cornerRadius="8dp" />
-                        </LinearLayout>
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-
-                <!-- Ticket Details, SLA & Dispatcher Notes Card -->
-                <androidx.cardview.widget.CardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="#FFFFFF">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:id="@+id/tvInfoTitle"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Judul Tiket Lengkap"
-                            android:textColor="#09090B"
-                            android:textSize="15sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tvInfoType"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Tipe: Perbaikan Infrastruktur"
-                            android:textColor="#64748B"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:id="@+id/tvInfoSla"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="3dp"
-                            android:text="Target SLA: Sesuai Jadwal"
-                            android:textColor="#15803D"
-                            android:textSize="11.5sp"
-                            android:textStyle="bold" />
-
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:layout_marginTop="10dp"
-                            android:layout_marginBottom="10dp"
-                            android:background="#F1F5F9" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="DESKRIPSI KENDALA / CATATAN DISPATCHER"
-                            android:textColor="#71717A"
-                            android:textSize="11sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tvInfoDescription"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:lineSpacingExtra="3dp"
-                            android:text="Deskripsi keluhan..."
-                            android:textColor="#1E293B"
-                            android:textSize="13sp" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-
-                <!-- FR-08: Status Timeline History Card -->
-                <androidx.cardview.widget.CardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="#FFFFFF">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="TIMELINE RIWAYAT STATUS &amp; AUDIT LOG (FR-08)"
-                            android:textColor="#71717A"
-                            android:textSize="11sp"
-                            android:textStyle="bold" />
-
-                        <LinearLayout
-                            android:id="@+id/layoutStatusTimeline"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:orientation="vertical" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-
+    <TextView android:id="@+id/tvDetailStatusBadge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/badge_bg" android:paddingStart="8dp" android:paddingEnd="8dp" android:paddingTop="3dp" android:paddingBottom="3dp" android:text="IN PROGRESS" android:textColor="@color/status_blue" android:textSize="10sp" android:textStyle="bold" />
+  </LinearLayout>
+  <!-- Navigation Tabs -->
+  <LinearLayout android:layout_width="match_parent" android:layout_height="46dp" android:background="@color/surface" android:elevation="1dp" android:orientation="horizontal">
+    <TextView android:id="@+id/tabDetail" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="Detail tiket" android:textColor="@color/accent" android:textSize="13sp" android:textStyle="bold" android:background="?attr/selectableItemBackground" />
+    <TextView android:id="@+id/tabChat" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="Chat Tim" android:textColor="@color/text_muted" android:textSize="13sp" android:textStyle="bold" android:background="?attr/selectableItemBackground" />
+    <TextView android:id="@+id/tabReport" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="Laporan" android:textColor="@color/text_muted" android:textSize="13sp" android:textStyle="bold" android:background="?attr/selectableItemBackground" />
+  </LinearLayout>
+  <View android:id="@+id/tabIndicator" android:layout_width="match_parent" android:layout_height="2dp" android:background="@color/card_border" />
+  <!-- Content Frame -->
+  <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+    <!-- ============================================== -->
+    <!-- TAB 1: DETAIL, CHECK-IN RADIUS & WORKFLOW      -->
+    <!-- ============================================== -->
+    <ScrollView android:id="@+id/viewTabDetail" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="visible">
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+        <!-- Workflow Stepper Card -->
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="24dp" app:cardElevation="0dp" app:cardBackgroundColor="@color/surface">
+          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="14dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+              <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="PENANGANAN TIKET" android:textColor="@color/text_muted" android:textSize="10.5sp" android:textStyle="bold" />
+              <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/badge_bg" android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="7dp" android:paddingEnd="7dp" android:paddingTop="3dp" android:paddingBottom="3dp">
+                <ImageView android:layout_width="11dp" android:layout_height="11dp" android:contentDescription="Jarak" android:src="@drawable/ic_ln_pin" app:tint="@color/accent" />
+                <TextView android:id="@+id/tvDetailDistanceRadius" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:text="Cek Jarak..." android:textColor="@color/accent" android:textSize="9.5sp" android:textStyle="bold" />
+              </LinearLayout>
             </LinearLayout>
-        </ScrollView>
-
-        <!-- ============================================== -->
-        <!-- TAB 2: CHAT TIM & DISKUSI                      -->
-        <!-- ============================================== -->
-        <LinearLayout
-            android:id="@+id/viewTabChat"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-                android:id="@+id/swipeRefreshChat"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1">
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rvMessages"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:clipToPadding="false"
-                    android:padding="12dp" />
-            </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
-
-            <!-- Chat Compose Bar -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="#FFFFFF"
-                android:elevation="4dp"
-                android:orientation="vertical"
-                android:padding="12dp">
-
-                <RadioGroup
-                    android:id="@+id/rgMessageType"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="8dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <RadioButton
-                        android:id="@+id/rbInternalNote"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:checked="true"
-                        android:text="Chat Tim (Internal NOC &amp; Teknisi)"
-                        android:textColor="#B45309"
-                        android:textSize="11sp"
-                        android:textStyle="bold" />
-
-                    <RadioButton
-                        android:id="@+id/rbPublicReply"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="14dp"
-                        android:text="Balasan Umum"
-                        android:textColor="#334155"
-                        android:textSize="11sp" />
-                </RadioGroup>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <EditText
-                        android:id="@+id/etMessageContent"
-                        android:layout_width="0dp"
-                        android:layout_height="44dp"
-                        android:layout_weight="1"
-                        android:background="@drawable/input_field_bg"
-                        android:hint="Tulis pesan ke tim..."
-                        android:paddingStart="12dp"
-                        android:paddingEnd="12dp"
-                        android:textColor="#09090B"
-                        android:textSize="13sp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnSendMessage"
-                        android:layout_width="wrap_content"
-                        android:layout_height="44dp"
-                        android:layout_marginStart="8dp"
-                        android:backgroundTint="#09090B"
-                        android:text="Kirim"
-                        android:textColor="#FFFFFF"
-                        android:textSize="12sp"
-                        app:cornerRadius="8dp" />
-                </LinearLayout>
+            <!-- Stepper Visualizer -->
+            <!-- Single Prominent Progressive Action Button (FR-07) -->
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnWorkflowPrimary" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="14dp" android:text="Terima Tugas &amp; Mulai Perjalanan" android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold" app:cornerRadius="10dp" />
+            <TextView android:id="@+id/tvWorkflowSubtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:gravity="center" android:text="Klik untuk menerima penugasan dan mulai menangani tiket ini." android:textColor="@color/text_muted" android:textSize="11sp" />
+            <!-- Secondary Branch Buttons: Direct Start & Pending/Eskalasi (FR-09) -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:orientation="horizontal">
+              <com.google.android.material.button.MaterialButton android:id="@+id/btnPendingTask" style="@style/Widget.MaterialComponents.Button.TextButton" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1" android:text="Tunda / Eskalasi Tugas" android:textAllCaps="false" android:textColor="@color/status_amber" android:textSize="11sp" android:textStyle="bold" app:icon="@drawable/ic_ln_pause" app:iconGravity="textStart" app:iconPadding="5dp" app:iconSize="13dp" app:iconTint="@color/status_amber" />
             </LinearLayout>
+            <!-- Success completed banner -->
+            <LinearLayout android:id="@+id/layoutResolvedBanner" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="vertical" android:background="#DCFCE7" android:padding="12dp" android:gravity="center" android:visibility="gone">
+              <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TUGAS TELAH SELESAI (MENUNGGU / TERVERIFIKASI)" android:textColor="#166534" android:textSize="12sp" android:textStyle="bold" />
+              <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Laporan kerja teknis, watermark foto, dan tanda tangan telah diserahkan." android:textColor="#6BDFA7" android:textSize="11sp" />
+            </LinearLayout>
+          </LinearLayout>
+        </androidx.cardview.widget.CardView>
+        <!-- Customer, Quick Actions & Coordinate Tagging Card (FR-05, FR-06, FR-11) -->
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" app:cardCornerRadius="24dp" app:cardElevation="0dp" app:cardBackgroundColor="@color/surface">
+          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="DATA PELANGGAN &amp; NAVIGASI LOKASI" android:textColor="@color/text_muted" android:textSize="11sp" android:textStyle="bold" />
+            <TextView android:id="@+id/tvInfoCustomerName" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Pelapor: Bpk. Ahmad" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
+            <TextView android:id="@+id/tvInfoCustomerPhone" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="Telepon: 08123456789" android:textColor="@color/text_secondary" android:textSize="13sp" />
+            <TextView android:id="@+id/tvInfoCustomerAddress" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="Alamat: Jl. Merdeka No. 45" android:textColor="@color/text_secondary" android:textSize="13sp" />
+            <TextView android:id="@+id/tvInfoCoordinates" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:fontFamily="monospace" android:text="Koordinat: -" android:textColor="@color/accent" android:textSize="11.5sp" android:textStyle="bold" />
+            <!-- Row 1 Quick Actions: Chat Tim, Telepon, WhatsApp, Rute Maps (FR-06) -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="horizontal">
+              <com.google.android.material.button.MaterialButton android:id="@+id/btnDetailChatShortcut" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1" android:layout_marginEnd="3dp" android:insetTop="0dp" android:insetBottom="0dp" android:paddingStart="4dp" android:paddingEnd="4dp" android:text="Chat Tim" android:textAllCaps="false" android:textColor="@color/text_primary" android:textSize="10.5sp" android:textStyle="bold" app:backgroundTint="@color/surface_subtle" app:strokeColor="#29292F" app:cornerRadius="8dp" />
+              <com.google.android.material.button.MaterialButton android:id="@+id/btnDetailCall" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="0.9" android:layout_marginStart="2dp" android:layout_marginEnd="2dp" android:insetTop="0dp" android:insetBottom="0dp" android:paddingStart="4dp" android:paddingEnd="4dp" android:text="Telepon" android:textAllCaps="false" android:textColor="@color/text_primary" android:textSize="10.5sp" app:strokeColor="@color/card_border" app:cornerRadius="8dp" />
+              <com.google.android.material.button.MaterialButton android:id="@+id/btnDetailWhatsApp" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1" android:layout_marginStart="2dp" android:layout_marginEnd="2dp" android:insetTop="0dp" android:insetBottom="0dp" android:paddingStart="4dp" android:paddingEnd="4dp" android:text="WhatsApp" android:textAllCaps="false" android:textColor="#6BDFA7" android:textSize="10.5sp" android:textStyle="bold" app:strokeColor="#315143" app:cornerRadius="8dp" />
+              <com.google.android.material.button.MaterialButton android:id="@+id/btnDetailMap" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="38dp" android:layout_weight="1.05" android:layout_marginStart="3dp" android:insetTop="0dp" android:insetBottom="0dp" android:paddingStart="4dp" android:paddingEnd="4dp" android:text="Rute Maps" android:textAllCaps="false" android:textColor="#9CAEFF" android:textSize="10.5sp" android:textStyle="bold" app:strokeColor="#343E66" app:cornerRadius="8dp" />
+            </LinearLayout>
+            <!-- Row 2 Location Tools: Salin Alamat, Ambil Koordinat Pelanggan, Ambil Koordinat ODP (FR-06 & FR-11) -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+              <com.google.android.material.button.MaterialButton android:id="@+id/btnCopyAddress" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="0.85" android:layout_marginEnd="4dp" android:insetTop="0dp" android:insetBottom="0dp" android:paddingStart="4dp" android:paddingEnd="4dp" android:text="Salin Alamat" android:textAllCaps="false" android:textColor="@color/text_secondary" android:textSize="10sp" app:icon="@drawable/ic_ln_copy" app:iconGravity="textStart" app:iconPadding="4dp" app:iconSize="12dp" app:iconTint="@color/text_secondary" app:strokeColor="#29292F" app:cornerRadius="8dp" />
+              <com.google.android.material.button.MaterialButton android:id="@+id/btnUpdateCustomerCoord" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1.15" android:layout_marginStart="2dp" android:layout_marginEnd="2dp" android:insetTop="0dp" android:insetBottom="0dp" android:paddingStart="4dp" android:paddingEnd="4dp" android:text="Set Titik Pelanggan" android:textAllCaps="false" android:textColor="@color/accent" android:textSize="10sp" android:textStyle="bold" app:icon="@drawable/ic_ln_pin" app:iconGravity="textStart" app:iconPadding="4dp" app:iconSize="12dp" app:iconTint="@color/accent" app:strokeColor="#9CAEFF" app:cornerRadius="8dp" />
+              <com.google.android.material.button.MaterialButton android:id="@+id/btnUpdateOdpCoord" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="36dp" android:layout_weight="1.05" android:layout_marginStart="4dp" android:insetTop="0dp" android:insetBottom="0dp" android:paddingStart="4dp" android:paddingEnd="4dp" android:text="Set Titik ODP" android:textAllCaps="false" android:textColor="#B8ADFF" android:textSize="10sp" android:textStyle="bold" app:icon="@drawable/ic_ln_locate" app:iconGravity="textStart" app:iconPadding="4dp" app:iconSize="12dp" app:iconTint="#B8ADFF" app:strokeColor="#494360" app:cornerRadius="8dp" />
+            </LinearLayout>
+          </LinearLayout>
+        </androidx.cardview.widget.CardView>
+        <!-- Ticket Details, SLA & Dispatcher Notes Card -->
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" app:cardCornerRadius="24dp" app:cardElevation="0dp" app:cardBackgroundColor="@color/surface">
+          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <TextView android:id="@+id/tvInfoTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Judul Tiket Lengkap" android:textColor="@color/text_primary" android:textSize="15sp" android:textStyle="bold" />
+            <TextView android:id="@+id/tvInfoType" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="Tipe: Perbaikan Infrastruktur" android:textColor="@color/text_muted" android:textSize="12sp" />
+            <TextView android:id="@+id/tvInfoSla" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="Target SLA: Sesuai Jadwal" android:textColor="#6BDFA7" android:textSize="11.5sp" android:textStyle="bold" />
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="10dp" android:layout_marginBottom="10dp" android:background="@color/surface_subtle" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="DESKRIPSI KENDALA / CATATAN DISPATCHER" android:textColor="@color/text_muted" android:textSize="11sp" android:textStyle="bold" />
+            <TextView android:id="@+id/tvInfoDescription" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:lineSpacingExtra="3dp" android:text="Deskripsi keluhan..." android:textColor="@color/text_primary" android:textSize="13sp" />
+          </LinearLayout>
+        </androidx.cardview.widget.CardView>
+        <!-- FR-08: Status Timeline History Card -->
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:layout_marginBottom="16dp" app:cardCornerRadius="24dp" app:cardElevation="0dp" app:cardBackgroundColor="@color/surface">
+          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Riwayat status" android:textColor="@color/text_muted" android:textSize="11sp" android:textStyle="bold" />
+            <LinearLayout android:id="@+id/layoutStatusTimeline" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="vertical" />
+          </LinearLayout>
+        </androidx.cardview.widget.CardView>
+      </LinearLayout>
+    </ScrollView>
+    <!-- ============================================== -->
+    <!-- TAB 2: CHAT TIM & DISKUSI                      -->
+    <!-- ============================================== -->
+    <LinearLayout android:id="@+id/viewTabChat" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:visibility="gone">
+      <androidx.swiperefreshlayout.widget.SwipeRefreshLayout android:id="@+id/swipeRefreshChat" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvMessages" android:layout_width="match_parent" android:layout_height="match_parent" android:clipToPadding="false" android:padding="12dp" />
+      </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+      <!-- Chat Compose Bar -->
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@color/surface" android:elevation="4dp" android:orientation="vertical" android:padding="12dp">
+        <RadioGroup android:id="@+id/rgMessageType" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" android:gravity="center_vertical" android:orientation="horizontal">
+          <RadioButton android:id="@+id/rbInternalNote" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:text="Chat Tim (Internal NOC &amp; Teknisi)" android:textColor="#B45309" android:textSize="11sp" android:textStyle="bold" />
+          <RadioButton android:id="@+id/rbPublicReply" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="14dp" android:text="Balasan Umum" android:textColor="@color/text_secondary" android:textSize="11sp" />
+        </RadioGroup>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+          <EditText android:id="@+id/etMessageContent" android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1" android:background="@drawable/input_field_bg" android:hint="Tulis pesan ke tim..." android:paddingStart="12dp" android:paddingEnd="12dp" android:textColor="@color/text_primary" android:textSize="13sp" android:textColorHint="@color/text_muted" />
+          <com.google.android.material.button.MaterialButton android:id="@+id/btnSendMessage" android:layout_width="wrap_content" android:layout_height="44dp" android:layout_marginStart="8dp" android:backgroundTint="#09090B" android:text="Kirim" android:textColor="#FFFFFF" android:textSize="12sp" app:cornerRadius="8dp" />
         </LinearLayout>
-
-        <!-- ============================================== -->
-        <!-- TAB 3: FORM LAPORAN PEKERJAAN LENGKAP (PRD)    -->
-        <!-- ============================================== -->
-        <ScrollView
-            android:id="@+id/viewTabReport"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <!-- Auto-Draft Status Banner (FR-20) -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="#EFF6FF"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:padding="10dp"
-                    android:layout_marginBottom="12dp">
-
-                    <ImageView
-                        android:layout_width="14dp"
-                        android:layout_height="14dp"
-                        android:contentDescription="Draft"
-                        android:src="@drawable/ic_ln_check"
-                        app:tint="#1D4ED8" />
-
-                    <TextView
-                        android:id="@+id/tvDraftSavedStatus"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginStart="6dp"
-                        android:text="Draf laporan disimpan otomatis di perangkat (Aman saat offline)"
-                        android:textColor="#1D4ED8"
-                        android:textSize="11sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
-
-                <!-- SECTION 1: CHECKLIST PEKERJAAN PER JENIS TUGAS (FR-13) -->
-                <androidx.cardview.widget.CardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="#FFFFFF">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:id="@+id/tvChecklistHeader"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="1. CHECKLIST PEKERJAAN LAPANGAN (FR-13)"
-                            android:textColor="#0F172A"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="Centang tahapan yang telah selesai dikerjakan:"
-                            android:textColor="#64748B"
-                            android:textSize="11sp" />
-
-                        <LinearLayout
-                            android:id="@+id/layoutChecklistContainer"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:orientation="vertical" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-
-                <!-- SECTION 2: DATA TEKNIS PERANGKAT & PENGUKURAN (FR-14 & FR-15) -->
-                <androidx.cardview.widget.CardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="#FFFFFF">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="2. DATA TEKNIS PERANGKAT &amp; PENGUKURAN (FR-14 / FR-15)"
-                            android:textColor="#0F172A"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                        <!-- Serial Number / MAC + Scan Barcode Button -->
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:text="Serial Number (SN) / MAC ONT / Perangkat"
-                            android:textColor="#334155"
-                            android:textSize="11.5sp"
-                            android:textStyle="bold" />
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <EditText
-                                android:id="@+id/etReportOntSerial"
-                                android:layout_width="0dp"
-                                android:layout_height="42dp"
-                                android:layout_weight="1"
-                                android:background="@drawable/input_field_bg"
-                                android:hint="Contoh: ZTEGC12A34B5 / MAC..."
-                                android:inputType="textCapCharacters"
-                                android:paddingStart="12dp"
-                                android:paddingEnd="12dp"
-                                android:textColor="#09090B"
-                                android:textSize="12.5sp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnScanBarcode"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                                android:layout_width="wrap_content"
-                                android:layout_height="42dp"
-                                android:layout_marginStart="8dp"
-                                android:text="Scan SN/QR"
-                                android:textAllCaps="false"
-                                android:textColor="#0284C7"
-                                android:textSize="11sp"
-                                android:textStyle="bold"
-                                app:icon="@drawable/ic_ln_scan"
-                                app:iconGravity="textStart"
-                                app:iconPadding="5dp"
-                                app:iconSize="14dp"
-                                app:iconTint="#0284C7"
-                                app:strokeColor="#BAE6FD"
-                                app:cornerRadius="8dp" />
-                        </LinearLayout>
-
-                        <!-- Jenis Perangkat & SSID Row -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:orientation="horizontal">
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:layout_marginEnd="6dp"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="Tipe Perangkat / ONT"
-                                    android:textColor="#334155"
-                                    android:textSize="11.5sp"
-                                    android:textStyle="bold" />
-
-                                <EditText
-                                    android:id="@+id/etReportRouterType"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="42dp"
-                                    android:layout_marginTop="4dp"
-                                    android:background="@drawable/input_field_bg"
-                                    android:hint="ZTE F670L / Hikvision"
-                                    android:inputType="text"
-                                    android:paddingStart="10dp"
-                                    android:paddingEnd="10dp"
-                                    android:textColor="#09090B"
-                                    android:textSize="12sp" />
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:layout_marginStart="6dp"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="Nama SSID WiFi"
-                                    android:textColor="#334155"
-                                    android:textSize="11.5sp"
-                                    android:textStyle="bold" />
-
-                                <EditText
-                                    android:id="@+id/etReportSsid"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="42dp"
-                                    android:layout_marginTop="4dp"
-                                    android:background="@drawable/input_field_bg"
-                                    android:hint="Contoh: Infinity_Rumah"
-                                    android:inputType="text"
-                                    android:paddingStart="10dp"
-                                    android:paddingEnd="10dp"
-                                    android:textColor="#09090B"
-                                    android:textSize="12sp" />
-                            </LinearLayout>
-                        </LinearLayout>
-
-                        <!-- Redaman Optik (dBm) & ODP/Port Row -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:orientation="horizontal">
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:layout_marginEnd="6dp"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="Redaman Optik (dBm)"
-                                    android:textColor="#334155"
-                                    android:textSize="11.5sp"
-                                    android:textStyle="bold" />
-
-                                <EditText
-                                    android:id="@+id/etReportOpticalDbm"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="42dp"
-                                    android:layout_marginTop="4dp"
-                                    android:background="@drawable/input_field_bg"
-                                    android:hint="Contoh: -19.4"
-                                    android:inputType="numberDecimal|numberSigned"
-                                    android:paddingStart="10dp"
-                                    android:paddingEnd="10dp"
-                                    android:textColor="#09090B"
-                                    android:textSize="12sp" />
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:layout_marginStart="6dp"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="Nomor ODP &amp; Port"
-                                    android:textColor="#334155"
-                                    android:textSize="11.5sp"
-                                    android:textStyle="bold" />
-
-                                <EditText
-                                    android:id="@+id/etReportOdpPort"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="42dp"
-                                    android:layout_marginTop="4dp"
-                                    android:background="@drawable/input_field_bg"
-                                    android:hint="ODP-04 / Port 3"
-                                    android:inputType="text"
-                                    android:paddingStart="10dp"
-                                    android:paddingEnd="10dp"
-                                    android:textColor="#09090B"
-                                    android:textSize="12sp" />
-                            </LinearLayout>
-                        </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/tvDbmValidationHint"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Rentang redaman normal: -8.0 dBm s/d -25.0 dBm"
-                            android:textColor="#64748B"
-                            android:textSize="10.5sp" />
-
-                        <!-- Panjang Kabel (m) & Ping/Speedtest Row -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:orientation="horizontal">
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:layout_marginEnd="6dp"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="Panjang Kabel (Meter)"
-                                    android:textColor="#334155"
-                                    android:textSize="11.5sp"
-                                    android:textStyle="bold" />
-
-                                <EditText
-                                    android:id="@+id/etReportCableLength"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="42dp"
-                                    android:layout_marginTop="4dp"
-                                    android:background="@drawable/input_field_bg"
-                                    android:hint="Contoh: 75"
-                                    android:inputType="numberDecimal"
-                                    android:paddingStart="10dp"
-                                    android:paddingEnd="10dp"
-                                    android:textColor="#09090B"
-                                    android:textSize="12sp" />
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:layout_marginStart="6dp"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="Ping / Speedtest"
-                                    android:textColor="#334155"
-                                    android:textSize="11.5sp"
-                                    android:textStyle="bold" />
-
-                                <EditText
-                                    android:id="@+id/etReportPingSpeed"
-                                    android:layout_width="match_parent"
-                                    android:layout_height="42dp"
-                                    android:layout_marginTop="4dp"
-                                    android:background="@drawable/input_field_bg"
-                                    android:hint="Ping 4ms / 50 Mbps"
-                                    android:inputType="text"
-                                    android:paddingStart="10dp"
-                                    android:paddingEnd="10dp"
-                                    android:textColor="#09090B"
-                                    android:textSize="12sp" />
-                            </LinearLayout>
-                        </LinearLayout>
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-
-                <!-- SECTION 3: KODE PENYEBAB, RINGKASAN & MATERIAL (FR-18 & FR-21) -->
-                <androidx.cardview.widget.CardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="#FFFFFF">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="3. DETAIL PENANGANAN &amp; MATERIAL TERPAKAI (FR-18 / FR-21)"
-                            android:textColor="#0F172A"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:text="Kategori / Kode Penyebab"
-                            android:textColor="#334155"
-                            android:textSize="11.5sp"
-                            android:textStyle="bold" />
-
-                        <Spinner
-                            android:id="@+id/spinnerRootCause"
-                            android:layout_width="match_parent"
-                            android:layout_height="42dp"
-                            android:layout_marginTop="4dp"
-                            android:background="@drawable/input_field_bg"
-                            android:paddingStart="8dp"
-                            android:paddingEnd="8dp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:text="Ringkasan Hasil Pekerjaan *"
-                            android:textColor="#0F172A"
-                            android:textSize="11.5sp"
-                            android:textStyle="bold" />
-
-                        <EditText
-                            android:id="@+id/etReportSummary"
-                            android:layout_width="match_parent"
-                            android:layout_height="42dp"
-                            android:layout_marginTop="4dp"
-                            android:background="@drawable/input_field_bg"
-                            android:hint="Contoh: Perbaikan kabel dropcore putus telah selesai"
-                            android:inputType="text"
-                            android:paddingStart="12dp"
-                            android:paddingEnd="12dp"
-                            android:textColor="#09090B"
-                            android:textSize="12.5sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:text="Tindakan yang Dilakukan *"
-                            android:textColor="#0F172A"
-                            android:textSize="11.5sp"
-                            android:textStyle="bold" />
-
-                        <EditText
-                            android:id="@+id/etReportActionTaken"
-                            android:layout_width="match_parent"
-                            android:layout_height="68dp"
-                            android:layout_marginTop="4dp"
-                            android:background="@drawable/input_field_bg"
-                            android:gravity="top"
-                            android:hint="Contoh: Splicing core 1 di ODP-02, ganti konektor SC, cek redaman ONT..."
-                            android:inputType="textMultiLine"
-                            android:padding="12dp"
-                            android:textColor="#09090B"
-                            android:textSize="12.5sp" />
-
-                        <!-- Quick Material Picker Chips (FR-21) -->
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:text="Material yang Digunakan (Ketuk untuk tambah cepat)"
-                            android:textColor="#0F172A"
-                            android:textSize="11.5sp"
-                            android:textStyle="bold" />
-
-                        <HorizontalScrollView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:scrollbars="none">
-
-                            <LinearLayout
-                                android:id="@+id/layoutQuickMaterialChips"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal" />
-                        </HorizontalScrollView>
-
-                        <EditText
-                            android:id="@+id/etReportMaterials"
-                            android:layout_width="match_parent"
-                            android:layout_height="44dp"
-                            android:layout_marginTop="6dp"
-                            android:background="@drawable/input_field_bg"
-                            android:hint="Contoh: 2x Fast Connector SC, 1x Protection Sleeve"
-                            android:inputType="text"
-                            android:paddingStart="12dp"
-                            android:paddingEnd="12dp"
-                            android:textColor="#09090B"
-                            android:textSize="12.5sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:text="Catatan Hasil Akhir / Kesimpulan"
-                            android:textColor="#0F172A"
-                            android:textSize="11.5sp"
-                            android:textStyle="bold" />
-
-                        <EditText
-                            android:id="@+id/etReportFinalResult"
-                            android:layout_width="match_parent"
-                            android:layout_height="42dp"
-                            android:layout_marginTop="4dp"
-                            android:background="@drawable/input_field_bg"
-                            android:hint="Contoh: Koneksi internet &amp; layanan berjalan normal"
-                            android:inputType="text"
-                            android:paddingStart="12dp"
-                            android:paddingEnd="12dp"
-                            android:textColor="#09090B"
-                            android:textSize="12.5sp" />
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-
-                <!-- SECTION 4: BUKTI FOTO WATERMARK OTOMATIS + TANDA TANGAN PELANGGAN (FR-16 & FR-19) -->
-                <androidx.cardview.widget.CardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:layout_marginBottom="20dp"
-                    app:cardCornerRadius="14dp"
-                    app:cardElevation="1dp"
-                    app:cardBackgroundColor="#FFFFFF">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="4. BUKTI FOTO (WATERMARK GPS) &amp; TANDA TANGAN (FR-16 / FR-19)"
-                            android:textColor="#0F172A"
-                            android:textSize="12sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="Semua foto otomatis dikompres (&lt;1 MB) dan diberi Watermark Waktu + Koordinat GPS."
-                            android:textColor="#15803D"
-                            android:textSize="11sp" />
-
-                        <!-- FOTO BEFORE -->
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp"
-                            android:text="DOKUMENTASI SEBELUM / PROSES (BEFORE) *"
-                            android:textColor="#0F172A"
-                            android:textSize="11.5sp"
-                            android:textStyle="bold" />
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:orientation="horizontal">
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnCameraBefore"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                                android:layout_width="0dp"
-                                android:layout_height="40dp"
-                                android:layout_weight="1"
-                                android:layout_marginEnd="6dp"
-                                android:text="Kamera (Before)"
-                                android:textAllCaps="false"
-                                android:textColor="#09090B"
-                                android:textSize="11.5sp"
-                                app:icon="@drawable/ic_ln_camera"
-                                app:iconGravity="textStart"
-                                app:iconPadding="6dp"
-                                app:iconSize="15dp"
-                                app:iconTint="#09090B"
-                                app:strokeColor="#CBD5E1"
-                                app:cornerRadius="8dp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnGalleryBefore"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                                android:layout_width="0dp"
-                                android:layout_height="40dp"
-                                android:layout_weight="1"
-                                android:layout_marginStart="6dp"
-                                android:text="Galeri (Before)"
-                                android:textAllCaps="false"
-                                android:textColor="#09090B"
-                                android:textSize="11.5sp"
-                                app:icon="@drawable/ic_ln_image"
-                                app:iconGravity="textStart"
-                                app:iconPadding="6dp"
-                                app:iconSize="15dp"
-                                app:iconTint="#09090B"
-                                app:strokeColor="#CBD5E1"
-                                app:cornerRadius="8dp" />
-                        </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/tvBeforePhotosCount"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Belum ada foto before dipilih"
-                            android:textColor="#64748B"
-                            android:textSize="11sp" />
-
-                        <HorizontalScrollView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp">
-
-                            <LinearLayout
-                                android:id="@+id/layoutBeforePreviews"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal" />
-                        </HorizontalScrollView>
-
-                        <!-- FOTO AFTER / SN / PENGUKURAN -->
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="14dp"
-                            android:text="DOKUMENTASI SESUDAH &amp; PERANGKAT (AFTER) *"
-                            android:textColor="#0F172A"
-                            android:textSize="11.5sp"
-                            android:textStyle="bold" />
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:orientation="horizontal">
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnCameraAfter"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                                android:layout_width="0dp"
-                                android:layout_height="40dp"
-                                android:layout_weight="1"
-                                android:layout_marginEnd="6dp"
-                                android:text="Kamera (After)"
-                                android:textAllCaps="false"
-                                android:textColor="#09090B"
-                                android:textSize="11.5sp"
-                                app:icon="@drawable/ic_ln_camera"
-                                app:iconGravity="textStart"
-                                app:iconPadding="6dp"
-                                app:iconSize="15dp"
-                                app:iconTint="#09090B"
-                                app:strokeColor="#CBD5E1"
-                                app:cornerRadius="8dp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/btnGalleryAfter"
-                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                                android:layout_width="0dp"
-                                android:layout_height="40dp"
-                                android:layout_weight="1"
-                                android:layout_marginStart="6dp"
-                                android:text="Galeri (After)"
-                                android:textAllCaps="false"
-                                android:textColor="#09090B"
-                                android:textSize="11.5sp"
-                                app:icon="@drawable/ic_ln_image"
-                                app:iconGravity="textStart"
-                                app:iconPadding="6dp"
-                                app:iconSize="15dp"
-                                app:iconTint="#09090B"
-                                app:strokeColor="#CBD5E1"
-                                app:cornerRadius="8dp" />
-                        </LinearLayout>
-
-                        <TextView
-                            android:id="@+id/tvAfterPhotosCount"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Belum ada foto after dipilih"
-                            android:textColor="#64748B"
-                            android:textSize="11sp" />
-
-                        <HorizontalScrollView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp">
-
-                            <LinearLayout
-                                android:id="@+id/layoutAfterPreviews"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal" />
-                        </HorizontalScrollView>
-
-                        <!-- DIGITAL SIGNATURE PAD (FR-19) -->
-                        <View
-                            android:layout_width="match_parent"
-                            android:layout_height="1dp"
-                            android:layout_marginTop="14dp"
-                            android:layout_marginBottom="12dp"
-                            android:background="#F1F5F9" />
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="TANDA TANGAN PELANGGAN / PENERIMA (FR-19)"
-                                android:textColor="#0F172A"
-                                android:textSize="11.5sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/btnClearSignature"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:padding="4dp"
-                                android:text="Ulangi TTD"
-                                android:textColor="#DC2626"
-                                android:textSize="11sp"
-                                android:textStyle="bold" />
-                        </LinearLayout>
-
-                        <EditText
-                            android:id="@+id/etCustomerRecipientName"
-                            android:layout_width="match_parent"
-                            android:layout_height="40dp"
-                            android:layout_marginTop="6dp"
-                            android:background="@drawable/input_field_bg"
-                            android:hint="Nama Pelanggan / Penerima Pekerjaan"
-                            android:inputType="textPersonName"
-                            android:paddingStart="12dp"
-                            android:paddingEnd="12dp"
-                            android:textColor="#09090B"
-                            android:textSize="12sp" />
-
-                        <net.infinityteknik.helpdesk.ui.SignaturePadView
-                            android:id="@+id/signaturePadView"
-                            android:layout_width="match_parent"
-                            android:layout_height="145dp"
-                            android:layout_marginTop="8dp" />
-
-                        <!-- Submit Button (Opens Preview & Validation per FR-20) -->
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnSubmitReport"
-                            android:layout_width="match_parent"
-                            android:layout_height="50dp"
-                            android:layout_marginTop="18dp"
-                            android:backgroundTint="#059669"
-                            android:text="Pratinjau &amp; Kirim Laporan Selesai"
-                            android:textAllCaps="false"
-                            android:textColor="#FFFFFF"
-                            android:textSize="13.5sp"
-                            android:textStyle="bold"
-                            app:cornerRadius="10dp" />
-
-                    </LinearLayout>
-                </androidx.cardview.widget.CardView>
-
+      </LinearLayout>
+    </LinearLayout>
+    <!-- ============================================== -->
+    <!-- TAB 3: FORM LAPORAN PEKERJAAN LENGKAP (PRD)    -->
+    <!-- ============================================== -->
+    <ScrollView android:id="@+id/viewTabReport" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone">
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+        <!-- Auto-Draft Status Banner (FR-20) -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/subtle_box_bg" android:gravity="center_vertical" android:orientation="horizontal" android:padding="10dp" android:layout_marginBottom="12dp">
+          <ImageView android:layout_width="14dp" android:layout_height="14dp" android:contentDescription="Draft" android:src="@drawable/ic_ln_check" app:tint="@color/status_blue" />
+          <TextView android:id="@+id/tvDraftSavedStatus" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp" android:text="Draf laporan disimpan otomatis di perangkat (Aman saat offline)" android:textColor="@color/status_blue" android:textSize="11sp" android:textStyle="bold" />
+        </LinearLayout>
+        <!-- SECTION 1: CHECKLIST PEKERJAAN PER JENIS TUGAS (FR-13) -->
+        <TextView android:id="@+id/toggleTechnicalDetails" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:gravity="center_vertical" android:text="Detail teknis opsional +" android:textColor="@color/accent" android:textSize="13sp" android:focusable="true" />
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="24dp" app:cardElevation="0dp" app:cardBackgroundColor="@color/surface" android:id="@+id/checklistDetailsCard" android:visibility="gone">
+          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <TextView android:id="@+id/tvChecklistHeader" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Checklist pekerjaan" android:textColor="@color/text_primary" android:textSize="12sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Centang tahapan yang telah selesai dikerjakan:" android:textColor="@color/text_muted" android:textSize="11sp" />
+            <LinearLayout android:id="@+id/layoutChecklistContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="vertical" />
+          </LinearLayout>
+        </androidx.cardview.widget.CardView>
+        <!-- SECTION 2: DATA TEKNIS PERANGKAT & PENGUKURAN (FR-14 & FR-15) -->
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" app:cardCornerRadius="24dp" app:cardElevation="0dp" app:cardBackgroundColor="@color/surface" android:id="@+id/technicalDetailsCard" android:visibility="gone">
+          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Data teknis" android:textColor="@color/text_primary" android:textSize="12sp" android:textStyle="bold" />
+            <!-- Serial Number / MAC + Scan Barcode Button -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="Serial Number (SN) / MAC ONT / Perangkat" android:textColor="@color/text_secondary" android:textSize="11.5sp" android:textStyle="bold" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:gravity="center_vertical" android:orientation="horizontal">
+              <EditText android:id="@+id/etReportOntSerial" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:background="@drawable/input_field_bg" android:hint="Contoh: ZTEGC12A34B5 / MAC..." android:inputType="textCapCharacters" android:paddingStart="12dp" android:paddingEnd="12dp" android:textColor="@color/text_primary" android:textSize="12.5sp" android:textColorHint="@color/text_muted" />
             </LinearLayout>
-        </ScrollView>
-
-    </FrameLayout>
-
+            <!-- Jenis Perangkat & SSID Row -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="6dp" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tipe Perangkat / ONT" android:textColor="@color/text_secondary" android:textSize="11.5sp" android:textStyle="bold" />
+                <EditText android:id="@+id/etReportRouterType" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="4dp" android:background="@drawable/input_field_bg" android:hint="ZTE F670L / Hikvision" android:inputType="text" android:paddingStart="10dp" android:paddingEnd="10dp" android:textColor="@color/text_primary" android:textSize="12sp" android:textColorHint="@color/text_muted" />
+              </LinearLayout>
+              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Nama SSID WiFi" android:textColor="@color/text_secondary" android:textSize="11.5sp" android:textStyle="bold" />
+                <EditText android:id="@+id/etReportSsid" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="4dp" android:background="@drawable/input_field_bg" android:hint="Contoh: Infinity_Rumah" android:inputType="text" android:paddingStart="10dp" android:paddingEnd="10dp" android:textColor="@color/text_primary" android:textSize="12sp" android:textColorHint="@color/text_muted" />
+              </LinearLayout>
+            </LinearLayout>
+            <!-- Redaman Optik (dBm) & ODP/Port Row -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="6dp" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Redaman Optik (dBm)" android:textColor="@color/text_secondary" android:textSize="11.5sp" android:textStyle="bold" />
+                <EditText android:id="@+id/etReportOpticalDbm" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="4dp" android:background="@drawable/input_field_bg" android:hint="Contoh: -19.4" android:inputType="numberDecimal|numberSigned" android:paddingStart="10dp" android:paddingEnd="10dp" android:textColor="@color/text_primary" android:textSize="12sp" android:textColorHint="@color/text_muted" />
+              </LinearLayout>
+              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Nomor ODP &amp; Port" android:textColor="@color/text_secondary" android:textSize="11.5sp" android:textStyle="bold" />
+                <EditText android:id="@+id/etReportOdpPort" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="4dp" android:background="@drawable/input_field_bg" android:hint="ODP-04 / Port 3" android:inputType="text" android:paddingStart="10dp" android:paddingEnd="10dp" android:textColor="@color/text_primary" android:textSize="12sp" android:textColorHint="@color/text_muted" />
+              </LinearLayout>
+            </LinearLayout>
+            <TextView android:id="@+id/tvDbmValidationHint" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="Rentang redaman normal: -8.0 dBm s/d -25.0 dBm" android:textColor="@color/text_muted" android:textSize="10.5sp" />
+            <!-- Panjang Kabel (m) & Ping/Speedtest Row -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="6dp" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Panjang Kabel (Meter)" android:textColor="@color/text_secondary" android:textSize="11.5sp" android:textStyle="bold" />
+                <EditText android:id="@+id/etReportCableLength" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="4dp" android:background="@drawable/input_field_bg" android:hint="Contoh: 75" android:inputType="numberDecimal" android:paddingStart="10dp" android:paddingEnd="10dp" android:textColor="@color/text_primary" android:textSize="12sp" android:textColorHint="@color/text_muted" />
+              </LinearLayout>
+              <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ping / Speedtest" android:textColor="@color/text_secondary" android:textSize="11.5sp" android:textStyle="bold" />
+                <EditText android:id="@+id/etReportPingSpeed" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="4dp" android:background="@drawable/input_field_bg" android:hint="Ping 4ms / 50 Mbps" android:inputType="text" android:paddingStart="10dp" android:paddingEnd="10dp" android:textColor="@color/text_primary" android:textSize="12sp" android:textColorHint="@color/text_muted" />
+              </LinearLayout>
+            </LinearLayout>
+          </LinearLayout>
+        </androidx.cardview.widget.CardView>
+        <!-- SECTION 3: KODE PENYEBAB, RINGKASAN & MATERIAL (FR-18 & FR-21) -->
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" app:cardCornerRadius="24dp" app:cardElevation="0dp" app:cardBackgroundColor="@color/surface">
+          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Laporan pekerjaan" android:textColor="@color/text_primary" android:textSize="12sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="Kategori / Kode Penyebab" android:textColor="@color/text_secondary" android:textSize="11.5sp" android:textStyle="bold" />
+            <Spinner android:id="@+id/spinnerRootCause" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="4dp" android:background="@drawable/input_field_bg" android:paddingStart="8dp" android:paddingEnd="8dp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="Ringkasan Hasil Pekerjaan *" android:textColor="@color/text_primary" android:textSize="11.5sp" android:textStyle="bold" />
+            <EditText android:id="@+id/etReportSummary" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="4dp" android:background="@drawable/input_field_bg" android:hint="Contoh: Perbaikan kabel dropcore putus telah selesai" android:inputType="text" android:paddingStart="12dp" android:paddingEnd="12dp" android:textColor="@color/text_primary" android:textSize="12.5sp" android:textColorHint="@color/text_muted" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="Tindakan yang Dilakukan *" android:textColor="@color/text_primary" android:textSize="11.5sp" android:textStyle="bold" />
+            <EditText android:id="@+id/etReportActionTaken" android:layout_width="match_parent" android:layout_height="68dp" android:layout_marginTop="4dp" android:background="@drawable/input_field_bg" android:gravity="top" android:hint="Contoh: Splicing core 1 di ODP-02, ganti konektor SC, cek redaman ONT..." android:inputType="textMultiLine" android:padding="12dp" android:textColor="@color/text_primary" android:textSize="12.5sp" android:textColorHint="@color/text_muted" />
+            <!-- Quick Material Picker Chips (FR-21) -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="Material yang Digunakan (Ketuk untuk tambah cepat)" android:textColor="@color/text_primary" android:textSize="11.5sp" android:textStyle="bold" />
+            <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:scrollbars="none">
+              <LinearLayout android:id="@+id/layoutQuickMaterialChips" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" />
+            </HorizontalScrollView>
+            <EditText android:id="@+id/etReportMaterials" android:layout_width="match_parent" android:layout_height="44dp" android:layout_marginTop="6dp" android:background="@drawable/input_field_bg" android:hint="Contoh: 2x Fast Connector SC, 1x Protection Sleeve" android:inputType="text" android:paddingStart="12dp" android:paddingEnd="12dp" android:textColor="@color/text_primary" android:textSize="12.5sp" android:textColorHint="@color/text_muted" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="Catatan Hasil Akhir / Kesimpulan" android:textColor="@color/text_primary" android:textSize="11.5sp" android:textStyle="bold" />
+            <EditText android:id="@+id/etReportFinalResult" android:layout_width="match_parent" android:layout_height="42dp" android:layout_marginTop="4dp" android:background="@drawable/input_field_bg" android:hint="Contoh: Koneksi internet &amp; layanan berjalan normal" android:inputType="text" android:paddingStart="12dp" android:paddingEnd="12dp" android:textColor="@color/text_primary" android:textSize="12.5sp" android:textColorHint="@color/text_muted" />
+          </LinearLayout>
+        </androidx.cardview.widget.CardView>
+        <!-- SECTION 4: BUKTI FOTO WATERMARK OTOMATIS + TANDA TANGAN PELANGGAN (FR-16 & FR-19) -->
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:layout_marginBottom="20dp" app:cardCornerRadius="24dp" app:cardElevation="0dp" app:cardBackgroundColor="@color/surface">
+          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Foto pekerjaan" android:textColor="@color/text_primary" android:textSize="12sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Semua foto otomatis dikompres (&lt;1 MB) dan diberi Watermark Waktu + Koordinat GPS." android:textColor="#6BDFA7" android:textSize="11sp" />
+            <!-- FOTO BEFORE -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="DOKUMENTASI SEBELUM / PROSES (BEFORE) *" android:textColor="@color/text_primary" android:textSize="11.5sp" android:textStyle="bold" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:orientation="horizontal">
+              <com.google.android.material.button.MaterialButton android:id="@+id/btnCameraBefore" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:layout_marginEnd="6dp" android:text="Kamera (Before)" android:textAllCaps="false" android:textColor="@color/text_primary" android:textSize="11.5sp" app:icon="@drawable/ic_ln_camera" app:iconGravity="textStart" app:iconPadding="6dp" app:iconSize="15dp" app:iconTint="@color/text_primary" app:strokeColor="#29292F" app:cornerRadius="8dp" />
+              <com.google.android.material.button.MaterialButton android:id="@+id/btnGalleryBefore" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="Galeri (Before)" android:textAllCaps="false" android:textColor="@color/text_primary" android:textSize="11.5sp" app:icon="@drawable/ic_ln_image" app:iconGravity="textStart" app:iconPadding="6dp" app:iconSize="15dp" app:iconTint="@color/text_primary" app:strokeColor="#29292F" app:cornerRadius="8dp" />
+            </LinearLayout>
+            <TextView android:id="@+id/tvBeforePhotosCount" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="Belum ada foto before dipilih" android:textColor="@color/text_muted" android:textSize="11sp" />
+            <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp">
+              <LinearLayout android:id="@+id/layoutBeforePreviews" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" />
+            </HorizontalScrollView>
+            <!-- FOTO AFTER / SN / PENGUKURAN -->
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="DOKUMENTASI SESUDAH &amp; PERANGKAT (AFTER) *" android:textColor="@color/text_primary" android:textSize="11.5sp" android:textStyle="bold" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:orientation="horizontal">
+              <com.google.android.material.button.MaterialButton android:id="@+id/btnCameraAfter" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:layout_marginEnd="6dp" android:text="Kamera (After)" android:textAllCaps="false" android:textColor="@color/text_primary" android:textSize="11.5sp" app:icon="@drawable/ic_ln_camera" app:iconGravity="textStart" app:iconPadding="6dp" app:iconSize="15dp" app:iconTint="@color/text_primary" app:strokeColor="#29292F" app:cornerRadius="8dp" />
+              <com.google.android.material.button.MaterialButton android:id="@+id/btnGalleryAfter" style="@style/Widget.MaterialComponents.Button.OutlinedButton" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="Galeri (After)" android:textAllCaps="false" android:textColor="@color/text_primary" android:textSize="11.5sp" app:icon="@drawable/ic_ln_image" app:iconGravity="textStart" app:iconPadding="6dp" app:iconSize="15dp" app:iconTint="@color/text_primary" app:strokeColor="#29292F" app:cornerRadius="8dp" />
+            </LinearLayout>
+            <TextView android:id="@+id/tvAfterPhotosCount" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="Belum ada foto after dipilih" android:textColor="@color/text_muted" android:textSize="11sp" />
+            <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp">
+              <LinearLayout android:id="@+id/layoutAfterPreviews" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" />
+            </HorizontalScrollView>
+            <!-- DIGITAL SIGNATURE PAD (FR-19) -->
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="14dp" android:layout_marginBottom="12dp" android:background="@color/surface_subtle" />
+            <TextView android:id="@+id/toggleCustomerConfirmation" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:gravity="center_vertical" android:text="Konfirmasi pelanggan (opsional) +" android:textColor="@color/accent" android:textSize="13sp" android:focusable="true" />
+            <LinearLayout android:id="@+id/customerConfirmation" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Tanda tangan pelanggan" android:textColor="@color/text_primary" android:textSize="11.5sp" android:textStyle="bold" />
+                <TextView android:id="@+id/btnClearSignature" android:layout_width="wrap_content" android:layout_height="wrap_content" android:padding="4dp" android:text="Ulangi TTD" android:textColor="@color/status_red" android:textSize="11sp" android:textStyle="bold" />
+              </LinearLayout>
+              <EditText android:id="@+id/etCustomerRecipientName" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="6dp" android:background="@drawable/input_field_bg" android:hint="Nama Pelanggan / Penerima Pekerjaan" android:inputType="textPersonName" android:paddingStart="12dp" android:paddingEnd="12dp" android:textColor="@color/text_primary" android:textSize="12sp" android:textColorHint="@color/text_muted" />
+              <net.infinityteknik.helpdesk.ui.SignaturePadView android:id="@+id/signaturePadView" android:layout_width="match_parent" android:layout_height="145dp" android:layout_marginTop="8dp" />
+            </LinearLayout>
+            <!-- Submit Button (Opens Preview & Validation per FR-20) -->
+            <com.google.android.material.button.MaterialButton android:id="@+id/btnSubmitReport" android:layout_width="match_parent" android:layout_height="50dp" android:layout_marginTop="18dp" android:backgroundTint="@color/primary" android:text="Kirim laporan Selesai" android:textAllCaps="false" android:textColor="#FFFFFF" android:textSize="13.5sp" android:textStyle="bold" app:cornerRadius="10dp" />
+          </LinearLayout>
+        </androidx.cardview.widget.CardView>
+      </LinearLayout>
+    </ScrollView>
+  </FrameLayout>
 </LinearLayout>

@@ -46,12 +46,12 @@ class MessageAdapter : RecyclerView.Adapter<MessageAdapter.MessageViewHolder>() 
 
             val isInternal = msg.type == "internal_note"
             if (isInternal) {
-                cardMessage.setCardBackgroundColor(Color.parseColor("#FEF3C7")) // light amber
+                cardMessage.setCardBackgroundColor(Color.parseColor("#392F1F")) // light amber
                 tvType.visibility = View.VISIBLE
                 tvType.text = "CATATAN TIM"
-                tvType.setTextColor(Color.parseColor("#D97706"))
+                tvType.setTextColor(Color.parseColor("#F2D282"))
             } else {
-                cardMessage.setCardBackgroundColor(Color.parseColor("#FFFFFF"))
+                cardMessage.setCardBackgroundColor(HelpdeskTheme.surface)
                 tvType.visibility = View.GONE
             }
 
@@ -67,9 +67,8 @@ class MessageAdapter : RecyclerView.Adapter<MessageAdapter.MessageViewHolder>() 
             // Format date
             if (msg.createdAt.isNotBlank()) {
                 try {
-                    val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-                    val outputFormat = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
-                    val date = inputFormat.parse(msg.createdAt.substringBefore("."))
+                    val outputFormat = SimpleDateFormat("dd MMM, HH:mm", Locale("id", "ID")).apply { timeZone = TimeZone.getTimeZone("Asia/Jakarta") }
+                    val date = TicketAdapter.parseIsoDate(msg.createdAt)
                     if (date != null) {
                         tvCreated.text = outputFormat.format(date)
                     } else {

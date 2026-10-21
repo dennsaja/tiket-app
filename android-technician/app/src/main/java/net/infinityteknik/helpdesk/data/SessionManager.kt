@@ -6,6 +6,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class SessionManager(context: Context) {
+    private val appContext = context.applicationContext
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
 
@@ -35,9 +36,7 @@ class SessionManager(context: Context) {
         const val DEFAULT_SERVER_URL = "https://helpdesk.infinityteknik.net"
     }
 
-    var serverUrl: String
-        get() = prefs.getString(KEY_SERVER_URL, DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
-        set(value) = prefs.edit().putString(KEY_SERVER_URL, value.trim().removeSuffix("/")).apply()
+    val serverUrl: String get() = DEFAULT_SERVER_URL
 
     var token: String?
         get() = prefs.getString(KEY_TOKEN, null)
@@ -60,7 +59,7 @@ class SessionManager(context: Context) {
         set(value) = prefs.edit().putString(KEY_USER_ROLE, value).apply()
 
     var isDutyActive: Boolean
-        get() = prefs.getBoolean(KEY_DUTY_ACTIVE, true)
+        get() = prefs.getBoolean(KEY_DUTY_ACTIVE, false)
         set(value) = prefs.edit().putBoolean(KEY_DUTY_ACTIVE, value).apply()
 
     var lastLatitude: Double
@@ -220,6 +219,8 @@ class SessionManager(context: Context) {
         get() = !token.isNullOrBlank()
 
     fun saveUser(profile: UserProfile, jwtToken: String) {
+        net.infinityteknik.helpdesk.util.OfflineSyncManager.prepareAccount(appContext, profile.id)
+        if (userId != profile.id) prefs.edit().clear().commit()
         prefs.edit()
             .putString(KEY_TOKEN, jwtToken)
             .putString(KEY_USER_ID, profile.id)
@@ -229,17 +230,25 @@ class SessionManager(context: Context) {
             .apply()
     }
 
+    fun beginWebLogin(): String {
+        val state = net.infinityteknik.helpdesk.util.WebLoginState.create()
+        prefs.edit().putString("web_login_state", state)
+            .putLong("web_login_started_at", System.currentTimeMillis()).commit()
+        return state
+    }
+
+    fun acceptsWebCallback(state: String?): Boolean =
+        net.infinityteknik.helpdesk.util.WebLoginState.matches(
+            prefs.getString("web_login_state", null), state,
+            prefs.getLong("web_login_started_at", 0L), System.currentTimeMillis()
+        )
+
+    fun clearWebLogin() {
+        prefs.edit().remove("web_login_state").remove("web_login_started_at").apply()
+    }
+
     fun logout() {
-        prefs.edit()
-            .remove(KEY_TOKEN)
-            .remove(KEY_USER_ID)
-            .remove(KEY_USER_NAME)
-            .remove(KEY_USER_EMAIL)
-            .remove(KEY_USER_ROLE)
-            .remove(KEY_NOTIF_BASELINE_SET)
-            .remove(KEY_TICKETS_SNAPSHOT_INIT)
-            .remove(KEY_WELCOME_NOTIF_V14)
-            .putBoolean(KEY_DUTY_ACTIVE, false)
-            .apply()
+        // Offline drafts stay in their account's store; no other account can upload them.
+        prefs.edit().clear().commit()
     }
 }

@@ -40,6 +40,7 @@ import net.infinityteknik.helpdesk.data.*
 import net.infinityteknik.helpdesk.util.NotificationHelper
 import net.infinityteknik.helpdesk.util.OfflineSyncManager
 import net.infinityteknik.helpdesk.util.PhotoWatermarkHelper
+import net.infinityteknik.helpdesk.util.LocationPolicy
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -103,16 +104,8 @@ class TicketDetailActivity : AppCompatActivity() {
 
     // Views: Stepper & Progressive Workflow
     private lateinit var tvDetailDistanceRadius: TextView
-    private lateinit var step1Text: TextView
-    private lateinit var step2Text: TextView
-    private lateinit var step3Text: TextView
-    private lateinit var step4Text: TextView
-    private lateinit var stepLine1: View
-    private lateinit var stepLine2: View
-    private lateinit var stepLine3: View
     private lateinit var btnWorkflowPrimary: MaterialButton
     private lateinit var tvWorkflowSubtitle: TextView
-    private lateinit var btnDirectStart: MaterialButton
     private lateinit var btnPendingTask: MaterialButton
     private lateinit var layoutResolvedBanner: LinearLayout
 
@@ -147,7 +140,6 @@ class TicketDetailActivity : AppCompatActivity() {
     private lateinit var tvChecklistHeader: TextView
     private lateinit var layoutChecklistContainer: LinearLayout
     private lateinit var etReportOntSerial: EditText
-    private lateinit var btnScanBarcode: MaterialButton
     private lateinit var etReportRouterType: EditText
     private lateinit var etReportSsid: EditText
     private lateinit var etReportOpticalDbm: EditText
@@ -209,8 +201,8 @@ class TicketDetailActivity : AppCompatActivity() {
                         ticketNumber = ticketNumber,
                         stageLabel = stageLabel,
                         technicianName = session.userName ?: "Teknisi",
-                        latitude = session.lastLatitude,
-                        longitude = session.lastLongitude,
+                        latitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLatitude else 0.0,
+                        longitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLongitude else 0.0,
                         accuracy = session.lastAccuracy
                     )
                 }
@@ -240,8 +232,8 @@ class TicketDetailActivity : AppCompatActivity() {
                             ticketNumber = ticketNumber,
                             stageLabel = "BEFORE",
                             technicianName = session.userName ?: "Teknisi",
-                            latitude = session.lastLatitude,
-                            longitude = session.lastLongitude,
+                            latitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLatitude else 0.0,
+                            longitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLongitude else 0.0,
                             accuracy = session.lastAccuracy
                         )
                         if (f != null) beforePhotoFiles.add(f)
@@ -266,8 +258,8 @@ class TicketDetailActivity : AppCompatActivity() {
                             ticketNumber = ticketNumber,
                             stageLabel = "AFTER",
                             technicianName = session.userName ?: "Teknisi",
-                            latitude = session.lastLatitude,
-                            longitude = session.lastLongitude,
+                            latitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLatitude else 0.0,
+                            longitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLongitude else 0.0,
                             accuracy = session.lastAccuracy
                         )
                         if (f != null) afterPhotoFiles.add(f)
@@ -278,31 +270,40 @@ class TicketDetailActivity : AppCompatActivity() {
         }
     }
 
-    // Barcode Scanner Launcher (FR-14)
-    private val barcodeScanLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            val contents = result.data?.getStringExtra("SCAN_RESULT")
-            if (!contents.isNullOrBlank()) {
-                etReportOntSerial.setText(contents.trim())
-                saveDraftNow()
-                Toast.makeText(this, "SN/Barcode berhasil dipindai: $contents", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ticket_detail)
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() = handleBackNavigation()
+        })
 
         session = SessionManager(this)
         readIntentExtras()
+        savedInstanceState?.let { state ->
+            beforePhotoFiles.addAll(state.getStringArrayList("before_photo_paths").orEmpty().map { File(it) }.filter { it.exists() })
+            afterPhotoFiles.addAll(state.getStringArrayList("after_photo_paths").orEmpty().map { File(it) }.filter { it.exists() })
+            currentCameraTempFile = state.getString("camera_temp_path")?.let { File(it) }
+            isCapturingBefore = state.getBoolean("camera_before", true)
+            initialTab = state.getInt("selected_detail_tab", initialTab)
+        }
         initViews()
+        findViewById<TextView>(R.id.toggleTechnicalDetails).setOnClickListener {
+            val cards = listOf(findViewById<View>(R.id.technicalDetailsCard), findViewById<View>(R.id.checklistDetailsCard))
+            val expanded = cards.first().visibility != View.VISIBLE
+            cards.forEach { card -> card.visibility = if (expanded) View.VISIBLE else View.GONE }
+            (it as TextView).text = if (expanded) "Tutup detail teknis opsional −" else "Detail teknis opsional +"
+        }
+        findViewById<TextView>(R.id.toggleCustomerConfirmation).setOnClickListener {
+            val group = findViewById<View>(R.id.customerConfirmation)
+            group.visibility = if (group.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            (it as TextView).text = if (group.visibility == View.VISIBLE) "Tutup konfirmasi pelanggan −" else "Konfirmasi pelanggan (opsional) +"
+        }
         setupChatRecycler()
         setupReportChecklistAndMaterials()
         bindTicketData()
         restoreDraftIfAvailable()
+        refreshPhotoPreviews(true)
+        refreshPhotoPreviews(false)
         setupAutoDraftWatchers()
         updateWorkflowUi(ticketStatus)
         switchTab(initialTab)
@@ -349,16 +350,8 @@ class TicketDetailActivity : AppCompatActivity() {
         viewTabReport = findViewById(R.id.viewTabReport)
 
         tvDetailDistanceRadius = findViewById(R.id.tvDetailDistanceRadius)
-        step1Text = findViewById(R.id.step1Text)
-        step2Text = findViewById(R.id.step2Text)
-        step3Text = findViewById(R.id.step3Text)
-        step4Text = findViewById(R.id.step4Text)
-        stepLine1 = findViewById(R.id.stepLine1)
-        stepLine2 = findViewById(R.id.stepLine2)
-        stepLine3 = findViewById(R.id.stepLine3)
         btnWorkflowPrimary = findViewById(R.id.btnWorkflowPrimary)
         tvWorkflowSubtitle = findViewById(R.id.tvWorkflowSubtitle)
-        btnDirectStart = findViewById(R.id.btnDirectStart)
         btnPendingTask = findViewById(R.id.btnPendingTask)
         layoutResolvedBanner = findViewById(R.id.layoutResolvedBanner)
 
@@ -389,7 +382,6 @@ class TicketDetailActivity : AppCompatActivity() {
         tvChecklistHeader = findViewById(R.id.tvChecklistHeader)
         layoutChecklistContainer = findViewById(R.id.layoutChecklistContainer)
         etReportOntSerial = findViewById(R.id.etReportOntSerial)
-        btnScanBarcode = findViewById(R.id.btnScanBarcode)
         etReportRouterType = findViewById(R.id.etReportRouterType)
         etReportSsid = findViewById(R.id.etReportSsid)
         etReportOpticalDbm = findViewById(R.id.etReportOpticalDbm)
@@ -434,9 +426,7 @@ class TicketDetailActivity : AppCompatActivity() {
             handlePrimaryWorkflowStep()
         }
 
-        btnDirectStart.setOnClickListener {
-            updateStatusTo("in_progress", "Langsung memulai pengerjaan di lokasi")
-        }
+
 
         btnPendingTask.setOnClickListener {
             showPendingOrEscalateDialog()
@@ -478,9 +468,7 @@ class TicketDetailActivity : AppCompatActivity() {
             confirmRecordCurrentCoordinate("odp")
         }
 
-        btnScanBarcode.setOnClickListener {
-            launchBarcodeScannerOrDialog()
-        }
+
 
         btnSendMessage.setOnClickListener {
             sendMessage()
@@ -579,7 +567,7 @@ class TicketDetailActivity : AppCompatActivity() {
         for (mat in quickMaterials) {
             val chip = TextView(this).apply {
                 text = "+ $mat"
-                setTextColor(Color.parseColor("#0284C7"))
+                setTextColor(Color.parseColor("#9CAEFF"))
                 textSize = 11f
                 setTypeface(typeface, Typeface.BOLD)
                 setBackgroundResource(R.drawable.badge_bg)
@@ -638,32 +626,33 @@ class TicketDetailActivity : AppCompatActivity() {
     private fun validateOpticalDbmInput(raw: String) {
         if (raw.isEmpty()) {
             tvDbmValidationHint.text = "Rentang redaman normal: -8.0 dBm s/d -25.0 dBm"
-            tvDbmValidationHint.setTextColor(Color.parseColor("#64748B"))
+            tvDbmValidationHint.setTextColor(Color.parseColor("#93939F"))
             return
         }
         val dbm = raw.replace(",", ".").toDoubleOrNull()
         if (dbm == null) {
             tvDbmValidationHint.text = "Masukkan angka desimal (contoh: -19.5)"
-            tvDbmValidationHint.setTextColor(Color.parseColor("#D97706"))
+            tvDbmValidationHint.setTextColor(Color.parseColor("#F2D282"))
             return
         }
         when {
             dbm in -25.0..-8.0 -> {
                 tvDbmValidationHint.text = "[NORMAL] Redaman Optik Normal ($dbm dBm — Kualitas sinyal baik)"
-                tvDbmValidationHint.setTextColor(Color.parseColor("#16A34A"))
+                tvDbmValidationHint.setTextColor(Color.parseColor("#6BDFA7"))
             }
             dbm in -27.9..-25.01 -> {
                 tvDbmValidationHint.text = "[PERINGATAN] Redaman agak tinggi ($dbm dBm — Cek konektor/bending)"
-                tvDbmValidationHint.setTextColor(Color.parseColor("#D97706"))
+                tvDbmValidationHint.setTextColor(Color.parseColor("#F2D282"))
             }
             else -> {
                 tvDbmValidationHint.text = "[DI LUAR BATAS] Redaman ($dbm dBm) di luar batas wajar (-8 s/d -27 dBm)!"
-                tvDbmValidationHint.setTextColor(Color.parseColor("#DC2626"))
+                tvDbmValidationHint.setTextColor(Color.parseColor("#FF9AA5"))
             }
         }
     }
 
     private fun saveDraftNow() {
+        if (LocationPolicy.isFinished(ticketStatus)) return
         val checked = checklistCheckBoxes.mapIndexedNotNull { idx, cb -> if (cb.isChecked) idx else null }.toSet()
         val draft = ReportDraftData(
             ticketId = ticketId,
@@ -680,7 +669,9 @@ class TicketDetailActivity : AppCompatActivity() {
             pingSpeedResult = etReportPingSpeed.text.toString(),
             rootCauseIndex = spinnerRootCause.selectedItemPosition,
             customerRecipientName = etCustomerRecipientName.text.toString(),
-            checkedIndices = checked
+            checkedIndices = checked,
+            beforePhotoPaths = beforePhotoFiles.map { it.absolutePath },
+            afterPhotoPaths = afterPhotoFiles.map { it.absolutePath }
         )
         OfflineSyncManager.saveReportDraft(this, draft)
         val timeFmt = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
@@ -691,6 +682,10 @@ class TicketDetailActivity : AppCompatActivity() {
         val draft = OfflineSyncManager.getReportDraft(this, ticketId) ?: return
         isRestoringDraft = true
         try {
+            beforePhotoFiles.clear()
+            beforePhotoFiles.addAll(draft.beforePhotoPaths.map { File(it) }.filter { it.exists() })
+            afterPhotoFiles.clear()
+            afterPhotoFiles.addAll(draft.afterPhotoPaths.map { File(it) }.filter { it.exists() })
             if (draft.summary.isNotBlank()) etReportSummary.setText(draft.summary)
             if (draft.actionTaken.isNotBlank()) etReportActionTaken.setText(draft.actionTaken)
             if (draft.materialsUsed.isNotBlank()) etReportMaterials.setText(draft.materialsUsed)
@@ -756,7 +751,7 @@ class TicketDetailActivity : AppCompatActivity() {
     }
 
     private fun getCurrentDistanceToCustomerMeters(): Float? {
-        if (session.lastLatitude == 0.0 || session.lastLongitude == 0.0 || latitude == 0.0 || longitude == 0.0) {
+        if (!LocationPolicy.isFresh(session.lastUpdateTime) || !LocationPolicy.hasCoordinates(session.lastLatitude, session.lastLongitude) || !LocationPolicy.hasCoordinates(latitude, longitude)) {
             return null
         }
         val res = FloatArray(1)
@@ -773,15 +768,15 @@ class TicketDetailActivity : AppCompatActivity() {
     private fun updateDistanceAndRadiusUi() {
         val dist = getCurrentDistanceToCustomerMeters()
         if (dist == null) {
-            tvDetailDistanceRadius.text = "Radius Check-In Siap"
-            tvDetailDistanceRadius.setTextColor(Color.parseColor("#0284C7"))
+            tvDetailDistanceRadius.text = "Jarak belum tersedia"
+            tvDetailDistanceRadius.setTextColor(Color.parseColor("#9CAEFF"))
         } else if (dist <= 100f) {
-            tvDetailDistanceRadius.text = "Jarak ${dist.toInt()}m (Dalam Radius 100m)"
-            tvDetailDistanceRadius.setTextColor(Color.parseColor("#16A34A"))
+            tvDetailDistanceRadius.text = "Jarak ${dist.toInt()}m dari pelanggan"
+            tvDetailDistanceRadius.setTextColor(Color.parseColor("#6BDFA7"))
         } else {
             val fmt = if (dist >= 1000f) String.format(Locale.US, "%.1f km", dist / 1000f) else "${dist.toInt()}m"
-            tvDetailDistanceRadius.text = "Jarak $fmt (>100m)"
-            tvDetailDistanceRadius.setTextColor(Color.parseColor("#D97706"))
+            tvDetailDistanceRadius.text = "Jarak $fmt dari pelanggan"
+            tvDetailDistanceRadius.setTextColor(Color.parseColor("#F2D282"))
         }
     }
 
@@ -825,14 +820,14 @@ class TicketDetailActivity : AppCompatActivity() {
             }
             val tvSt = TextView(this).apply {
                 text = "• $title"
-                setTextColor(Color.parseColor("#0F172A"))
+                setTextColor(Color.parseColor("#F6F6F8"))
                 textSize = 12f
                 setTypeface(typeface, Typeface.BOLD)
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             }
             val tvTm = TextView(this).apply {
                 text = time
-                setTextColor(Color.parseColor("#64748B"))
+                setTextColor(Color.parseColor("#93939F"))
                 textSize = 10.5f
             }
             top.addView(tvSt)
@@ -840,7 +835,7 @@ class TicketDetailActivity : AppCompatActivity() {
 
             val tvRsn = TextView(this).apply {
                 text = desc
-                setTextColor(Color.parseColor("#475569"))
+                setTextColor(Color.parseColor("#C1C1CC"))
                 textSize = 11.5f
                 setPadding(dp(12), dp(2), 0, 0)
             }
@@ -865,175 +860,29 @@ class TicketDetailActivity : AppCompatActivity() {
         }
         tvDetailStatusBadge.text = statusDisplay
         when (status.lowercase()) {
-            "resolved", "closed" -> tvDetailStatusBadge.setTextColor(Color.parseColor("#16A34A"))
-            "in_progress", "on_site", "accepted" -> tvDetailStatusBadge.setTextColor(Color.parseColor("#EA580C"))
-            "pending", "waiting_for_user", "waiting_for_third_party" -> tvDetailStatusBadge.setTextColor(Color.parseColor("#D97706"))
-            else -> tvDetailStatusBadge.setTextColor(Color.parseColor("#2563EB"))
+            "resolved", "closed" -> tvDetailStatusBadge.setTextColor(Color.parseColor("#6BDFA7"))
+            "in_progress", "on_site", "accepted" -> tvDetailStatusBadge.setTextColor(Color.parseColor("#FFB276"))
+            "pending", "waiting_for_user", "waiting_for_third_party" -> tvDetailStatusBadge.setTextColor(Color.parseColor("#F2D282"))
+            else -> tvDetailStatusBadge.setTextColor(Color.parseColor("#7890FF"))
         }
     }
 
     private fun updateWorkflowUi(status: String) {
-        val inactiveColor = Color.parseColor("#94A3B8")
-        val activeBlue = Color.parseColor("#2563EB")
-        val activeIndigo = Color.parseColor("#4F46E5")
-        val activePurple = Color.parseColor("#7C3AED")
-        val activeGreen = Color.parseColor("#16A34A")
-        val linePassed = Color.parseColor("#2563EB")
-        val lineInactive = Color.parseColor("#E2E8F0")
-
-        btnWorkflowPrimary.visibility = View.VISIBLE
-        tvWorkflowSubtitle.visibility = View.VISIBLE
-        btnDirectStart.visibility = View.GONE
-        btnPendingTask.visibility = View.VISIBLE
-        layoutResolvedBanner.visibility = View.GONE
-
-        when (status.lowercase()) {
-            "open", "assigned" -> {
-                step1Text.setTextColor(activeBlue)
-                step2Text.setTextColor(inactiveColor)
-                step3Text.setTextColor(inactiveColor)
-                step4Text.setTextColor(inactiveColor)
-                stepLine1.setBackgroundColor(lineInactive)
-                stepLine2.setBackgroundColor(lineInactive)
-                stepLine3.setBackgroundColor(lineInactive)
-
-                btnWorkflowPrimary.text = "1. Terima Tugas & Mulai Perjalanan"
-                btnWorkflowPrimary.backgroundTintList = ColorStateList.valueOf(activeBlue)
-                tvWorkflowSubtitle.text = "Ketuk untuk menerima tugas dan memulai perjalanan ke lokasi pelanggan."
-            }
-            "accepted" -> {
-                step1Text.setTextColor(activeBlue)
-                step2Text.setTextColor(activeIndigo)
-                step3Text.setTextColor(inactiveColor)
-                step4Text.setTextColor(inactiveColor)
-                stepLine1.setBackgroundColor(linePassed)
-                stepLine2.setBackgroundColor(lineInactive)
-                stepLine3.setBackgroundColor(lineInactive)
-
-                btnWorkflowPrimary.text = "2. Saya Tiba di Lokasi (Check-In)"
-                btnWorkflowPrimary.backgroundTintList = ColorStateList.valueOf(activeIndigo)
-                tvWorkflowSubtitle.text = "Dicek radius jarak GPS (100m) ke titik lokasi pelanggan."
-                btnDirectStart.visibility = View.VISIBLE
-            }
-            "on_site", "pending", "waiting_for_user", "waiting_for_third_party" -> {
-                step1Text.setTextColor(activeBlue)
-                step2Text.setTextColor(activeIndigo)
-                step3Text.setTextColor(activePurple)
-                step4Text.setTextColor(inactiveColor)
-                stepLine1.setBackgroundColor(linePassed)
-                stepLine2.setBackgroundColor(linePassed)
-                stepLine3.setBackgroundColor(lineInactive)
-
-                btnWorkflowPrimary.text = "3. Mulai Kerjakan (Sedang Dikerjakan)"
-                btnWorkflowPrimary.backgroundTintList = ColorStateList.valueOf(activePurple)
-                tvWorkflowSubtitle.text = "Mulai instalasi / perbaikan teknis di lokasi pelanggan."
-            }
-            "in_progress" -> {
-                step1Text.setTextColor(activeBlue)
-                step2Text.setTextColor(activeIndigo)
-                step3Text.setTextColor(activePurple)
-                step4Text.setTextColor(activeGreen)
-                stepLine1.setBackgroundColor(linePassed)
-                stepLine2.setBackgroundColor(linePassed)
-                stepLine3.setBackgroundColor(linePassed)
-
-                btnWorkflowPrimary.text = "4. Isi Laporan & Selesaikan Tugas"
-                btnWorkflowPrimary.backgroundTintList = ColorStateList.valueOf(activeGreen)
-                tvWorkflowSubtitle.text = "Buka form checklist, data teknis, watermark foto, & tanda tangan."
-            }
-            "resolved", "closed" -> {
-                step1Text.setTextColor(activeGreen)
-                step2Text.setTextColor(activeGreen)
-                step3Text.setTextColor(activeGreen)
-                step4Text.setTextColor(activeGreen)
-                stepLine1.setBackgroundColor(activeGreen)
-                stepLine2.setBackgroundColor(activeGreen)
-                stepLine3.setBackgroundColor(activeGreen)
-
-                btnWorkflowPrimary.visibility = View.GONE
-                tvWorkflowSubtitle.visibility = View.GONE
-                btnPendingTask.visibility = View.GONE
-                layoutResolvedBanner.visibility = View.VISIBLE
-            }
-            else -> {
-                btnWorkflowPrimary.text = "Perbarui Status Tugas"
-                btnWorkflowPrimary.backgroundTintList = ColorStateList.valueOf(activeBlue)
-            }
-        }
+        val finished = LocationPolicy.isFinished(status)
+        btnWorkflowPrimary.visibility = if (finished) View.GONE else View.VISIBLE
+        tvWorkflowSubtitle.visibility = if (finished) View.GONE else View.VISIBLE
+        btnPendingTask.visibility = if (finished) View.GONE else View.VISIBLE
+        layoutResolvedBanner.visibility = if (finished) View.VISIBLE else View.GONE
+        btnWorkflowPrimary.text = if (status == "in_progress") "Isi laporan & selesaikan" else "Mulai pengerjaan"
+        btnWorkflowPrimary.backgroundTintList = ColorStateList.valueOf(HelpdeskTheme.blue)
+        tvWorkflowSubtitle.text = if (status == "in_progress") "Catat hasil pekerjaan dan tambahkan foto bukti."
+            else "Mulai penanganan saat siap. Navigasi dan chat tim tetap tersedia."
     }
-
     private fun handlePrimaryWorkflowStep() {
-        when (ticketStatus.lowercase()) {
-            "open", "assigned" -> {
-                updateStatusTo("accepted", "Tugas diterima oleh teknisi • Dalam perjalanan menuju lokasi")
-            }
-            "accepted" -> {
-                // FR-12: Check-in berbasis jarak (Radius 100m)
-                val dist = getCurrentDistanceToCustomerMeters()
-                if (dist != null && dist > 100f) {
-                    showOutOfRadiusCheckInDialog(dist)
-                } else {
-                    updateStatusTo(
-                        "on_site",
-                        "Teknisi tiba di lokasi pelanggan (Check-In dalam radius lokasi)",
-                        dist?.toDouble()
-                    )
-                }
-            }
-            "on_site", "pending", "waiting_for_user", "waiting_for_third_party" -> {
-                updateStatusTo("in_progress", "Teknisi mulai melakukan pengerjaan teknis di lapangan")
-            }
-            "in_progress" -> {
-                switchTab(2)
-            }
-            else -> {
-                switchTab(2)
-            }
-        }
+        if (LocationPolicy.isFinished(ticketStatus)) return
+        if (ticketStatus == "in_progress") switchTab(2)
+        else updateStatusTo("in_progress", "Teknisi mulai melakukan penanganan")
     }
-
-    /**
-     * FR-12: When technician is outside 100m radius of customer coordinates, allow manual check-in
-     * with a mandatory audited reason for supervisor review.
-     */
-    private fun showOutOfRadiusCheckInDialog(distanceMeters: Float) {
-        val distFormatted = if (distanceMeters >= 1000f) {
-            String.format(Locale.US, "%.2f km", distanceMeters / 1000f)
-        } else {
-            "${distanceMeters.toInt()} meter"
-        }
-
-        val reasons = arrayOf(
-            "Titik koordinat peta pelanggan kurang akurat (Sudah di rumah pelanggan)",
-            "Pengerjaan dimulai dari titik ODP / Tiang distribusi terlebih dahulu",
-            "Tertahan akses gerbang perumahan / pos satpam",
-            "Sinyal GPS terhalang bangunan tinggi / indoor"
-        )
-        var selectedIdx = 0
-
-        AlertDialog.Builder(this)
-            .setTitle("Check-In di Luar Radius ($distFormatted)")
-            .setSingleChoiceItems(reasons, 0) { _, which ->
-                selectedIdx = which
-            }
-            .setPositiveButton("Konfirmasi Saya Tiba") { _, _ ->
-                val chosenReason = reasons[selectedIdx]
-                updateStatusTo(
-                    "on_site",
-                    "Check-In Manual di luar radius 100m ($distFormatted) • Alasan: $chosenReason",
-                    distanceMeters.toDouble()
-                )
-            }
-            .setNeutralButton("Update Titik Pelanggan Dulu") { _, _ ->
-                confirmRecordCurrentCoordinate("customer")
-            }
-            .setNegativeButton("Batal", null)
-            .show()
-    }
-
-    /**
-     * FR-09 & 4.2: Tolak / Tunda (Pending) / Eskalasi tugas dengan pilihan alasan baku plus catatan bebas.
-     */
     private fun showPendingOrEscalateDialog() {
         val standardReasons = arrayOf(
             "Tertunda: Pelanggan tidak ada di tempat / rumah kosong",
@@ -1092,10 +941,10 @@ class TicketDetailActivity : AppCompatActivity() {
     private fun confirmRecordCurrentCoordinate(coordType: String) {
         val lat = session.lastLatitude
         val lng = session.lastLongitude
-        if (lat == 0.0 && lng == 0.0) {
+        if (!LocationPolicy.hasCoordinates(lat, lng) || !LocationPolicy.isFresh(session.lastUpdateTime) || session.lastAccuracy > LocationPolicy.MAX_ACCURACY_METERS) {
             Toast.makeText(
                 this,
-                "Koordinat GPS perangkat belum tersedia. Pastikan izin lokasi aktif.",
+                "Lokasi terbaru yang akurat belum tersedia. Periksa izin dan GPS di Ringkasan, lalu coba lagi.",
                 Toast.LENGTH_LONG
             ).show()
             return
@@ -1171,8 +1020,8 @@ class TicketDetailActivity : AppCompatActivity() {
 
     private fun updateStatusTo(newStatus: String, notes: String, distanceMeters: Double? = null) {
         val token = session.token ?: return
-        val lat = session.lastLatitude.takeIf { it != 0.0 }
-        val lng = session.lastLongitude.takeIf { it != 0.0 }
+        val lat = session.lastLatitude.takeIf { LocationPolicy.hasCoordinates(it, session.lastLongitude) && LocationPolicy.isFresh(session.lastUpdateTime) }
+        val lng = session.lastLongitude.takeIf { LocationPolicy.hasCoordinates(session.lastLatitude, it) && LocationPolicy.isFresh(session.lastUpdateTime) }
 
         NotificationHelper.recordSelfStatusChange(ticketId, newStatus)
 
@@ -1238,7 +1087,11 @@ class TicketDetailActivity : AppCompatActivity() {
                 }
                 Toast.makeText(this@TicketDetailActivity, msg, Toast.LENGTH_SHORT).show()
                 refreshCurrentTicketMetadata()
-            }.onFailure {
+            }.onFailure { failure ->
+                if (failure !is java.io.IOException) {
+                    Toast.makeText(this@TicketDetailActivity, failure.message ?: "Status belum dapat diperbarui.", Toast.LENGTH_LONG).show()
+                    return@onFailure
+                }
                 // Queue offline automatically on network failure so technician is never blocked
                 OfflineSyncManager.enqueueOfflineAction(
                     this@TicketDetailActivity,
@@ -1265,48 +1118,6 @@ class TicketDetailActivity : AppCompatActivity() {
                 ).show()
             }
         }
-    }
-
-    private fun launchBarcodeScannerOrDialog() {
-        try {
-            val scanIntent = Intent("com.google.zxing.client.android.SCAN").apply {
-                putExtra("SCAN_MODE", "ONE_D_MODE,QR_CODE_MODE")
-            }
-            if (scanIntent.resolveActivity(packageManager) != null) {
-                barcodeScanLauncher.launch(scanIntent)
-                return
-            }
-        } catch (_: Exception) {}
-
-        // Built-in quick SN prefix helper + camera photo option if external scanner app is not installed
-        val prefixes = arrayOf(
-            "ZTEGC (ONT ZTE Standar)",
-            "HWTC (ONT Huawei)",
-            "FHTT (ONT Fiberhome)",
-            "TPLK (Router TP-Link)",
-            "HIKV (Kamera/DVR Hikvision)",
-            "Ambil Foto Label Barcode SN ke Bukti After"
-        )
-        AlertDialog.Builder(this)
-            .setTitle("Scan / Input Cepat Serial Number (SN)")
-            .setItems(prefixes) { _, which ->
-                when (which) {
-                    0 -> appendSnPrefix("ZTEGC")
-                    1 -> appendSnPrefix("HWTC")
-                    2 -> appendSnPrefix("FHTT")
-                    3 -> appendSnPrefix("TPLK-")
-                    4 -> appendSnPrefix("HIK-")
-                    5 -> launchCameraCapture(false)
-                }
-            }
-            .setNegativeButton("Tutup", null)
-            .show()
-    }
-
-    private fun appendSnPrefix(prefix: String) {
-        etReportOntSerial.setText(prefix)
-        etReportOntSerial.requestFocus()
-        etReportOntSerial.setSelection(prefix.length)
     }
 
     private fun openGoogleMapsRoute() {
@@ -1338,8 +1149,8 @@ class TicketDetailActivity : AppCompatActivity() {
 
     private fun switchTab(tabIndex: Int) {
         currentTab = tabIndex
-        val selectedColor = Color.parseColor("#004C9E")
-        val unselectedColor = Color.parseColor("#64748B")
+        val selectedColor = Color.parseColor("#4563FF")
+        val unselectedColor = Color.parseColor("#93939F")
 
         tabDetail.setTextColor(if (tabIndex == 0) selectedColor else unselectedColor)
         tabChat.setTextColor(if (tabIndex == 1) selectedColor else unselectedColor)
@@ -1372,6 +1183,7 @@ class TicketDetailActivity : AppCompatActivity() {
     }
 
     private fun refreshPhotoPreviews(isBefore: Boolean) {
+        saveDraftNow()
         val list = if (isBefore) beforePhotoFiles else afterPhotoFiles
         val container = if (isBefore) layoutBeforePreviews else layoutAfterPreviews
         val countText = if (isBefore) tvBeforePhotosCount else tvAfterPhotosCount
@@ -1381,10 +1193,10 @@ class TicketDetailActivity : AppCompatActivity() {
 
         if (list.isEmpty()) {
             countText.text = "Belum ada $prefix dipilih"
-            countText.setTextColor(Color.parseColor("#64748B"))
+            countText.setTextColor(Color.parseColor("#93939F"))
         } else {
             countText.text = "[SIAP] ${list.size} $prefix siap dikirim (<1 MB)"
-            countText.setTextColor(Color.parseColor("#16A34A"))
+            countText.setTextColor(Color.parseColor("#6BDFA7"))
         }
 
         for ((index, file) in list.withIndex()) {
@@ -1474,7 +1286,7 @@ class TicketDetailActivity : AppCompatActivity() {
 
         if (missingFields.isNotEmpty()) {
             AlertDialog.Builder(this)
-                .setTitle("Data Wajib Belum Lengkap")
+                .setTitle("Laporan belum lengkap")
                 .setMessage(
                     "Mohon lengkapi bagian berikut sebelum mengirim laporan:\n\n" +
                         missingFields.joinToString("\n") { "• $it" }
@@ -1485,27 +1297,15 @@ class TicketDetailActivity : AppCompatActivity() {
         }
 
         val checkedItems = checklistCheckBoxes.filter { it.isChecked }.map { it.text.toString() }
-        val hasSignature = signaturePadView.hasSignature()
 
-        val previewMsg = buildString {
-            append("Tiket: #$ticketNumber — $ticketTitle\n")
-            append("Kategori Penyebab: $rootCause\n")
-            append("Checklist Selesai: ${checkedItems.size}/${checklistCheckBoxes.size} tahap\n")
-            if (ontSerial.isNotBlank()) append("SN / MAC Perangkat: $ontSerial\n")
-            if (routerType.isNotBlank()) append("Tipe Perangkat: $routerType\n")
-            if (ssidName.isNotBlank()) append("SSID WiFi: $ssidName\n")
-            if (opticalDbm.isNotBlank()) append("Redaman Optik: $opticalDbm dBm\n")
-            if (odpPort.isNotBlank()) append("ODP & Port: $odpPort\n")
-            if (cableLen.isNotBlank()) append("Panjang Kabel: $cableLen meter\n")
-            if (pingSpeed.isNotBlank()) append("Ping / Speedtest: $pingSpeed\n")
-            if (materialsUsed.isNotBlank()) append("Material: $materialsUsed\n")
-            append("Bukti Foto: ${beforePhotoFiles.size} Before, ${afterPhotoFiles.size} After (Watermark GPS)\n")
-            append("Penerima: $recipientName (${if (hasSignature) "Sudah TTD Digital" else "Tanpa TTD Layar"})\n\n")
-            append("Kirim laporan ini dan selesaikan tugas sekarang?")
-        }
+
+        val previewMsg = "Tiket #" + ticketNumber + " — " + ticketTitle +
+            "\n\nRingkasan: " + summary + "\nTindakan: " + actionTaken +
+            "\nBukti foto: " + (beforePhotoFiles.size + afterPhotoFiles.size) +
+            "\n\nKirim laporan dan tandai pekerjaan selesai?"
 
         AlertDialog.Builder(this)
-            .setTitle("Pratinjau Laporan Pekerjaan")
+            .setTitle("Selesaikan tiket?")
             .setMessage(previewMsg)
             .setPositiveButton("Kirim Laporan Sekarang") { _, _ ->
                 executeSubmitWorkReport(
@@ -1622,8 +1422,8 @@ class TicketDetailActivity : AppCompatActivity() {
                     ticketNumber = ticketNumber,
                     status = "resolved",
                     notes = summary,
-                    latitude = session.lastLatitude,
-                    longitude = session.lastLongitude,
+                    latitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLatitude else 0.0,
+                    longitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLongitude else 0.0,
                     distanceMeters = null,
                     reportSummary = summary,
                     reportActionTaken = enrichedAction,
@@ -1667,7 +1467,7 @@ class TicketDetailActivity : AppCompatActivity() {
             )
 
             btnSubmitReport.isEnabled = true
-            btnSubmitReport.text = "Pratinjau & Kirim Laporan Selesai"
+            btnSubmitReport.text = "Kirim laporan"
 
             result.onSuccess {
                 OfflineSyncManager.updateCachedTicketStatusLocally(this@TicketDetailActivity, ticketId, "resolved")
@@ -1683,7 +1483,11 @@ class TicketDetailActivity : AppCompatActivity() {
                 setResult(RESULT_OK)
                 switchTab(0)
             }.onFailure { err ->
-                // Save to offline queue so data is never lost (FR-25)
+                if (err !is java.io.IOException) {
+                    Toast.makeText(this@TicketDetailActivity, err.message ?: "Laporan belum dapat dikirim. Draf tetap tersimpan.", Toast.LENGTH_LONG).show()
+                    return@onFailure
+                }
+                // Only transport failures are queued; validation/auth errors stay visible.
                 OfflineSyncManager.enqueueOfflineAction(
                     this@TicketDetailActivity,
                     OfflineActionItem(
@@ -1693,8 +1497,8 @@ class TicketDetailActivity : AppCompatActivity() {
                         ticketNumber = ticketNumber,
                         status = "resolved",
                         notes = summary,
-                        latitude = session.lastLatitude,
-                        longitude = session.lastLongitude,
+                        latitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLatitude else 0.0,
+                        longitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLongitude else 0.0,
                         distanceMeters = null,
                         reportSummary = summary,
                         reportActionTaken = enrichedAction,
@@ -1732,21 +1536,8 @@ class TicketDetailActivity : AppCompatActivity() {
     }
 
     private fun handleBackNavigation() {
-        if (currentTab == 2 && (beforePhotoFiles.isNotEmpty() || afterPhotoFiles.isNotEmpty())) {
-            AlertDialog.Builder(this)
-                .setTitle("Keluar dari Form Laporan?")
-                .setMessage("Isian teks laporan sudah tersimpan otomatis sebagai draf, namun jika Anda keluar sekarang Anda perlu memilih ulang lampiran foto saat kembali. Tetap keluar?")
-                .setPositiveButton("Ya, Keluar") { _, _ -> finish() }
-                .setNegativeButton("Lanjut Isi Laporan", null)
-                .show()
-        } else {
-            finish()
-        }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        handleBackNavigation()
+        saveDraftNow()
+        finish()
     }
 
     private fun setupChatRecycler() {
@@ -1854,6 +1645,15 @@ class TicketDetailActivity : AppCompatActivity() {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        saveDraftNow()
+        outState.putStringArrayList("before_photo_paths", ArrayList(beforePhotoFiles.map { it.absolutePath }))
+        outState.putStringArrayList("after_photo_paths", ArrayList(afterPhotoFiles.map { it.absolutePath }))
+        outState.putString("camera_temp_path", currentCameraTempFile?.absolutePath)
+        outState.putBoolean("camera_before", isCapturingBefore)
+        outState.putInt("selected_detail_tab", currentTab)
+        super.onSaveInstanceState(outState)
+    }
     override fun onResume() {
         super.onResume()
         updateDistanceAndRadiusUi()

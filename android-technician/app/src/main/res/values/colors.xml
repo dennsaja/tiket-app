@@ -1,26 +1,23 @@
 <resources>
-    <color name="primary">#0284C7</color>
-    <color name="primary_dark">#0369A1</color>
-    <color name="primary_light">#E0F2FE</color>
-    <color name="accent">#10B981</color>
-    
-    <color name="background">#F8FAFC</color>
-    <color name="surface">#FFFFFF</color>
-    <color name="card_border">#E2E8F0</color>
-    
-    <color name="text_primary">#0F172A</color>
-    <color name="text_secondary">#64748B</color>
-    <color name="text_muted">#94A3B8</color>
-    
-    <color name="status_green">#10B981</color>
-    <color name="status_green_bg">#D1FAE5</color>
-    <color name="status_blue">#3B82F6</color>
-    <color name="status_blue_bg">#DBEAFE</color>
-    <color name="status_amber">#F59E0B</color>
-    <color name="status_amber_bg">#FEF3C7</color>
-    <color name="status_red">#EF4444</color>
-    <color name="status_red_bg">#FEE2E2</color>
-    
-    <color name="white">#FFFFFF</color>
-    <color name="black">#000000</color>
+    <color name="primary">#4563FF</color>
+    <color name="primary_dark">#3652E8</color>
+    <color name="primary_light">#232A49</color>
+    <color name="accent">#7890FF</color>
+    <color name="background">#0C0C0F</color>
+    <color name="surface">#17171C</color>
+    <color name="surface_subtle">#1D1D24</color>
+    <color name="card_border">#29292F</color>
+    <color name="text_primary">#F6F6F8</color>
+    <color name="text_secondary">#C1C1CC</color>
+    <color name="text_muted">#93939F</color>
+    <color name="status_green">#6BDFA7</color>
+    <color name="status_green_bg">#19372D</color>
+    <color name="status_blue">#9CAEFF</color>
+    <color name="status_blue_bg">#232A49</color>
+    <color name="status_amber">#F2D282</color>
+    <color name="status_amber_bg">#392F1F</color>
+    <color name="status_red">#FF9AA5</color>
+    <color name="status_red_bg">#3C232A</color>
+    <color name="white">#FAFAFA</color>
+    <color name="black">#18181B</color>
 </resources>
