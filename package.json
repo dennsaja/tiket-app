@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:clean-demo": "tsx scripts/production-cleanup.ts --apply"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.8.0",

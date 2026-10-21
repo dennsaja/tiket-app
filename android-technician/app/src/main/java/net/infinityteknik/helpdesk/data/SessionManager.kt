@@ -227,8 +227,26 @@ class SessionManager(context: Context) {
             .putString(KEY_USER_NAME, profile.name)
             .putString(KEY_USER_EMAIL, profile.email)
             .putString(KEY_USER_ROLE, profile.role)
+            .putString("user_phone", profile.phone)
+            .putString("user_avatar", profile.avatarUrl)
             .apply()
     }
+
+    var userPhone: String?
+        get() = prefs.getString("user_phone", null)
+        set(value) = prefs.edit().putString("user_phone", value).apply()
+    var userAvatar: String?
+        get() = prefs.getString("user_avatar", null)
+        set(value) = prefs.edit().putString("user_avatar", value).apply()
+    var chatRoomsJson: String?
+        get() = prefs.getString("chat_rooms_v1", null)
+        set(value) = prefs.edit().putString("chat_rooms_v1", value).apply()
+    fun seenRoomMessage(ticketId: String) = prefs.getString("chat_seen_" + ticketId, null)
+    fun markRoomSeen(ticketId: String, messageId: String?) { prefs.edit().putString("chat_seen_" + ticketId, messageId).apply() }
+    fun chatDraft(ticketId: String) = prefs.getString("chat_draft_" + ticketId, "").orEmpty()
+    fun saveChatDraft(ticketId: String, value: String) { prefs.edit().putString("chat_draft_" + ticketId, value).apply() }
+    fun threadMessages(ticketId: String) = prefs.getString("thread_cache_" + ticketId, null)
+    fun saveThreadMessages(ticketId: String, json: String?) { prefs.edit().putString("thread_cache_" + ticketId, json).apply() }
 
     fun beginWebLogin(): String {
         val state = net.infinityteknik.helpdesk.util.WebLoginState.create()

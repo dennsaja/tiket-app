@@ -12,6 +12,8 @@ export async function GET(req: NextRequest) {
 
   const userRole = authUser.role;
   const userId = authUser.id;
+  const page = Math.min(10000,Math.max(1, Math.trunc(Number(req.nextUrl.searchParams.get("page"))) || 1));
+  const perPage = Math.min(100, Math.max(1, Math.trunc(Number(req.nextUrl.searchParams.get("perPage"))) || 100));
 
   // Only NOC, Owner, Admin and Agents can access department chats
   if (!["noc", "owner", "admin", "agent"].includes(userRole)) {
@@ -53,7 +55,8 @@ export async function GET(req: NextRequest) {
   const roomTickets = await db.query.tickets.findMany({
     where: and(...conditions),
     orderBy: [desc(tickets.updatedAt)],
-    limit: 50,
+    limit: perPage,
+    offset: (page - 1) * perPage,
     with: {
       department: { columns: { id: true, name: true, color: true } },
       assignee: { columns: { id: true, name: true, avatarUrl: true } },
@@ -84,6 +87,8 @@ export async function GET(req: NextRequest) {
       reporterName: t.reporterName,
       lastMessage: lastInternalMessage
         ? {
+            id: lastInternalMessage.id,
+            authorId: lastInternalMessage.authorId,
             content: lastInternalMessage.content,
             authorName: lastInternalMessage.author?.name || "Staff",
             authorRole: lastInternalMessage.author?.role || "agent",

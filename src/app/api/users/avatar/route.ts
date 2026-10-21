@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -9,6 +9,7 @@ import { nanoid } from "nanoid";
 import path from "path";
 import fs from "fs/promises";
 import { lookup } from "mime-types";
+import sharp from "sharp";
 
 const AVATAR_UPLOAD_DIR = process.env.AVATAR_UPLOAD_DIR || "./uploads/avatars";
 const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -23,7 +24,8 @@ const ALLOWED_AVATAR_MIMES = new Set([
 
 // POST /api/users/avatar — Upload & update profile picture
 export async function POST(req: NextRequest) {
-  const session = await auth();
+  const currentUser = await getAuthUser(req);
+  const session = currentUser ? { user: currentUser } : null;
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
   const currentUserRole = (session.user as any).role;
@@ -64,10 +66,16 @@ export async function POST(req: NextRequest) {
     return errorResponse("Format berkas bukan merupakan gambar valid", 400);
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  let buffer: Buffer;
+  try {
+    const source = Buffer.from(await file.arrayBuffer());
+    const info = await sharp(source, { limitInputPixels: 25000000 }).metadata();
+    if (!info.format || !["jpeg","png","webp","gif"].includes(info.format)) throw new Error("Unsupported image");
+    buffer = await sharp(source, { limitInputPixels: 25000000 }).rotate().resize(512,512,{fit:"cover",withoutEnlargement:true}).jpeg({quality:85}).toBuffer();
+  } catch { return errorResponse("Foto tidak valid. Gunakan gambar JPG, PNG, WEBP, atau GIF",422); }
 
   // Generate unique file name
-  const storedName = `avatar_${targetUserId}_${nanoid(10)}.${ext}`;
+  const storedName = `avatar_${nanoid(24)}.jpg`;
   const uploadDirResolved = path.resolve(process.cwd(), AVATAR_UPLOAD_DIR);
   const storagePath = path.join(uploadDirResolved, storedName);
 
@@ -117,7 +125,8 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/users/avatar — Remove profile picture
 export async function DELETE(req: NextRequest) {
-  const session = await auth();
+  const currentUser = await getAuthUser(req);
+  const session = currentUser ? { user: currentUser } : null;
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
   const currentUserRole = (session.user as any).role;

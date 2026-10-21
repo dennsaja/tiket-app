@@ -40,6 +40,7 @@ object HelpdeskTheme {
     fun button(context: Context, label: String, primary: Boolean = false, onClick: () -> Unit) = MaterialButton(context).apply {
         text = label
         textSize = 13f
+        letterSpacing = 0f
         isAllCaps = false
         minHeight = dp(context, 48)
         insetTop = 0
@@ -50,5 +51,17 @@ object HelpdeskTheme {
         strokeWidth = if (primary) 0 else dp(context, 1)
         strokeColor = ColorStateList.valueOf(border)
         setOnClickListener { onClick() }
+        interactive(this)
+    }
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    fun interactive(view: android.view.View) {
+        view.setOnTouchListener { target, event ->
+            val enabled = android.os.Build.VERSION.SDK_INT < 26 || android.animation.ValueAnimator.areAnimatorsEnabled()
+            if (enabled) when(event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> target.animate().scaleX(.98f).scaleY(.98f).setDuration(100).start()
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> target.animate().scaleX(1f).scaleY(1f).setDuration(160).start()
+            }
+            false
+        }
     }
 }

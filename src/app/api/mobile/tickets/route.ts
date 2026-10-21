@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { tickets, ticketAssignees, users } from "@/lib/db/schema";
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
-import { getMobileUserFromRequest } from "@/lib/auth/mobile";
+import { getAuthUser } from "@/lib/auth/get-user";
 import { parseCoordinates, resolveCoordinatesAsync } from "@/lib/utils/geo";
 
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  const mobileUser = !session?.user ? await getMobileUserFromRequest(req) : null;
-  const currentUser = session?.user || mobileUser;
+  const currentUser = await getAuthUser(req);
 
   if (!currentUser) {
     console.warn(
@@ -18,6 +15,9 @@ export async function GET(req: NextRequest) {
       }`
     );
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!["agent", "noc", "admin", "owner"].includes(currentUser.role)) {
+    return NextResponse.json({ error: "Akses khusus staf helpdesk" }, { status: 403 });
   }
 
   const userId = currentUser.id!;

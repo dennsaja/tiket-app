@@ -173,12 +173,16 @@ npm ci --omit=dev
 npm run db:generate  # Generate migration files (if not already done)
 npm run db:migrate   # Apply migrations to PostgreSQL
 
-# Seed initial data (first-time only)
+# First-time only: configure a unique owner in .env.local before seeding.
+# BOOTSTRAP_OWNER_EMAIL, BOOTSTRAP_OWNER_PASSWORD (12+ characters), BOOTSTRAP_OWNER_NAME.
+# No demo accounts or tickets are installed by default.
 npx tsx scripts/seed.ts
 
 # Build Next.js
 npm run build
 ```
+
+Existing installations: the system update hook runs `npx tsx scripts/production-cleanup.ts --apply`. It archives exact legacy demo tickets and their related rows in `production_cleanup_archive` before deleting them in the same transaction. It preserves real tickets, users, and ticket numbering. Run without `--apply` to inspect matches. Keep `SEED_DEMO_DATA` unset in production; demo seeding is opt-in and disabled when `NODE_ENV=production`. Mobile authentication requires a private `AUTH_SECRET` or `NEXTAUTH_SECRET` of at least 32 characters.
 
 ---
 

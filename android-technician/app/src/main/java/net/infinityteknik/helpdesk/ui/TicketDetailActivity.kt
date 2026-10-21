@@ -72,6 +72,8 @@ class TicketDetailActivity : AppCompatActivity() {
     private var ticketNumber: Int = 0
     private var ticketTitle: String = ""
     private var ticketStatus: String = "open"
+    private var latestReport: WorkReportSnapshot? = null
+    private var metadataLoading = false
     private var ticketPriority: String = "medium"
     private var ticketType: String = ""
     private var reporterName: String = ""
@@ -85,7 +87,7 @@ class TicketDetailActivity : AppCompatActivity() {
     private var statusHistory: List<TicketStatusHistoryItem> = emptyList()
     private var initialTab: Int = 0
     private var currentTab: Int = 0
-    private var chatPollJob: Job? = null
+    private var metadataPoll: Job? = null
     private var isRestoringDraft = false
 
     // Views: Top Bar
@@ -97,10 +99,7 @@ class TicketDetailActivity : AppCompatActivity() {
     // Views: Tabs
     private lateinit var tabDetail: TextView
     private lateinit var tabChat: TextView
-    private lateinit var tabReport: TextView
-    private lateinit var viewTabDetail: View
-    private lateinit var viewTabChat: View
-    private lateinit var viewTabReport: View
+    private lateinit var viewTabDetail: ScrollView
 
     // Views: Stepper & Progressive Workflow
     private lateinit var tvDetailDistanceRadius: TextView
@@ -128,12 +127,6 @@ class TicketDetailActivity : AppCompatActivity() {
     private lateinit var layoutStatusTimeline: LinearLayout
 
     // Views: Chat Tab
-    private lateinit var swipeRefreshChat: SwipeRefreshLayout
-    private lateinit var rvMessages: RecyclerView
-    private lateinit var rgMessageType: RadioGroup
-    private lateinit var etMessageContent: EditText
-    private lateinit var btnSendMessage: MaterialButton
-    private lateinit var messageAdapter: MessageAdapter
 
     // Views: Report Tab (Full PRD Sections)
     private lateinit var tvDraftSavedStatus: TextView
@@ -298,7 +291,6 @@ class TicketDetailActivity : AppCompatActivity() {
             group.visibility = if (group.visibility == View.VISIBLE) View.GONE else View.VISIBLE
             (it as TextView).text = if (group.visibility == View.VISIBLE) "Tutup konfirmasi pelanggan −" else "Konfirmasi pelanggan (opsional) +"
         }
-        setupChatRecycler()
         setupReportChecklistAndMaterials()
         bindTicketData()
         restoreDraftIfAvailable()
@@ -307,7 +299,6 @@ class TicketDetailActivity : AppCompatActivity() {
         setupAutoDraftWatchers()
         updateWorkflowUi(ticketStatus)
         switchTab(initialTab)
-        loadMessages(silent = initialTab != 1)
     }
 
     private fun readIntentExtras() {
@@ -326,9 +317,20 @@ class TicketDetailActivity : AppCompatActivity() {
         ticketDescription = intent.getStringExtra(EXTRA_DESCRIPTION) ?: ""
         initialTab = intent.getIntExtra(EXTRA_INITIAL_TAB, 0)
 
-        // Load cached history & SLA if available
+        // Chat and notification links only carry an ID; restore the full offline ticket.
         val cached = OfflineSyncManager.getCachedTickets(this).find { it.id == ticketId }
         if (cached != null) {
+            if (ticketNumber == 0) ticketNumber = cached.ticketNumber
+            if (ticketTitle.isBlank()) ticketTitle = cached.title
+            if (!intent.hasExtra(EXTRA_STATUS)) ticketStatus = cached.status
+            if (!intent.hasExtra(EXTRA_PRIORITY)) ticketPriority = cached.priority
+            if (ticketType.isBlank()) ticketType = cached.ticketType.orEmpty()
+            if (reporterName.isBlank()) reporterName = cached.reporterName.orEmpty()
+            if (reporterPhone.isBlank()) reporterPhone = cached.reporterPhone.orEmpty()
+            if (reporterAddress.isBlank()) reporterAddress = cached.reporterAddress.orEmpty()
+            if (reporterMapUrl.isBlank()) reporterMapUrl = cached.reporterMapUrl.orEmpty()
+            if (ticketDescription.isBlank()) ticketDescription = cached.description.orEmpty()
+            latestReport = cached.latestReport
             slaResolutionDue = cached.slaResolutionDue
             statusHistory = cached.statusHistory
             if (latitude == 0.0 && cached.latitude != null) latitude = cached.latitude
@@ -344,10 +346,7 @@ class TicketDetailActivity : AppCompatActivity() {
 
         tabDetail = findViewById(R.id.tabDetail)
         tabChat = findViewById(R.id.tabChat)
-        tabReport = findViewById(R.id.tabReport)
         viewTabDetail = findViewById(R.id.viewTabDetail)
-        viewTabChat = findViewById(R.id.viewTabChat)
-        viewTabReport = findViewById(R.id.viewTabReport)
 
         tvDetailDistanceRadius = findViewById(R.id.tvDetailDistanceRadius)
         btnWorkflowPrimary = findViewById(R.id.btnWorkflowPrimary)
@@ -371,12 +370,6 @@ class TicketDetailActivity : AppCompatActivity() {
         btnUpdateCustomerCoord = findViewById(R.id.btnUpdateCustomerCoord)
         btnUpdateOdpCoord = findViewById(R.id.btnUpdateOdpCoord)
         layoutStatusTimeline = findViewById(R.id.layoutStatusTimeline)
-
-        swipeRefreshChat = findViewById(R.id.swipeRefreshChat)
-        rvMessages = findViewById(R.id.rvMessages)
-        rgMessageType = findViewById(R.id.rgMessageType)
-        etMessageContent = findViewById(R.id.etMessageContent)
-        btnSendMessage = findViewById(R.id.btnSendMessage)
 
         tvDraftSavedStatus = findViewById(R.id.tvDraftSavedStatus)
         tvChecklistHeader = findViewById(R.id.tvChecklistHeader)
@@ -411,16 +404,8 @@ class TicketDetailActivity : AppCompatActivity() {
         btnBack.setOnClickListener { handleBackNavigation() }
 
         tabDetail.setOnClickListener { switchTab(0) }
-        tabChat.setOnClickListener {
-            switchTab(1)
-            loadMessages(silent = false)
-        }
-        tabReport.setOnClickListener { switchTab(2) }
-
-        btnDetailChatShortcut.setOnClickListener {
-            switchTab(1)
-            loadMessages(silent = false)
-        }
+        tabChat.setOnClickListener { openTeamChat() }
+        btnDetailChatShortcut.setOnClickListener { openTeamChat() }
 
         btnWorkflowPrimary.setOnClickListener {
             handlePrimaryWorkflowStep()
@@ -466,16 +451,6 @@ class TicketDetailActivity : AppCompatActivity() {
 
         btnUpdateOdpCoord.setOnClickListener {
             confirmRecordCurrentCoordinate("odp")
-        }
-
-
-
-        btnSendMessage.setOnClickListener {
-            sendMessage()
-        }
-
-        swipeRefreshChat.setOnRefreshListener {
-            loadMessages(silent = false)
         }
 
         btnCameraBefore.setOnClickListener { launchCameraCapture(true) }
@@ -869,6 +844,17 @@ class TicketDetailActivity : AppCompatActivity() {
 
     private fun updateWorkflowUi(status: String) {
         val finished = LocationPolicy.isFinished(status)
+        findViewById<View>(R.id.reportSection).visibility = if(finished) View.GONE else View.VISIBLE
+        val completed = findViewById<View>(R.id.completedReport)
+        completed.visibility = if(latestReport != null) View.VISIBLE else View.GONE
+        latestReport?.let { report ->
+            findViewById<TextView>(R.id.submittedReportSummary).text = "Laporan pekerjaan\n\n" + report.summary + "\n\nTindakan\n" + report.actionTaken +
+                (report.materialsUsed?.takeIf { it.isNotBlank() }?.let { "\n\nMaterial\n" + it } ?: "") + (report.finalResult?.takeIf { it.isNotBlank() }?.let { "\n\nHasil akhir\n" + it } ?: "")
+            val photos = findViewById<LinearLayout>(R.id.submittedReportPhotos); photos.removeAllViews()
+            (report.beforePhotos.mapIndexed { i,path -> "Foto sebelum / proses " + (i+1) to path } + report.afterPhotos.mapIndexed { i,path -> "Foto sesudah " + (i+1) to path }).forEach { (label,path) ->
+                photos.addView(HelpdeskTheme.button(this,label+"  ↗") { startActivity(Intent(this,ReportPhotoActivity::class.java).putExtra("photo_path",path)) },LinearLayout.LayoutParams(-1,dp(48)).apply { topMargin=dp(10) })
+            }
+        }
         btnWorkflowPrimary.visibility = if (finished) View.GONE else View.VISIBLE
         tvWorkflowSubtitle.visibility = if (finished) View.GONE else View.VISIBLE
         btnPendingTask.visibility = if (finished) View.GONE else View.VISIBLE
@@ -1147,20 +1133,19 @@ class TicketDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun switchTab(tabIndex: Int) {
-        currentTab = tabIndex
-        val selectedColor = Color.parseColor("#4563FF")
-        val unselectedColor = Color.parseColor("#93939F")
-
-        tabDetail.setTextColor(if (tabIndex == 0) selectedColor else unselectedColor)
-        tabChat.setTextColor(if (tabIndex == 1) selectedColor else unselectedColor)
-        tabReport.setTextColor(if (tabIndex == 2) selectedColor else unselectedColor)
-
-        viewTabDetail.visibility = if (tabIndex == 0) View.VISIBLE else View.GONE
-        viewTabChat.visibility = if (tabIndex == 1) View.VISIBLE else View.GONE
-        viewTabReport.visibility = if (tabIndex == 2) View.VISIBLE else View.GONE
+    private fun openTeamChat() {
+        startActivity(Intent(this, TeamChatActivity::class.java).putExtra("ticket_id",ticketId).putExtra("ticket_number",ticketNumber).putExtra("title",ticketTitle))
     }
-
+    private fun switchTab(tabIndex: Int) {
+        currentTab=if(tabIndex==2) 2 else 0
+        if(tabIndex==1) { openTeamChat(); return }
+        viewTabDetail.post {
+            if(tabIndex==2) {
+                val section=findViewById<View>(R.id.reportSection)
+                viewTabDetail.smoothScrollTo(0,section.top)
+            } else viewTabDetail.smoothScrollTo(0,0)
+        }
+    }
     private fun launchCameraCapture(isBefore: Boolean) {
         isCapturingBefore = isBefore
         try {
@@ -1540,111 +1525,29 @@ class TicketDetailActivity : AppCompatActivity() {
         finish()
     }
 
-    private fun setupChatRecycler() {
-        messageAdapter = MessageAdapter()
-        rvMessages.layoutManager = LinearLayoutManager(this).apply {
-            stackFromEnd = true
-        }
-        rvMessages.adapter = messageAdapter
-    }
-
-    private fun loadMessages(silent: Boolean = false) {
-        val token = session.token ?: return
-        if (!silent) swipeRefreshChat.isRefreshing = true
-
-        lifecycleScope.launch {
-            val result = ApiClient.getTicketMessages(session.serverUrl, token, ticketId)
-            if (!silent) swipeRefreshChat.isRefreshing = false
-
-            result.onSuccess { msgs ->
-                msgs.forEach { m -> session.markMessageSeen(m.id) }
-                session.markTicketMessageBaselineInitialized(ticketId)
-
-                val prevCount = messageAdapter.itemCount
-                messageAdapter.submitList(msgs)
-                if (msgs.isNotEmpty()) {
-                    tabChat.text = "Chat Tim (${msgs.size})"
-                    if (!silent || msgs.size > prevCount) {
-                        rvMessages.scrollToPosition(msgs.size - 1)
-                    }
-                } else {
-                    tabChat.text = "Chat Tim"
-                }
-            }.onFailure { err ->
-                if (!silent) {
-                    Toast.makeText(this@TicketDetailActivity, "Gagal memuat pesan: ${err.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    private fun sendMessage() {
-        val content = etMessageContent.text.toString().trim()
-        if (content.isBlank()) return
-
-        val isInternal = rgMessageType.checkedRadioButtonId == R.id.rbInternalNote
-        val messageType = if (isInternal) "internal_note" else "public"
-        val token = session.token ?: return
-
-        btnSendMessage.isEnabled = false
-        NotificationHelper.recordSelfSentChat(ticketId, content)
-
-        lifecycleScope.launch {
-            val result = ApiClient.sendTicketMessage(
-                session.serverUrl,
-                token,
-                ticketId,
-                content,
-                messageType
-            )
-            btnSendMessage.isEnabled = true
-
-            result.onSuccess {
-                etMessageContent.text.clear()
-                loadMessages(silent = true)
-            }.onFailure { err ->
-                Toast.makeText(this@TicketDetailActivity, "Gagal kirim pesan: ${err.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
     private fun refreshCurrentTicketMetadata() {
-        val token = session.token ?: return
+        if(metadataLoading) return
+        val token=session.token ?: return
+        metadataLoading=true
         lifecycleScope.launch {
-            ApiClient.getTickets(session.serverUrl, token).onSuccess { list ->
-                OfflineSyncManager.saveCachedTickets(this@TicketDetailActivity, list)
-                NotificationHelper.syncAndDispatchNotifications(this@TicketDetailActivity, session, list)
-                val fresh = list.find { it.id == ticketId } ?: return@onSuccess
-                val changed = fresh.status != ticketStatus ||
-                    fresh.title != ticketTitle ||
-                    (fresh.description ?: "") != ticketDescription ||
-                    (fresh.reporterName ?: "") != reporterName ||
-                    (fresh.reporterPhone ?: "") != reporterPhone ||
-                    (fresh.reporterAddress ?: "") != reporterAddress ||
-                    fresh.statusHistory.size != statusHistory.size
-
-                if (changed) {
-                    ticketNumber = fresh.ticketNumber
-                    ticketTitle = fresh.title
-                    ticketStatus = fresh.status
-                    ticketPriority = fresh.priority
-                    ticketType = fresh.ticketType ?: ""
-                    reporterName = fresh.reporterName ?: ""
-                    reporterPhone = fresh.reporterPhone ?: ""
-                    reporterAddress = fresh.reporterAddress ?: ""
-                    reporterMapUrl = fresh.reporterMapUrl ?: ""
-                    if (fresh.latitude != null) latitude = fresh.latitude
-                    if (fresh.longitude != null) longitude = fresh.longitude
-                    ticketDescription = fresh.description ?: ""
-                    slaResolutionDue = fresh.slaResolutionDue
-                    statusHistory = fresh.statusHistory
-                    bindTicketData()
-                    updateWorkflowUi(ticketStatus)
+            try {
+                ApiClient.getTicketDetail(session.serverUrl,token,ticketId).onSuccess { fresh ->
+                    val cached=OfflineSyncManager.getCachedTickets(this@TicketDetailActivity)
+                    OfflineSyncManager.saveCachedTickets(this@TicketDetailActivity,cached.filter { it.id!=fresh.id }+fresh)
+                    ticketNumber=fresh.ticketNumber; ticketTitle=fresh.title; ticketStatus=fresh.status; ticketPriority=fresh.priority
+                    ticketType=fresh.ticketType.orEmpty(); reporterName=fresh.reporterName.orEmpty(); reporterPhone=fresh.reporterPhone.orEmpty()
+                    reporterAddress=fresh.reporterAddress.orEmpty(); reporterMapUrl=fresh.reporterMapUrl.orEmpty()
+                    latitude=fresh.latitude ?: 0.0; longitude=fresh.longitude ?: 0.0; ticketDescription=fresh.description.orEmpty()
+                    slaResolutionDue=fresh.slaResolutionDue; statusHistory=fresh.statusHistory; latestReport=fresh.latestReport
+                    bindTicketData(); updateWorkflowUi(ticketStatus)
+                }.onFailure { error ->
+                    if(error is ApiException && error.statusCode in setOf(403,404)) {
+                        Toast.makeText(this@TicketDetailActivity,"Tiket sudah tidak tersedia untuk akun ini.",Toast.LENGTH_LONG).show(); finish()
+                    }
                 }
-            }
+            } finally { metadataLoading=false }
         }
     }
-
     override fun onSaveInstanceState(outState: Bundle) {
         saveDraftNow()
         outState.putStringArrayList("before_photo_paths", ArrayList(beforePhotoFiles.map { it.absolutePath }))
@@ -1658,24 +1561,14 @@ class TicketDetailActivity : AppCompatActivity() {
         super.onResume()
         updateDistanceAndRadiusUi()
         refreshCurrentTicketMetadata()
-        chatPollJob?.cancel()
-        chatPollJob = lifecycleScope.launch {
-            var tick = 0
-            while (isActive) {
-                delay(4_000L)
-                loadMessages(silent = true)
-                NotificationHelper.syncAndDispatchNotifications(this@TicketDetailActivity, session)
-                tick++
-                if (tick % 2 == 0) {
-                    refreshCurrentTicketMetadata()
-                }
-            }
+        metadataPoll?.cancel()
+        metadataPoll = lifecycleScope.launch {
+            while(isActive) { delay(20_000L); updateDistanceAndRadiusUi(); refreshCurrentTicketMetadata() }
         }
     }
-
     override fun onPause() {
         super.onPause()
-        chatPollJob?.cancel()
-        chatPollJob = null
+        metadataPoll?.cancel()
+        metadataPoll = null
     }
 }

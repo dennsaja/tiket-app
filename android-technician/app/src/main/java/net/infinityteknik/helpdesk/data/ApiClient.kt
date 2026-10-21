@@ -103,6 +103,98 @@ object ApiClient {
             }
         }
 
+    fun parseChatRoom(o: JSONObject): ChatRoom {
+        val last = o.optJSONObject("lastMessage")
+        return ChatRoom(o.optString("ticketId", o.optString("id")), o.optInt("ticketNumber"), o.optString("title"),
+            o.optString("status"), o.optJSONObject("department")?.optString("name") ?: "Tim HelpDesk",
+            last?.optNullableString("content"), last?.optNullableString("authorName"), last?.optNullableString("id"),
+            last?.optNullableString("authorId"), last?.optString("createdAt") ?: o.optString("updatedAt"))
+    }
+    fun parseTeamMessage(o: JSONObject, ticketId: String): TicketMessage {
+        val author = o.optJSONObject("author")
+        return TicketMessage(o.getString("id"), ticketId, o.optString("authorId", author?.optString("id").orEmpty()),
+            o.getString("content"), "internal_note", o.optString("createdAt"), author?.optNullableString("name"),
+            author?.optNullableString("role"), author?.optNullableString("avatarUrl"))
+    }
+    private fun jsonResponse(request: Request): String = client.newCall(request).execute().use { response ->
+        val body = response.body?.string().orEmpty()
+        if (!response.isSuccessful) throw ApiException(response.code, try { JSONObject(body).optString("error", "Permintaan gagal") } catch (_: Exception) { "Server belum dapat dihubungi (" + response.code + ")" })
+        body
+    }
+    suspend fun getChatRooms(serverUrl: String, token: String): Result<List<ChatRoom>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val list = mutableListOf<ChatRoom>()
+            var page = 1
+            do {
+                val arr = JSONArray(jsonResponse(Request.Builder().url(serverUrl + "/api/chat/rooms?page=" + page + "&perPage=100").header("Authorization", "Bearer " + token).build()))
+                for (i in 0 until arr.length()) list.add(parseChatRoom(arr.getJSONObject(i)))
+                page++
+            } while (arr.length() == 100 && page <= 100)
+            list.distinctBy { it.ticketId }
+        }
+    }
+    suspend fun getTeamThread(serverUrl: String, token: String, ticketId: String): Result<TeamThread> = withContext(Dispatchers.IO) {
+        runCatching {
+            val json = JSONObject(jsonResponse(Request.Builder().url(serverUrl + "/api/chat/rooms/" + ticketId).header("Authorization", "Bearer " + token).build()))
+            val arr = json.getJSONArray("messages")
+            TeamThread(parseChatRoom(json.getJSONObject("ticket")), (0 until arr.length()).map { parseTeamMessage(arr.getJSONObject(it), ticketId) })
+        }
+    }
+    suspend fun sendTeamMessage(serverUrl: String, token: String, ticketId: String, content: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        runCatching {
+            jsonResponse(Request.Builder().url(serverUrl + "/api/chat/rooms/" + ticketId).header("Authorization", "Bearer " + token)
+                .post(JSONObject().put("content", content.trim()).toString().toRequestBody(JSON_MEDIA_TYPE)).build())
+            true
+        }
+    }
+    suspend fun updateProfile(serverUrl: String, token: String, data: JSONObject): Result<Pair<UserProfile, String>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = JSONObject(jsonResponse(Request.Builder().url(serverUrl + "/api/mobile/profile").header("Authorization", "Bearer " + token)
+                .patch(data.toString().toRequestBody(JSON_MEDIA_TYPE)).build()))
+            val user = response.getJSONObject("user")
+            UserProfile(user.getString("id"), user.getString("name"), user.getString("email"), user.getString("role"),
+                user.optNullableString("phone"), user.optNullableString("avatarUrl")) to response.getString("token")
+        }
+    }
+    suspend fun updateAvatar(serverUrl: String, token: String, jpeg: File?): Result<String?> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder().url(serverUrl + "/api/users/avatar").header("Authorization", "Bearer " + token)
+            if (jpeg == null) request.delete() else request.post(MultipartBody.Builder().setType(MultipartBody.FORM)
+                .addFormDataPart("file", "profile.jpg", jpeg.asRequestBody("image/jpeg".toMediaType())).build())
+            val response = JSONObject(jsonResponse(request.build()))
+            response.optNullableString("avatarUrl")
+        }
+    }
+
+    suspend fun getTicketDetail(serverUrl: String, token: String, ticketId: String): Result<TicketItem> = withContext(Dispatchers.IO) {
+        runCatching { parseTicketObject(JSONObject(jsonResponse(Request.Builder().url(serverUrl + "/api/mobile/tickets/" + ticketId)
+            .header("Authorization", "Bearer " + token).build())).getJSONObject("ticket")) }
+    }
+    suspend fun getReportImage(serverUrl: String, token: String, path: String): Result<android.graphics.Bitmap> = withContext(Dispatchers.IO) {
+        runCatching {
+            val base = java.net.URI(serverUrl); val resolved = base.resolve(path)
+            require(resolved.scheme == "https" && resolved.host == base.host) { "Alamat foto tidak valid" }
+            client.newCall(Request.Builder().url(resolved.toString()).header("Authorization", "Bearer " + token).build()).execute().use { response ->
+                if(!response.isSuccessful) throw ApiException(response.code,"Foto belum dapat dimuat")
+                val body = response.body ?: throw java.io.IOException("Foto kosong")
+                val output = java.io.ByteArrayOutputStream()
+                body.byteStream().use { stream ->
+                    val buffer = ByteArray(8192)
+                    while(true) { val count = stream.read(buffer); if(count < 0) break
+                        if(output.size() + count > 15 * 1024 * 1024) throw java.io.IOException("Foto terlalu besar")
+                        output.write(buffer,0,count)
+                    }
+                }
+                val bytes = output.toByteArray()
+                val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.size,options)
+                require(options.outWidth > 0 && options.outHeight > 0) { "Format foto tidak didukung" }
+                var sample=1; while(options.outWidth/sample > 1600 || options.outHeight/sample > 1600) sample*=2
+                android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.size,android.graphics.BitmapFactory.Options().apply { inSampleSize=sample }) ?: throw java.io.IOException("Foto tidak dapat dibaca")
+            }
+        }
+    }
+
     suspend fun sendLocation(serverUrl: String, token: String, loc: LocationPayload): Result<Boolean> =
         withContext(Dispatchers.IO) {
             try {

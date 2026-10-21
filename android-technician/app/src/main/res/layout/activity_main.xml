@@ -1,6 +1,6 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/background" android:orientation="vertical">
     <TextView android:id="@+id/tvSyncBanner" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:textColor="@color/status_amber" android:textSize="12sp" android:background="@color/surface" android:visibility="gone" android:accessibilityLiveRegion="polite" />
-    <LinearLayout android:layout_width="match_parent" android:layout_height="72dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="20dp" android:paddingEnd="20dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="64dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="20dp" android:paddingEnd="20dp">
         <ImageView android:layout_width="36dp" android:layout_height="36dp" android:src="@drawable/ic_brand_mark" android:contentDescription="HelpDesk" />
         <TextView android:id="@+id/tvWorkspaceTitle" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:text="HelpDesk" android:textSize="18sp" android:textColor="@color/text_primary" android:fontFamily="sans-serif-medium" />
         <FrameLayout android:layout_width="48dp" android:layout_height="48dp">
@@ -13,5 +13,5 @@
         <FrameLayout android:id="@+id/workspacePages" android:layout_width="match_parent" android:layout_height="match_parent" />
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/card_border" />
-    <LinearLayout android:id="@+id/bottomNavigation" android:layout_width="match_parent" android:layout_height="72dp" android:orientation="horizontal" android:gravity="center" android:paddingStart="10dp" android:paddingEnd="10dp" android:background="@color/background" />
+    <LinearLayout android:id="@+id/bottomNavigation" android:layout_width="match_parent" android:layout_height="70dp" android:layout_marginHorizontal="14dp" android:layout_marginBottom="10dp" android:orientation="horizontal" android:gravity="center" android:paddingStart="6dp" android:paddingEnd="6dp" android:background="@drawable/card_border_bg" />
 </LinearLayout>

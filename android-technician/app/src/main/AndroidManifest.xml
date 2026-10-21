@@ -60,6 +60,9 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".ui.ProfileActivity" android:exported="false" android:theme="@style/Theme.HelpDesk.NoActionBar" android:windowSoftInputMode="stateAlwaysHidden|adjustResize" />
+        <activity android:name=".ui.TeamChatActivity" android:exported="false" android:theme="@style/Theme.HelpDesk.NoActionBar" android:windowSoftInputMode="stateAlwaysHidden|adjustResize" />
+        <activity android:name=".ui.ReportPhotoActivity" android:exported="false" android:theme="@style/Theme.HelpDesk.NoActionBar" />
         <activity
             android:name=".ui.MainActivity"
             android:exported="false"

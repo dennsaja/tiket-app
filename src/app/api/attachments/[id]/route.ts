@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
-import { attachments, tickets } from "@/lib/db/schema";
+import { attachments, tickets, ticketAssignees } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { errorResponse } from "@/lib/api/helpers";
 import { canAccessTicket } from "@/lib/auth/helpers";
@@ -14,7 +15,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
+  const actor = await getAuthUser(req);
+  const session = actor ? { user: actor } : null;
   if (!session?.user) return errorResponse("Unauthorized", 401);
 
   const { id } = await params;
@@ -29,6 +31,11 @@ export async function GET(
   });
 
   if (!attachment) return errorResponse("Attachment not found", 404);
+  if (attachment.ticket?.deletedAt) return errorResponse("Attachment not found",404);
+  if (!["noc","owner","admin"].includes(userRole)) {
+    const membership = attachment.ticket ? await db.query.ticketAssignees.findFirst({where:and(eq(ticketAssignees.ticketId,attachment.ticket.id),eq(ticketAssignees.userId,userId))}) : null;
+    if (attachment.ticket ? !(attachment.ticket.requesterId===userId || attachment.ticket.assigneeId===userId || membership) : attachment.uploadedById!==userId) return errorResponse("Forbidden",403);
+  }
 
   // Authorization: check ticket access
   if (attachment.ticket) {
@@ -58,7 +65,7 @@ export async function GET(
         "Content-Type": attachment.mimeType,
         "Content-Disposition": `${dispositionType}; filename="${safeFilename}"`,
         "Content-Length": String(fileBuffer.length),
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": "private, no-store",
       },
     });
   } catch {

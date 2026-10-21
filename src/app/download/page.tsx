@@ -8,12 +8,12 @@ export const metadata = {
   description: "HelpDesk Android: tampilan selaras dengan web, login browser, tiket, chat tim, laporan foto, dan GPS otomatis saat ada pekerjaan aktif.",
 };
 const features = [
-  { icon: Smartphone, title: "Workspace yang lebih ringkas", text: "Empat tab: Ringkasan, Tiket, Peta, dan Akun. Tampilan gelap dengan kartu statistik dan grafik aktivitas." },
+  { icon: Smartphone, title: "Workspace yang lebih ringkas", text: "Lima tab: Beranda, Tiket, Chat, Peta, dan Akun. Tampilan gelap, kartu statistik, dan transisi yang lebih halus." },
   { icon: ShieldCheck, title: "Login lewat browser atau akun", text: "Login di browser lalu kembali ke aplikasi, atau gunakan email dan kata sandi akun helpdesk. Alamat server sudah terpasang." },
   { icon: MapPin, title: "Lokasi sesuai pekerjaan", text: "GPS aktif untuk teknisi yang memiliki tiket belum selesai. Peta hanya menampilkan koordinat yang tersedia." },
-  { icon: Camera, title: "Laporan tanpa langkah berulang", text: "Mulai pengerjaan lalu kirim ringkasan, tindakan, dan foto bukti. Detail teknis serta konfirmasi pelanggan bersifat opsional." },
-  { icon: MessageSquare, title: "Chat dan notifikasi tim", text: "Buka percakapan langsung dari tiket atau notifikasi, dengan navigasi pelanggan di halaman detail." },
-  { icon: ShieldCheck, title: "Draf offline per akun", text: "Draf dan antrean sinkronisasi tetap tersimpan ketika jaringan terputus, serta terpisah ketika berganti akun." },
+  { icon: Camera, title: "Laporan tanpa langkah berulang", text: "Detail tiket dan laporan berada dalam satu halaman. Mulai pengerjaan, catat tindakan, lalu kirim foto bukti." },
+  { icon: MessageSquare, title: "Chat dan notifikasi tim", text: "Lihat semua grup yang sesuai penugasan tiket, baca pesan terakhir, dan lanjutkan diskusi tim." },
+  { icon: ShieldCheck, title: "Profil dan draf per akun", text: "Ubah nama, email, telepon, foto, dan kata sandi dari aplikasi. Draf tetap tersimpan per akun ketika offline." },
 ];
 export default function DownloadPage() {
   return <main className="auth-page min-h-screen px-5 py-10 sm:py-16">

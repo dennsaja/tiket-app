@@ -7,8 +7,11 @@ import {
   ticketWorkReports,
   ticketMessages,
   auditLogs,
+  ticketAssignees,
 } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull, desc } from "drizzle-orm";
+import { getAuthUser } from "@/lib/auth/get-user";
+import { resolveCoordinatesAsync } from "@/lib/utils/geo";
 import { getMobileUserFromRequest } from "@/lib/auth/mobile";
 import { notifyStatusChange } from "@/lib/notifications";
 import { notificationBus } from "@/lib/notifications/bus";
@@ -37,6 +40,22 @@ const updateSchema = z.object({
   odpCoordinateType: z.string().optional(), // "customer" or "odp"
 });
 
+export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const actor = await getAuthUser(req);
+  if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await props.params;
+  const ticket = await db.query.tickets.findFirst({ where: and(eq(tickets.id,id),isNull(tickets.deletedAt)), with: {
+    statusHistory: { orderBy: (history, { asc }) => [asc(history.createdAt)] },
+    workReports: { orderBy: [desc(ticketWorkReports.createdAt)], limit: 1 },
+  } });
+  if (!ticket) return NextResponse.json({ error: "Tiket tidak ditemukan" }, { status: 404 });
+  const member = await db.query.ticketAssignees.findFirst({ where: and(eq(ticketAssignees.ticketId,id),eq(ticketAssignees.userId,actor.id)) });
+  if (!["noc","owner","admin"].includes(actor.role) && !(actor.role==="agent" && (ticket.assigneeId===actor.id || member))) return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+  const coordinates = await resolveCoordinatesAsync(ticket.reporterMapUrl) || await resolveCoordinatesAsync(ticket.reporterAddress);
+  return NextResponse.json({ success: true, ticket: { ...ticket, latitude: coordinates?.lat ?? null, longitude: coordinates?.lng ?? null,
+    isLead: member?.isLead ?? ticket.assigneeId===actor.id, latestReport: ticket.workReports[0] ?? null } });
+}
+
 export async function PATCH(
   req: NextRequest,
   props: { params: Promise<{ id: string }> }
@@ -44,9 +63,7 @@ export async function PATCH(
   const params = await props.params;
   const ticketId = params.id;
 
-  const session = await auth();
-  const mobileUser = !session?.user ? await getMobileUserFromRequest(req) : null;
-  const currentUser = session?.user || mobileUser;
+  const currentUser = await getAuthUser(req);
 
   if (!currentUser) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -74,9 +91,11 @@ export async function PATCH(
     where: eq(tickets.id, ticketId),
   });
 
-  if (!existingTicket) {
+  if (!existingTicket || existingTicket.deletedAt) {
     return NextResponse.json({ error: "Tiket tidak ditemukan" }, { status: 404 });
   }
+  const member = await db.query.ticketAssignees.findFirst({ where: and(eq(ticketAssignees.ticketId,ticketId),eq(ticketAssignees.userId,userId)) });
+  if (!["noc","owner","admin"].includes(currentUser.role) && !(currentUser.role==="agent" && (existingTicket.assigneeId===userId || member))) return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
 
   const {
     status: requestedStatus,

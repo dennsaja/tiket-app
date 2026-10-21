@@ -3,6 +3,7 @@ import { Pool } from "pg";
 import * as dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import * as schema from "../src/lib/db/schema";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 
 dotenv.config({ path: ".env.local" });
 dotenv.config({ path: ".env" });
@@ -152,14 +153,14 @@ async function seed() {
     .onConflictDoNothing();
 
   // ── Users ─────────────────────────────────────────────────────────────────────
-  console.log("  Creating demo users...");
+  const includeDemo = process.env.SEED_DEMO_DATA === "true" && process.env.NODE_ENV !== "production";
   const nocHash = await bcrypt.hash("Noc@123456", 12);
   const ownerHash = await bcrypt.hash("Owner@123456", 12);
   const adminHash = await bcrypt.hash("Admin@123456", 12);
   const agentHash = await bcrypt.hash("Agent@123456", 12);
   const userHash = await bcrypt.hash("User@123456", 12);
 
-  const [nocUser, ownerUser, adminUser, agentUser, agent2User, demoUser] = await db
+  const [nocUser, ownerUser, adminUser, agentUser, agent2User, demoUser] = includeDemo ? await db
     .insert(schema.users)
     .values([
       {
@@ -214,7 +215,18 @@ async function seed() {
       },
     ])
     .returning()
-    .onConflictDoNothing();
+    .onConflictDoNothing() : [];
+
+  if (!includeDemo) {
+    const manager = await db.query.users.findFirst({ where: and(inArray(schema.users.role,["owner","noc"]),eq(schema.users.isActive,true),isNull(schema.users.deletedAt)) });
+    if (!manager) {
+      const email = process.env.BOOTSTRAP_OWNER_EMAIL?.trim().toLowerCase();
+      const password = process.env.BOOTSTRAP_OWNER_PASSWORD;
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !password || password.length < 12 || Buffer.byteLength(password)>72) throw new Error("Set a valid BOOTSTRAP_OWNER_EMAIL and BOOTSTRAP_OWNER_PASSWORD (12 characters minimum, 72 bytes maximum) to create the first production owner");
+      const created=await db.insert(schema.users).values({ name: process.env.BOOTSTRAP_OWNER_NAME || "Owner", email, passwordHash: await bcrypt.hash(password,12),role:"owner",isActive:true,emailVerified:new Date() }).onConflictDoNothing().returning({id:schema.users.id});
+      if(!created.length) throw new Error("BOOTSTRAP_OWNER_EMAIL already belongs to an existing account; choose an unused email");
+    }
+  }
 
   // ── System Settings ───────────────────────────────────────────────────────────
   console.log("  Creating system settings...");
@@ -307,7 +319,7 @@ async function seed() {
   }
 
   console.log("✅ Database seeded successfully!");
-  console.log("\n📋 Demo accounts:");
+  if (includeDemo) { console.log("\n📋 Demo accounts:");
   console.log("  NOC Admin: noc@helpdesk.local    /  Noc@123456");
   console.log("  Owner:     owner@helpdesk.local  /  Owner@123456");
   console.log("  Admin:     admin@helpdesk.local  /  Admin@123456");
@@ -315,6 +327,7 @@ async function seed() {
   console.log("  Teknisi 2: agent2@helpdesk.local /  Agent@123456");
   console.log("  User:      user@helpdesk.local   /  User@123456");
 
+  } else console.log("Production defaults installed without demo accounts or tickets.");
   await pool.end();
 }
 

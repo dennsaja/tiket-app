@@ -60,6 +60,26 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mapPreview: LinearLayout
     private lateinit var fieldMap: FieldTechnicianMapView
     private lateinit var chart: WeeklyTimelineChartView
+    private lateinit var greeting: TextView
+    private lateinit var accountName: TextView
+    private lateinit var accountEmail: TextView
+    private lateinit var accountAvatar: AvatarView
+    private lateinit var roomList: RecyclerView
+    private lateinit var roomStatus: TextView
+    private lateinit var roomEmpty: TextView
+    private lateinit var roomAdapter: ChatRoomAdapter
+    private var rooms = emptyList<ChatRoom>()
+    private var roomQuery = ""
+    private var roomsLoading = false
+    private var roomsLoaded = false
+    private var roomError: String? = null
+    private val profileLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (::accountName.isInitialized) {
+            accountName.text = session.userName; accountEmail.text = session.userEmail
+            accountAvatar.bind(session.userName.orEmpty(), session.userAvatar)
+            greeting.text = "Halo, " + (session.userName ?: "Tim").substringBefore(" ") + "."
+        }
+    }
     private val statValues = mutableListOf<TextView>()
     private val screens = mutableListOf<View>()
     private val navIcons = mutableListOf<ImageView>()
@@ -92,7 +112,7 @@ class MainActivity : AppCompatActivity() {
                 renderNotificationCount()
             }
             updateGpsUi(); updateSyncBanner()
-            if (activeTab == 2) renderMap()
+            if (activeTab == 3) renderMap()
         }
     }
 
@@ -114,16 +134,20 @@ class MainActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.btnNotifications).setOnClickListener { showNotifications() }
         swipe.setColorSchemeColors(HelpdeskTheme.blue)
         swipe.setProgressBackgroundColorSchemeColor(HelpdeskTheme.surface)
-        swipe.setOnRefreshListener { refreshTickets(true) }
+        swipe.setOnRefreshListener { if(activeTab==2) { swipe.isRefreshing=false; refreshRooms() } else refreshTickets(true) }
         swipe.setOnChildScrollUpCallback { _, _ ->
-            when (activeTab) { 1 -> ticketList.canScrollVertically(-1); 2 -> true; else -> screens[activeTab].canScrollVertically(-1) }
+            when (activeTab) { 1 -> ticketList.canScrollVertically(-1); 2 -> roomList.canScrollVertically(-1); 3 -> true; else -> screens[activeTab].canScrollVertically(-1) }
         }
-        buildOverview(); buildTickets(); buildMap(); buildAccount(); buildNavigation()
+        buildOverview(); buildTickets(); buildChats(); buildMap(); buildAccount(); buildNavigation()
         selectTab(activeTab)
         allTickets = OfflineSyncManager.getCachedTickets(this)
         hasData = allTickets.isNotEmpty()
         notifications = session.getLocalNotifications()
         render()
+        session.chatRoomsJson?.let { raw -> runCatching {
+            val array = org.json.JSONArray(raw); rooms = (0 until array.length()).map { ApiClient.parseChatRoom(array.getJSONObject(it)) }; roomsLoaded = true
+        } }
+        renderRooms()
         NotificationHelper.ensureAlertChannel(this)
     }
 
@@ -143,9 +167,12 @@ class MainActivity : AppCompatActivity() {
         val root = column(20)
         root.addView(label("SUPPORT WORKSPACE", 10f, HelpdeskTheme.muted).apply { letterSpacing = .13f })
         gap(root, 10)
-        root.addView(label("Halo, " + (session.userName ?: "Teknisi").substringBefore(" ") + "!", 30f, bold = true))
+        greeting = label("Halo, " + (session.userName ?: "Tim").substringBefore(" ") + ".", 32f, bold = true)
+        root.addView(greeting)
         gap(root, 6)
-        root.addView(label("Tiket dan aktivitas lapangan, dalam satu tempat.", 13f, HelpdeskTheme.muted))
+        root.addView(label("Ruang kerja kamu, lebih terhubung.", 13f, HelpdeskTheme.muted))
+        gap(root, 10)
+        root.addView(label(SimpleDateFormat("EEEE, dd MMMM", Locale("id", "ID")).apply { timeZone = TimeZone.getTimeZone("Asia/Jakarta") }.format(Date()), 11f, Color.rgb(156,174,255)))
         gap(root, 24)
         val titles = listOf("Total tiket", "Dalam proses", "SLA terlewat", "Tiket selesai")
         for (r in 0..1) {
@@ -155,7 +182,7 @@ class MainActivity : AppCompatActivity() {
                 val featured = index == 0
                 val card = panel(17)
                 card.background = HelpdeskTheme.shape(this, if (featured) Color.rgb(250, 250, 250) else HelpdeskTheme.surface)
-                card.minimumHeight = dp(152)
+                card.minimumHeight = dp(128)
                 val foreground = if (featured) Color.rgb(24, 24, 27) else HelpdeskTheme.text
                 card.addView(label(titles[index] + "  ↗", 12f, foreground, true))
                 gap(card, 20)
@@ -167,6 +194,7 @@ class MainActivity : AppCompatActivity() {
                     ticketFilter = when (index) { 1 -> "working"; 2 -> "overdue"; 3 -> "done"; else -> "all" }
                     selectTab(1); renderTickets()
                 }
+                HelpdeskTheme.interactive(card)
                 grid.addView(card, LinearLayout.LayoutParams(0, -2, 1f).apply { if (c == 0) marginEnd = dp(6) else marginStart = dp(6) })
             }
             root.addView(grid); gap(root, 12)
@@ -179,6 +207,7 @@ class MainActivity : AppCompatActivity() {
         activity.addView(chart, LinearLayout.LayoutParams(-1, dp(190)).apply { topMargin = dp(14) })
         root.addView(activity); gap(root)
         val gps = panel(18)
+        gps.background = OrbitBackdrop()
         gpsTitle = label("Status lokasi", 14f, bold = true)
         gpsSummary = label("", 12f, HelpdeskTheme.muted)
         gps.addView(gpsTitle); gap(gps, 6); gps.addView(gpsSummary)
@@ -238,6 +267,58 @@ class MainActivity : AppCompatActivity() {
         addScreen(root)
     }
 
+    private fun buildChats() {
+        val root = column(20)
+        root.addView(label("Chat tim", 30f, bold = true))
+        roomStatus = label("Memuat grup tiket...", 12f, HelpdeskTheme.muted); root.addView(roomStatus); gap(root,18)
+        val search = EditText(this).apply {
+            hint = "Cari grup, tiket, atau pesan terakhir"; textSize = 13f; isSingleLine = true
+            setTextColor(HelpdeskTheme.text); setHintTextColor(HelpdeskTheme.muted)
+            background = HelpdeskTheme.shape(this@MainActivity,radius=18); setPadding(dp(16),0,dp(16),0)
+            addTextChangedListener(object:TextWatcher {
+                override fun beforeTextChanged(s:CharSequence?,start:Int,count:Int,after:Int) {}
+                override fun onTextChanged(s:CharSequence?,start:Int,before:Int,count:Int) { roomQuery=s.toString(); renderRooms() }
+                override fun afterTextChanged(s:Editable?) {}
+            })
+        }; root.addView(search,LinearLayout.LayoutParams(-1,dp(52))); gap(root,18)
+        roomAdapter = ChatRoomAdapter { room -> startActivity(Intent(this,TeamChatActivity::class.java)
+            .putExtra("ticket_id",room.ticketId).putExtra("ticket_number",room.ticketNumber).putExtra("title",room.title)) }
+        roomList = RecyclerView(this).apply { layoutManager=LinearLayoutManager(this@MainActivity); adapter=roomAdapter; clipToPadding=false }
+        roomEmpty = label("",14f,HelpdeskTheme.muted).apply { gravity=Gravity.CENTER; setPadding(dp(18),dp(28),dp(18),dp(28)) }
+        root.addView(roomEmpty); root.addView(roomList,LinearLayout.LayoutParams(-1,0,1f)); addScreen(root)
+    }
+    private fun renderRooms() {
+        if(!::roomAdapter.isInitialized) return
+        val query=roomQuery.trim()
+        val filtered=rooms.filter { query.isBlank() || (it.ticketNumber.toString()+" "+it.title+" "+it.department+" "+it.lastMessage.orEmpty()).contains(query,true) }
+        roomAdapter.submitList(filtered)
+        roomStatus.text=roomError ?: if(roomsLoaded) rooms.size.toString()+" grup sesuai akses tiket kamu"+(if(!OfflineSyncManager.isOnline(this)) " · Offline" else "") else "Memuat grup tiket..."
+        roomEmpty.visibility=if(filtered.isEmpty()) View.VISIBLE else View.GONE
+        roomEmpty.text=when { !roomsLoaded -> "Grup akan muncul setelah terhubung ke helpdesk."; query.isNotEmpty() -> "Tidak ada grup yang cocok dengan pencarian."; else -> "Belum ada grup tiket.\nGrup akan muncul saat kamu masuk dalam tim penanganan." }
+    }
+    private fun refreshRooms() {
+        if(roomsLoading || !OfflineSyncManager.isOnline(this)) { renderRooms(); return }
+        val token=session.token ?: return
+        roomsLoading=true
+        lifecycleScope.launch {
+            try {
+                ApiClient.getChatRooms(session.serverUrl,token).onSuccess { fetched ->
+                    if(session.token!=token) return@onSuccess
+                    rooms=fetched; roomsLoaded=true; roomError=null
+                    session.chatRoomsJson=org.json.JSONArray(rooms.map { room -> org.json.JSONObject().apply {
+                        put("ticketId",room.ticketId); put("ticketNumber",room.ticketNumber); put("title",room.title); put("status",room.status)
+                        put("department",org.json.JSONObject().put("name",room.department)); put("updatedAt",room.updatedAt)
+                        if(room.lastMessage!=null) put("lastMessage",org.json.JSONObject().put("id",room.lastMessageId).put("authorId",room.lastAuthorId)
+                            .put("content",room.lastMessage).put("authorName",room.lastAuthor).put("createdAt",room.updatedAt))
+                    } }).toString()
+                }.onFailure { error ->
+                    if(error is ApiException && error.statusCode==401) { expireSession(); return@onFailure }
+                    roomError="Grup belum dapat diperbarui. Tarik untuk mencoba lagi."
+                }
+                renderRooms()
+            } finally { roomsLoading=false; if(activeTab==2) swipe.isRefreshing=false }
+        }
+    }
     private fun buildMap() {
         val root = column(20)
         root.addView(label("Peta penugasan", 28f, bold = true))
@@ -262,9 +343,13 @@ class MainActivity : AppCompatActivity() {
         val root = column(20)
         root.addView(label("Akun kamu", 28f, bold = true)); gap(root, 24)
         val identity = panel()
-        identity.addView(label(session.userName ?: "Teknisi", 20f, bold = true))
-        identity.addView(label(session.userEmail.orEmpty(), 13f, HelpdeskTheme.muted)); gap(identity, 10)
-        identity.addView(label("Workspace teknisi · v" + packageManager.getPackageInfo(packageName, 0).versionName, 11f, Color.rgb(156, 174, 255)))
+        identity.background=OrbitBackdrop()
+        accountAvatar=AvatarView(this).apply { bind(session.userName.orEmpty(),session.userAvatar) }
+        identity.addView(accountAvatar,LinearLayout.LayoutParams(dp(58),dp(58))); gap(identity,16)
+        accountName=label(session.userName ?: "Tim",22f,bold=true); identity.addView(accountName)
+        accountEmail=label(session.userEmail.orEmpty(),13f,HelpdeskTheme.muted); identity.addView(accountEmail); gap(identity,10)
+        identity.addView(label(ProfileActivity.roleLabel(session.userRole)+" · v" + packageManager.getPackageInfo(packageName, 0).versionName, 11f, Color.rgb(156, 174, 255)))
+        gap(identity,18); button(identity,"Edit profil  ↗") { profileLauncher.launch(Intent(this,ProfileActivity::class.java)) }
         root.addView(identity); gap(root)
         val tracking = panel()
         tracking.addView(label("Lokasi & notifikasi", 17f, bold = true)); gap(tracking, 8)
@@ -281,8 +366,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildNavigation() {
-        val labels = listOf("Ringkasan", "Tiket", "Peta", "Akun")
-        val icons = listOf(R.drawable.ic_ln_home, R.drawable.ic_ln_tasks, R.drawable.ic_ln_map, R.drawable.ic_ln_user)
+        val labels = listOf("Beranda", "Tiket", "Chat", "Peta", "Akun")
+        val icons = listOf(R.drawable.ic_ln_home, R.drawable.ic_ln_tasks, R.drawable.ic_ln_chat_round, R.drawable.ic_ln_map, R.drawable.ic_ln_user)
         labels.forEachIndexed { index, name ->
             val item = column().apply {
                 gravity = Gravity.CENTER; isClickable = true; isFocusable = true; contentDescription = name
@@ -298,19 +383,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun selectTab(index: Int) {
-        activeTab = index.coerceIn(0, 3)
+        val changed=activeTab!=index
+        activeTab = index.coerceIn(0, 4)
         screens.forEachIndexed { i, screen -> screen.visibility = if (i == activeTab) View.VISIBLE else View.GONE }
-        for (i in 0..3) {
+        for (i in 0..4) {
             val active = i == activeTab
-            navigation.getChildAt(i).background = HelpdeskTheme.shape(this, if (active) HelpdeskTheme.surface else HelpdeskTheme.canvas, 20, Color.TRANSPARENT)
+            navigation.getChildAt(i).background = HelpdeskTheme.shape(this, if (active) HelpdeskTheme.blue else Color.TRANSPARENT, 22, Color.TRANSPARENT)
             navigation.getChildAt(i).isSelected = active
-            navIcons[i].setColorFilter(if (active) Color.rgb(156, 174, 255) else HelpdeskTheme.muted)
+            navIcons[i].setColorFilter(if (active) HelpdeskTheme.text else HelpdeskTheme.muted)
             navLabels[i].setTextColor(if (active) HelpdeskTheme.text else HelpdeskTheme.muted)
         }
-        heading.text = listOf("HelpDesk", "Daftar tiket", "Peta lapangan", "Profil")[activeTab]
-        swipe.isEnabled = activeTab != 2
+        heading.text = listOf("HelpDesk", "Daftar tiket", "Chat tim", "Peta lapangan", "Profil")[activeTab]
+        swipe.isEnabled = activeTab != 3
         if (activeTab == 1) renderTickets()
-        if (activeTab == 2) renderMap()
+        if (activeTab == 2) { renderRooms(); refreshRooms() }
+        if (activeTab == 3) renderMap()
+        if(changed && (Build.VERSION.SDK_INT<26 || android.animation.ValueAnimator.areAnimatorsEnabled())) {
+            screens[activeTab].apply { alpha=0f; translationY=dp(8).toFloat(); animate().alpha(1f).translationY(0f).setDuration(180).start() }
+        }
     }
 
     private fun render() {
@@ -337,7 +427,7 @@ class MainActivity : AppCompatActivity() {
             homeRecent.addView(card); gap(homeRecent, 10)
         }
         updateGpsUi(); updateSyncBanner(); renderTickets(); renderNotificationCount()
-        if (activeTab == 2) renderMap()
+        if (activeTab == 3) renderMap()
     }
 
     private fun renderTickets() {
@@ -514,6 +604,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openTicket(ticket: TicketItem, tab: Int = 0) {
+        if(tab==1) { startActivity(Intent(this,TeamChatActivity::class.java).putExtra("ticket_id",ticket.id).putExtra("ticket_number",ticket.ticketNumber).putExtra("title",ticket.title)); return }
         detailLauncher.launch(Intent(this, TicketDetailActivity::class.java).apply {
             putExtra(TicketDetailActivity.EXTRA_TICKET_ID, ticket.id)
             putExtra(TicketDetailActivity.EXTRA_TICKET_NUMBER, ticket.ticketNumber)
@@ -566,9 +657,9 @@ class MainActivity : AppCompatActivity() {
             addAction(NotificationHelper.ACTION_NOTIFICATION_SYNCED)
             addAction(LocationManager.PROVIDERS_CHANGED_ACTION)
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
-        ensureService(); refreshTickets(false)
+        ensureService(); refreshTickets(false); refreshRooms()
         polling?.cancel()
-        polling = lifecycleScope.launch { while (isActive) { delay(15_000); refreshTickets(false) } }
+        polling = lifecycleScope.launch { while (isActive) { delay(15_000); refreshTickets(false); if(activeTab==2) refreshRooms() } }
         if (Build.VERSION.SDK_INT >= 33 && !preferences.getBoolean("asked_notifications", false)) {
             preferences.edit().putBoolean("asked_notifications", true).apply()
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {

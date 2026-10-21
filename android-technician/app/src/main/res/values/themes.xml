@@ -15,6 +15,8 @@
         <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
         <!-- Resource references avoid Android 7's theme/XML string-pool mismatch. -->
         <item name="android:fontFamily">@string/helpdesk_font_family</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:textColorHint">@color/text_muted</item>
         <item name="fontFamily">@string/helpdesk_font_family</item>
         <item name="android:colorAccent">@color/accent</item>
         <item name="android:textColorPrimary">@color/text_primary</item>

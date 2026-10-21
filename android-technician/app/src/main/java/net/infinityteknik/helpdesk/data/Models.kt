@@ -70,8 +70,17 @@ data class TicketMessage(
     val type: String, // "public" or "internal_note"
     val createdAt: String,
     val authorName: String?,
-    val authorRole: String?
+    val authorRole: String?,
+    val authorAvatarUrl: String? = null
 )
+
+data class ChatRoom(
+    val ticketId: String, val ticketNumber: Int, val title: String, val status: String,
+    val department: String, val lastMessage: String?, val lastAuthor: String?,
+    val lastMessageId: String?, val lastAuthorId: String?, val updatedAt: String
+)
+
+data class TeamThread(val room: ChatRoom, val messages: List<TicketMessage>)
 
 data class LocationPayload(
     val latitude: Double,

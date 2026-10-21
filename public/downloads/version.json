@@ -1,10 +1,10 @@
 {
-  "versionCode": 9,
-  "versionName": "3.0.0",
+  "versionCode": 10,
+  "versionName": "3.1.0",
   "minSupportedVersion": 1,
   "downloadUrl": "/downloads/helpdesk-teknisi.apk",
-  "updatedAt": "2026-10-21T15:53:57.6515262Z",
-  "sha256": "813abeef244fc7594aba9911d432db580102be51c2b56115f16a20f25c9abe50",
-  "fileSizeBytes": 8066494,
-  "releaseNotes": "v3.0.0: UI gelap selaras web, splash dan login baru, login melalui browser eksternal atau email akun tanpa kolom server. Alur tiket dipersingkat, detail teknis opsional, draf teks/foto per akun, serta perbaikan izin GPS, koordinat kedaluwarsa, callback login, dan antrean offline. Perbarui web sebelum memakai login browser versi ini."
+  "updatedAt": "2026-10-21T19:25:25.1782683Z",
+  "sha256": "3f0db57da87b93d75b681346e929bd73c2a7bf745098766efd6597dbd53e3e76",
+  "fileSizeBytes": 5567208,
+  "releaseNotes": "v3.1.0: Profil lengkap untuk teknisi/NOC/admin/owner, detail dan laporan dalam satu halaman, tab Chat dengan grup sesuai penugasan, bubble percakapan selaras web, serta UI lebih halus mengikuti dashboard gelap. Perbarui web sebelum memasang APK ini. Tiket demo bawaan dibersihkan dengan arsip pemulihan saat pembaruan web."
 }

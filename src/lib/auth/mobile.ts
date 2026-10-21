@@ -1,9 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
 import { NextRequest } from "next/server";
 
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "helpdesk-infinity-secret-token-key-2026"
-);
+function signingKey() {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  if (!secret || secret.length < 32) throw new Error("AUTH_SECRET must contain at least 32 characters");
+  return new TextEncoder().encode(secret);
+}
 
 export interface MobileUserPayload {
   id: string;
@@ -25,7 +27,7 @@ export async function signMobileToken(user: MobileUserPayload): Promise<string> 
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("60d")
-    .sign(SECRET_KEY);
+    .sign(signingKey());
 }
 
 /**
@@ -33,7 +35,8 @@ export async function signMobileToken(user: MobileUserPayload): Promise<string> 
  */
 export async function verifyMobileToken(token: string): Promise<MobileUserPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, SECRET_KEY);
+    const { payload } = await jwtVerify(token, signingKey(), { algorithms: ["HS256"] });
+    if (![payload.id, payload.email, payload.name, payload.role].every(value => typeof value === "string" && value.length > 0)) return null;
     return {
       id: payload.id as string,
       email: payload.email as string,

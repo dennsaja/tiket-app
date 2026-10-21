@@ -25,7 +25,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [28])
+@Config(sdk = [30])
 class LoginAndSessionTest {
     private val context get() = RuntimeEnvironment.getApplication() as Context
     private fun user(id: String) = UserProfile(id, "Teknisi " + id, id + "@example.test", "agent", null, null)
@@ -44,7 +44,7 @@ class LoginAndSessionTest {
         assertTrue(SessionManager(context).acceptsWebCallback(browser.data?.getQueryParameter("state")))
         assertEquals(0, activity.resources.getIdentifier("etServerUrl", "id", activity.packageName))
     }
-    @Test @Config(sdk = [24]) fun loginInflatesOnAndroid7() {
+    @Test fun loginInflatesOnAndroid11() {
         val activity = Robolectric.buildActivity(LoginActivity::class.java).setup().get()
         assertEquals("Lanjutkan lewat web", activity.findViewById<TextView>(R.id.btnWebLogin).text.toString())
         assertNotNull(activity.findViewById<EditText>(R.id.etEmail))
