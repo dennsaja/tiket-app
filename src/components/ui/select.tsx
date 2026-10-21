@@ -57,9 +57,9 @@ function Select({
         <SelectPrimitive.Trigger
           id={inputId}
           className={cn(
-            "flex h-8 w-full items-center justify-between rounded-md border bg-white px-3 text-xs text-zinc-900 shadow-xs",
-            "transition-colors focus:outline-none focus:ring-1 focus:ring-black focus:border-black",
-            "dark:border-zinc-800 dark:bg-black dark:text-zinc-100 dark:focus:ring-white dark:focus:border-white",
+            "ui-select flex h-10 w-full items-center justify-between rounded-xl border bg-white px-3 text-xs text-zinc-900 shadow-xs",
+            "transition-colors focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary",
+            "dark:border-zinc-800 dark:bg-black dark:text-zinc-100 dark:focus:ring-primary dark:focus:border-primary",
             "disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400 dark:disabled:bg-zinc-900",
             "data-[placeholder]:text-zinc-400 dark:data-[placeholder]:text-zinc-600",
             error ? "border-red-500" : "border-zinc-200"

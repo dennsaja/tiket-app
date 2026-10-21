@@ -93,7 +93,7 @@ describe("Ticket Validation", () => {
   it("should reject ticket with short description", () => {
     const result = createTicketSchema.safeParse({
       title: "This is a valid title",
-      description: "Too short",
+      description: "Tiny",
     });
     expect(result.success).toBe(false);
   });

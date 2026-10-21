@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+import { BrandMark } from "@/components/ui/brand-mark";
 
 const loginSchema = z.object({
   email: z.string().email("Format alamat email tidak valid"),
@@ -28,18 +29,6 @@ const errorMessages: Record<string, string> = {
   AccountInactive: "Akun Anda telah dinonaktifkan. Hubungi administrator.",
   default: "Terjadi kesalahan saat masuk. Silakan coba lagi.",
 };
-
-function VercelLogo({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 76 65"
-      fill="currentColor"
-      className={className}
-    >
-      <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" />
-    </svg>
-  );
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -84,15 +73,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-black px-4 font-sans">
-      <div className="w-full max-w-sm">
+    <div className="auth-page flex min-h-screen items-center justify-center px-4 font-sans">
+      <div className="w-full max-w-[420px]">
         {/* Logo (Vercel Style) */}
-        <div className="mb-6 flex flex-col items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-white dark:bg-white dark:text-black shadow-xs">
-            <VercelLogo className="h-5 w-5" />
-          </div>
+        <div className="mb-8 flex flex-col items-center gap-5">
+          <BrandMark className="auth-brand" />
           <div className="text-center">
-            <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+            <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
               Masuk ke HelpDesk
             </h1>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -102,7 +89,7 @@ export default function LoginPage() {
         </div>
 
         {/* Form card (Vercel Style) */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black">
+        <div className="auth-form-card rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-black">
           {serverError && (
             <Alert variant="error" className="mb-4 text-xs" onClose={() => setServerError(null)}>
               {serverError}
@@ -133,7 +120,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
                     className="pointer-events-auto text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-                    tabIndex={-1}
+                    aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
                   >
                     {showPassword ? (
                       <EyeOff className="h-3.5 w-3.5" />
@@ -162,7 +149,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              className="w-full text-xs h-9"
+              className="w-full text-sm h-11"
               isLoading={isSubmitting}
             >
               Masuk
@@ -175,7 +162,7 @@ export default function LoginPage() {
           Belum memiliki akun?{" "}
           <Link
             href="/register"
-            className="font-medium text-black hover:underline dark:text-white"
+            className="font-medium text-primary hover:underline"
           >
             Daftar sekarang
           </Link>

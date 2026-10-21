@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { tickets, departments, categories, users } from "@/lib/db/schema";
-import { eq, and, isNull, inArray, ilike, or, count, sql, asc, desc } from "drizzle-orm";
+import { eq, and, isNull, inArray, ilike, or, count, sql, asc, desc, gte, lt, notInArray } from "drizzle-orm";
 import { TicketFilters } from "@/components/tickets/ticket-filters";
 import { TicketRow } from "@/components/tickets/ticket-row";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
@@ -9,11 +9,12 @@ import { Pagination } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import { Plus, Ticket as TicketIcon } from "lucide-react";
 import Link from "next/link";
+import { dashboardDateRange, getDashboardPeriod } from "@/lib/utils/dashboard";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Tickets",
+  title: "Daftar tiket",
 };
 
 interface TicketsPageProps {
@@ -29,6 +30,8 @@ interface TicketsPageProps {
     sortBy?: string;
     sortOrder?: string;
     mine?: string;
+    view?: string;
+    days?: string;
   }>;
 }
 
@@ -67,6 +70,25 @@ export default async function TicketsPage({ searchParams }: TicketsPageProps) {
     } else {
       conditions.push(eq(tickets.assigneeId, userId));
     }
+  }
+
+  // Dashboard links keep the selected period and full operational status group.
+  if (params.days) {
+    const range = dashboardDateRange(getDashboardPeriod(params.days));
+    conditions.push(gte(tickets.createdAt, range.start), lt(tickets.createdAt, range.end));
+  }
+  if (params.view === "active") {
+    conditions.push(notInArray(tickets.status, ["resolved", "closed", "cancelled"]));
+  } else if (params.view === "in-progress") {
+    conditions.push(inArray(tickets.status, ["assigned", "accepted", "on_site", "in_progress"]));
+  } else if (params.view === "open") {
+    conditions.push(inArray(tickets.status, ["open", "reopened"]));
+  } else if (params.view === "resolved") {
+    conditions.push(inArray(tickets.status, ["resolved", "closed"]));
+  } else if (params.view === "pending") {
+    conditions.push(inArray(tickets.status, ["pending", "waiting_for_user", "waiting_for_third_party"]));
+  } else if (params.view === "overdue") {
+    conditions.push(lt(tickets.slaResolutionDue, new Date()), notInArray(tickets.status, ["resolved", "closed", "cancelled"]));
   }
 
   // Search filter
@@ -201,7 +223,7 @@ export default async function TicketsPage({ searchParams }: TicketsPageProps) {
       />
 
       {/* Table Card (Vercel Style) */}
-      <div className="rounded-xl border border-zinc-200 bg-white shadow-xs overflow-hidden dark:border-zinc-800 dark:bg-black">
+      <div className="rounded-3xl border border-zinc-200 bg-white shadow-xs overflow-hidden dark:border-zinc-800 dark:bg-black">
         {ticketList.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-900 text-zinc-400 mb-3">

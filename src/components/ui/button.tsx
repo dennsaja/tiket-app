@@ -4,12 +4,12 @@ import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black dark:focus-visible:ring-white focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none",
+  "ui-button inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 cursor-pointer select-none",
   {
     variants: {
       variant: {
         default:
-          "bg-black text-white hover:bg-zinc-800 active:bg-zinc-900 border border-black shadow-xs font-medium dark:bg-white dark:text-black dark:border-white dark:hover:bg-zinc-200",
+          "bg-primary text-white hover:bg-primary-hover active:bg-primary-700 border border-primary shadow-xs font-medium",
         ghost:
           "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100",
         outline:
@@ -21,10 +21,10 @@ const buttonVariants = cva(
           "bg-zinc-100 text-zinc-900 hover:bg-zinc-200 active:bg-zinc-300 border border-zinc-200/60 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-700",
       },
       size: {
-        sm: "h-7 px-2.5 text-xs gap-1.5 rounded-md",
-        md: "h-8 px-3 text-xs font-medium gap-1.5 rounded-md",
-        lg: "h-9 px-4 text-sm gap-2 rounded-md",
-        xl: "h-10 px-5 text-sm gap-2 rounded-md",
+        sm: "h-9 px-3.5 text-xs gap-1.5 rounded-xl",
+        md: "h-10 px-4 text-xs font-medium gap-1.5 rounded-xl",
+        lg: "h-11 px-5 text-sm gap-2 rounded-xl",
+        xl: "h-12 px-6 text-sm gap-2 rounded-xl",
         icon: "h-8 w-8 p-0 rounded-md",
         "icon-sm": "h-7 w-7 p-0 rounded-md",
         "icon-lg": "h-9 w-9 p-0 rounded-md",

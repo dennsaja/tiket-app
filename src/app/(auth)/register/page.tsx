@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
 import { Eye, EyeOff, CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { BrandMark } from "@/components/ui/brand-mark";
 import { cn } from "@/lib/utils";
 
 const registerSchema = z
@@ -31,18 +32,6 @@ const registerSchema = z
   });
 
 type RegisterForm = z.infer<typeof registerSchema>;
-
-function VercelLogo({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 76 65"
-      fill="currentColor"
-      className={className}
-    >
-      <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" />
-    </svg>
-  );
-}
 
 function PasswordStrengthBar({ password }: { password: string }) {
   const checks = [
@@ -134,8 +123,8 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-black px-4 font-sans">
-        <div className="w-full max-w-sm text-center">
+      <div className="auth-page flex min-h-screen items-center justify-center px-4 font-sans">
+        <div className="w-full max-w-[420px] text-center">
           <div className="mb-4 flex justify-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/50">
               <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
@@ -151,15 +140,13 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#fafafa] dark:bg-black px-4 py-8 font-sans">
-      <div className="w-full max-w-sm">
+    <div className="auth-page flex min-h-screen items-center justify-center px-4 py-8 font-sans">
+      <div className="w-full max-w-[420px]">
         {/* Logo (Vercel Style) */}
-        <div className="mb-6 flex flex-col items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-white dark:bg-white dark:text-black shadow-xs">
-            <VercelLogo className="h-5 w-5" />
-          </div>
+        <div className="mb-8 flex flex-col items-center gap-5">
+          <BrandMark className="auth-brand" />
           <div className="text-center">
-            <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Buat Akun Baru</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Buat Akun Baru</h1>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               Daftar untuk mengakses layanan helpdesk &amp; tiket
             </p>
@@ -167,7 +154,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Form card (Vercel Style) */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black">
+        <div className="auth-form-card rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-black">
           {serverError && (
             <Alert variant="error" className="mb-4 text-xs" onClose={() => setServerError(null)}>
               {serverError}

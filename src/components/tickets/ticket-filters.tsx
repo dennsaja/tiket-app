@@ -42,7 +42,8 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
 
   const applyFilters = React.useCallback(
     (overrides: Record<string, string> = {}) => {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams(searchParams.toString());
+      if (overrides.status) params.delete("view");
       const current = {
         search,
         status,
@@ -55,12 +56,13 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
 
       Object.entries(current).forEach(([k, v]) => {
         if (v && v !== "all") params.set(k, v);
+        else params.delete(k);
       });
 
       params.set("page", "1");
       router.push(`${pathname}?${params.toString()}`);
     },
-    [search, status, priority, assigneeId, departmentId, categoryId, router, pathname]
+    [search, status, priority, assigneeId, departmentId, categoryId, router, pathname, searchParams]
   );
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -79,6 +81,7 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
   };
 
   const hasActiveFilters = Boolean(
+    searchParams.get("view") || searchParams.get("days") || searchParams.get("mine") ||
     searchParams.get("search") ||
     (searchParams.get("status") && searchParams.get("status") !== "all") ||
     (searchParams.get("priority") && searchParams.get("priority") !== "all") ||
@@ -90,7 +93,7 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
   const [mobileFilterOpen, setMobileFilterOpen] = React.useState(false);
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-3">
+    <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md">
           <div className="relative">
@@ -131,6 +134,13 @@ export function TicketFilters({ departments = [], categories = [], agents = [] }
         </div>
       </div>
 
+      {(searchParams.get("view") || searchParams.get("days") || searchParams.get("mine")) && (
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-secondary)]">
+          {searchParams.get("days") && <span className="rounded-full bg-[var(--surface-hover)] px-3 py-1">{["7", "14", "30"].includes(searchParams.get("days") || "") ? searchParams.get("days") : "7"} hari terakhir</span>}
+          {searchParams.get("mine") && <span className="rounded-full bg-[var(--surface-hover)] px-3 py-1">Ditugaskan ke saya</span>}
+          {searchParams.get("view") && <span className="rounded-full bg-[var(--surface-hover)] px-3 py-1">{{ active: "Tiket aktif", "in-progress": "Sedang dikerjakan", open: "Baru & dibuka kembali", resolved: "Selesai & ditutup", pending: "Menunggu respons", overdue: "SLA terlewat" }[searchParams.get("view") || ""] || "Filter dashboard"}</span>}
+        </div>
+      )}
       {/* Filter Row */}
       <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 pt-1 ${
         mobileFilterOpen ? "block" : "hidden sm:grid"

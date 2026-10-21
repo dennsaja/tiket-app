@@ -53,9 +53,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             type={type}
             ref={ref}
             className={cn(
-              "h-8 w-full rounded-md border bg-white px-3 text-xs text-zinc-900 placeholder:text-zinc-400 shadow-xs",
-              "transition-colors focus:outline-none focus:ring-1 focus:ring-black focus:border-black",
-              "dark:border-zinc-800 dark:bg-black dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:ring-white dark:focus:border-white",
+              "ui-input h-10 w-full rounded-xl border bg-white px-3 text-xs text-zinc-900 placeholder:text-zinc-400 shadow-xs",
+              "transition-colors focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary",
+              "dark:border-zinc-800 dark:bg-black dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:ring-primary dark:focus:border-primary",
               "disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-400 dark:disabled:bg-zinc-900",
               error
                 ? "border-red-500 focus:border-red-500 focus:ring-red-500"

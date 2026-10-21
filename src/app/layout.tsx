@@ -29,11 +29,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="id" className={inter.variable} suppressHydrationWarning>
       <body>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('helpdesk-theme');if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();
+            __html: `(function(){var t='dark';try{t=localStorage.getItem('helpdesk-theme')||'dark';}catch(e){}document.documentElement.classList.toggle('dark',t!=='light');})();
             (function(){
               if(typeof window !== 'undefined'){
                 window.addEventListener('error', function(e){
@@ -58,11 +58,12 @@ export default function RootLayout({
             position="top-right"
             toastOptions={{
               duration: 4000,
+              className: "helpdesk-toast",
               style: {
                 background: "#fff",
                 color: "#111827",
                 border: "1px solid #e5e7eb",
-                borderRadius: "6px",
+                borderRadius: "16px",
                 fontSize: "13px",
                 padding: "10px 14px",
                 boxShadow:

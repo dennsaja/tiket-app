@@ -9,7 +9,7 @@ function Card({
   return (
     <div
       className={cn(
-        "rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black",
+        "surface-card rounded-3xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black",
         className
       )}
       {...props}
