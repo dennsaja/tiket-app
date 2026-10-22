@@ -11,8 +11,8 @@ const features = [
   { icon: Smartphone, title: "Workspace yang lebih ringkas", text: "Lima tab: Beranda, Tiket, Chat, Peta, dan Akun. Tampilan gelap, kartu statistik, dan transisi yang lebih halus." },
   { icon: ShieldCheck, title: "Login lewat browser atau akun", text: "Login di browser lalu kembali ke aplikasi, atau gunakan email dan kata sandi akun helpdesk. Alamat server sudah terpasang." },
   { icon: MapPin, title: "Lokasi sesuai pekerjaan", text: "GPS aktif untuk teknisi yang memiliki tiket belum selesai. Peta hanya menampilkan koordinat yang tersedia." },
-  { icon: Camera, title: "Laporan tanpa langkah berulang", text: "Detail tiket dan laporan berada dalam satu halaman. Mulai pengerjaan, catat tindakan, lalu kirim foto bukti." },
-  { icon: MessageSquare, title: "Chat dan notifikasi tim", text: "Lihat semua grup yang sesuai penugasan tiket, baca pesan terakhir, dan lanjutkan diskusi tim." },
+  { icon: Camera, title: "Detail tiket, siap ditangani", text: "Terima tiket untuk langsung melihat pelapor, lokasi, subkategori, spesifikasi, dan lampiran admin. Laporan pekerjaan tetap dalam satu halaman." },
+  { icon: MessageSquare, title: "Chat dan notifikasi tim", text: "Lihat grup sesuai penugasan, lanjutkan diskusi tim, dan tandai semua notifikasi dibaca dari aplikasi." },
   { icon: ShieldCheck, title: "Profil dan draf per akun", text: "Ubah nama, email, telepon, foto, dan kata sandi dari aplikasi. Draf tetap tersimpan per akun ketika offline." },
 ];
 export default function DownloadPage() {

@@ -4,6 +4,7 @@ import * as dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import * as schema from "../src/lib/db/schema";
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import { TICKET_TAXONOMY } from "../src/lib/tickets/taxonomy";
 
 dotenv.config({ path: ".env.local" });
 dotenv.config({ path: ".env" });
@@ -47,9 +48,16 @@ async function seed() {
     .returning()
     .onConflictDoNothing();
 
+  const includeDemo = process.env.SEED_DEMO_DATA === "true" && process.env.NODE_ENV !== "production";
+  for (const item of TICKET_TAXONOMY) {
+    const categoryId = `service-${item.type}`;
+    await db.insert(schema.categories).values({id:categoryId,name:item.name}).onConflictDoNothing();
+    await db.insert(schema.subcategories).values(item.items.map((name,index)=>({id:`${categoryId}-${index+1}`,name,categoryId}))).onConflictDoNothing();
+  }
+
   // ── Categories ────────────────────────────────────────────────────────────────
   console.log("  Creating categories...");
-  const [hardwareCat, softwareCat, connCat, accountCat, paymentCat] = await db
+  const [hardwareCat, softwareCat, connCat, accountCat, paymentCat] = includeDemo ? await db
     .insert(schema.categories)
     .values([
       { name: "Hardware", description: "Physical device issues", departmentId: techDept?.id },
@@ -59,7 +67,7 @@ async function seed() {
       { name: "Payments", description: "Billing and payment processing", departmentId: billingDept?.id },
     ])
     .returning()
-    .onConflictDoNothing();
+    .onConflictDoNothing() : [];
 
   // ── Subcategories ─────────────────────────────────────────────────────────────
   if (hardwareCat) {
@@ -97,45 +105,7 @@ async function seed() {
     ])
     .onConflictDoNothing();
 
-  // ── SLA Policies ──────────────────────────────────────────────────────────────
-  console.log("  Creating SLA policies...");
-  await db
-    .insert(schema.slaPolicies)
-    .values([
-      {
-        name: "Critical SLA",
-        priority: "critical",
-        firstResponseMinutes: 30,
-        resolutionMinutes: 240, // 4 hours
-        warningThresholdPercent: 75,
-        useBusinessHours: false,
-      },
-      {
-        name: "High Priority SLA",
-        priority: "high",
-        firstResponseMinutes: 120, // 2 hours
-        resolutionMinutes: 480, // 8 hours
-        warningThresholdPercent: 80,
-        useBusinessHours: false,
-      },
-      {
-        name: "Medium Priority SLA",
-        priority: "medium",
-        firstResponseMinutes: 240, // 4 hours
-        resolutionMinutes: 1440, // 24 hours
-        warningThresholdPercent: 80,
-        useBusinessHours: true,
-      },
-      {
-        name: "Low Priority SLA",
-        priority: "low",
-        firstResponseMinutes: 480, // 8 hours
-        resolutionMinutes: 4320, // 3 days
-        warningThresholdPercent: 85,
-        useBusinessHours: true,
-      },
-    ])
-    .onConflictDoNothing();
+  // SLA policies are intentionally configured by NOC through the dashboard.
 
   // ── Business Hours ────────────────────────────────────────────────────────────
   console.log("  Creating business hours...");
@@ -153,7 +123,6 @@ async function seed() {
     .onConflictDoNothing();
 
   // ── Users ─────────────────────────────────────────────────────────────────────
-  const includeDemo = process.env.SEED_DEMO_DATA === "true" && process.env.NODE_ENV !== "production";
   const nocHash = await bcrypt.hash("Noc@123456", 12);
   const ownerHash = await bcrypt.hash("Owner@123456", 12);
   const adminHash = await bcrypt.hash("Admin@123456", 12);

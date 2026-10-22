@@ -13,8 +13,8 @@ class ReportPhotoActivity:AppCompatActivity() {
         super.onCreate(state)
         val session=SessionManager(this); val token=session.token ?: run { finish(); return }
         val root=HelpdeskTheme.column(this,16).apply { setBackgroundColor(HelpdeskTheme.canvas) }
-        root.addView(HelpdeskTheme.button(this,"‹  Kembali ke laporan") { finish() })
-        val status=HelpdeskTheme.text(this,"Memuat foto pekerjaan...",13f,HelpdeskTheme.muted).apply { gravity=Gravity.CENTER }
+        root.addView(HelpdeskTheme.button(this,"‹  Kembali ke detail tiket") { finish() })
+        val status=HelpdeskTheme.text(this,"Memuat foto...",13f,HelpdeskTheme.muted).apply { gravity=Gravity.CENTER }
         root.addView(status)
         val image=ImageView(this).apply { scaleType=ImageView.ScaleType.FIT_CENTER; contentDescription="Foto laporan pekerjaan" }
         root.addView(image,LinearLayout.LayoutParams(-1,0,1f)); setContentView(root)

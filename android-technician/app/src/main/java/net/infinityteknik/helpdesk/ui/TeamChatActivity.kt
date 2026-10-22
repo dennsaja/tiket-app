@@ -43,7 +43,7 @@ class TeamChatActivity : AppCompatActivity() {
         heading.addView(HelpdeskTheme.text(this, "#" + intent.getIntExtra("ticket_number", 0) + " · Chat tim", 16f, bold = true))
         subtitle = HelpdeskTheme.text(this, intent.getStringExtra("title").orEmpty(), 11f, HelpdeskTheme.muted).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
         heading.addView(subtitle); header.addView(heading, LinearLayout.LayoutParams(0, -2, 1f)); root.addView(header)
-        val ticket = HelpdeskTheme.text(this, "Lihat tiket & laporan  ↗", 12f, android.graphics.Color.rgb(156,174,255)).apply {
+        val ticket = HelpdeskTheme.text(this, "Lihat detail tiket  ↗", 12f, android.graphics.Color.rgb(156,174,255)).apply {
             setPadding(dp(22), dp(10), dp(22), dp(14)); isFocusable = true; setOnClickListener {
                 startActivity(Intent(this@TeamChatActivity, TicketDetailActivity::class.java).putExtra("ticket_id", ticketId)
                     .putExtra("ticket_number", intent.getIntExtra("ticket_number", 0)).putExtra("title", subtitle.text.toString()))

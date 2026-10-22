@@ -18,7 +18,7 @@ export function TopNav({ breadcrumbs, title }: TopNavProps) {
   const { data: session } = useSession();
   const router = useRouter();
   const pathname = usePathname();
-  const { notifications, unreadCount, markAllRead, markRead } = useNotifications();
+  const { notifications, unreadCount, markAllRead, markRead, marking } = useNotifications();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [mobileSearch, setMobileSearch] = React.useState(false);
   const [today, setToday] = React.useState("");
@@ -76,7 +76,7 @@ export function TopNav({ breadcrumbs, title }: TopNavProps) {
           <DropdownMenuContent align="end" className="w-[min(360px,calc(100vw-24px))]">
             <div className="flex items-center justify-between gap-3 p-3">
               <DropdownMenuLabel className="p-0">Notifikasi</DropdownMenuLabel>
-              {unreadCount > 0 && <button type="button" onClick={markAllRead} className="text-xs text-[var(--accent)]">Tandai semua dibaca</button>}
+              {unreadCount > 0 && <button type="button" disabled={marking} onClick={markAllRead} className="text-xs text-[var(--accent)] disabled:opacity-50">{marking ? "Menyimpan..." : "Tandai semua dibaca"}</button>}
             </div>
             <DropdownMenuSeparator />
             {notifications.length === 0 ? <div className="px-4 py-10 text-center text-sm text-[var(--text-muted)]">Belum ada notifikasi baru.</div> :

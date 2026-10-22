@@ -261,7 +261,7 @@ class MainActivity : AppCompatActivity() {
         gap(root, 16)
         ticketEmpty = label("Belum ada tiket yang cocok.", 13f, HelpdeskTheme.muted).apply { gravity = Gravity.CENTER; setPadding(0, dp(32), 0, dp(24)) }
         root.addView(ticketEmpty)
-        ticketsAdapter = TicketAdapter(this, { openTicket(it, if (it.status == "in_progress") 2 else 0) }, { openTicket(it) }, { openTicket(it, 1) })
+        ticketsAdapter = TicketAdapter(this, { openTicket(it, if (it.status == "in_progress") 2 else 0, it.status in setOf("open", "assigned", "reopened")) }, { openTicket(it) }, { openTicket(it, 1) })
         ticketList = RecyclerView(this).apply { layoutManager = LinearLayoutManager(this@MainActivity); adapter = ticketsAdapter; clipToPadding = false }
         root.addView(ticketList, LinearLayout.LayoutParams(-1, 0, 1f))
         addScreen(root)
@@ -489,7 +489,7 @@ class MainActivity : AppCompatActivity() {
                     connected = false
                     if (it is ApiException && it.statusCode in setOf(401, 403)) { expireSession(); return@launch }
                     val cached = OfflineSyncManager.getCachedTickets(this@MainActivity)
-                    if (!hasData && cached.isNotEmpty()) { allTickets = cached; hasData = true }
+                    if (cached.isNotEmpty()) { allTickets = cached; hasData = true }
                 }
                 render(); ensureService(); maybeRequestLocation()
             } finally { loading = false; swipe.isRefreshing = false }
@@ -576,6 +576,23 @@ class MainActivity : AppCompatActivity() {
         val content = column(20)
         content.addView(label("Notifikasi", 22f, bold = true)); gap(content)
         val dialog = AlertDialog.Builder(this).setView(scroll(content)).setPositiveButton("Tutup", null).create()
+        if (notifications.any { !it.isRead }) {
+            val markRead = HelpdeskTheme.button(this, "Tandai semua dibaca") {}
+            markRead.setOnClickListener {
+                markRead.isEnabled = false; markRead.text = "Menyimpan..."
+                lifecycleScope.launch {
+                    val saved = NotificationHelper.markAllRead(this@MainActivity, session, notifications)
+                    if (saved) {
+                        notifications = NotificationHelper.latestCachedPayload?.notifications ?: notifications.map { it.copy(isRead = true) }
+                        renderNotificationCount(); dialog.dismiss(); toast("Semua notifikasi sudah dibaca.")
+                    } else {
+                        markRead.isEnabled = true; markRead.text = "Tandai semua dibaca"
+                        toast("Belum tersimpan. Periksa koneksi lalu coba lagi.")
+                    }
+                }
+            }
+            content.addView(markRead); gap(content, 12)
+        }
         if (notifications.isEmpty()) content.addView(label("Belum ada notifikasi baru.", 13f, HelpdeskTheme.muted))
         notifications.take(20).forEach { notification ->
             val item = panel(14)
@@ -603,7 +620,7 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private fun openTicket(ticket: TicketItem, tab: Int = 0) {
+    private fun openTicket(ticket: TicketItem, tab: Int = 0, accept: Boolean = false) {
         if(tab==1) { startActivity(Intent(this,TeamChatActivity::class.java).putExtra("ticket_id",ticket.id).putExtra("ticket_number",ticket.ticketNumber).putExtra("title",ticket.title)); return }
         detailLauncher.launch(Intent(this, TicketDetailActivity::class.java).apply {
             putExtra(TicketDetailActivity.EXTRA_TICKET_ID, ticket.id)
@@ -620,6 +637,7 @@ class MainActivity : AppCompatActivity() {
             putExtra(TicketDetailActivity.EXTRA_LONGITUDE, ticket.longitude ?: 0.0)
             putExtra(TicketDetailActivity.EXTRA_DESCRIPTION, ticket.description)
             putExtra(TicketDetailActivity.EXTRA_INITIAL_TAB, tab)
+            putExtra("accept_ticket", accept)
         })
     }
 

@@ -62,6 +62,19 @@ object NotificationHelper {
     var latestCachedPayload: NotificationsPayload? = null
         private set
 
+    suspend fun markAllRead(context: Context, session: SessionManager, currentItems: List<NotificationItem>): Boolean = syncMutex.withLock {
+        val token = session.token ?: return@withLock false
+        val ownerId = session.userId
+        if (ApiClient.markAllNotificationsRead(session.serverUrl, token).getOrNull() != true) return@withLock false
+        if (session.userId != ownerId || session.token != token) return@withLock false
+        session.markAllLocalNotificationsRead()
+        val items = mergeNotifications(currentItems, session.getLocalNotifications()).map { it.copy(isRead = true) }
+        val payload = NotificationsPayload(items, 0)
+        latestCachedPayload = payload
+        sendSyncBroadcast(context, payload, null)
+        true
+    }
+
     private fun normalizeText(input: String?): String {
         if (input.isNullOrBlank()) return ""
         return input.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]"), "")

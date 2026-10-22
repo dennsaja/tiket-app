@@ -8,6 +8,7 @@ import { distanceMeters, formatDistance, LOCATION_STALE_MS } from "@/lib/utils/g
 import { emptyTopology, NETWORK_COLORS, NETWORK_LABELS, topologyGeoJson, upstreamLinks, validPosition, type LngLat, type NetworkKind, type TopologySnapshot } from "@/lib/map/topology";
 import { loadMapEngine, trackingStyle, type TrackingStyle } from "@/lib/map/styles";
 import toast from "react-hot-toast";
+import "leaflet/dist/leaflet.css";
 
 interface TechnicianItem {
   userId: string; name: string; latitude: number | null; longitude: number | null;
@@ -36,6 +37,7 @@ export function LiveDispatcherMap() {
   const [dataError, setDataError] = React.useState(""), [mapError, setMapError] = React.useState("");
   const [ready, setReady] = React.useState(false), [mapRevision, setMapRevision] = React.useState(0);
   const [forceLibre, setForceLibre] = React.useState(false), [token, setToken] = React.useState<string | null>(null);
+  const [raster, setRaster] = React.useState(false);
   const [route, setRoute] = React.useState<RoadRoute | null>(null), [now, setNow] = React.useState(Date.now);
   const request = React.useRef<AbortController | null>(null), topologyRequest = React.useRef<AbortController | null>(null);
   const routeCache = React.useRef<{ key: string; origin: LngLat; route: RoadRoute; time: number } | null>(null);
@@ -86,8 +88,10 @@ export function LiveDispatcherMap() {
   const view = React.useRef<any>(null);
   view.current = { geo, ticketGeo, routeGeo, visibleKinds, showCables, showTickets, highlighted };
   const syncLayers = React.useCallback(() => {
-    const instance = map.current; if (!instance?.isStyleLoaded()) return;
+    const instance = map.current; if (!instance) return;
     const state = view.current;
+    if (instance.__raster) { instance.render(state); return; }
+    if (!instance.__styleReady || !instance.getStyle()?.sources) return;
     const source = (id: string, data: unknown) => {
       if (!instance.getSource(id)) instance.addSource(id, { type: "geojson", data });
       const current = instance.getSource(id), previous = dataCache.current.get(id);
@@ -118,22 +122,38 @@ export function LiveDispatcherMap() {
   React.useEffect(() => {
     if (token === null) return;
     let disposed = false; let instance: any; let resize: ResizeObserver | undefined;
+    let styleReady = false;
+    const watchdog = window.setTimeout(() => { if (!disposed && !styleReady) { if (!raster) setRaster(true); else setMapError("Peta belum dapat dimuat. Periksa koneksi lalu coba lagi."); } }, 14000);
     setReady(false); setMapError("");
     async function start() {
       try {
+        if (raster) {
+          const { createRasterMap } = await import("@/lib/map/raster-engine");
+          if (disposed || !container.current) return;
+          const fallback = await createRasterMap(container.current, styleRef.current, (kind, id) => { setSelection({ kind, id }); setSidebarOpen(true); },
+            () => { if (!disposed) { styleReady = true; clearTimeout(watchdog); setReady(true); setMapError(""); } },
+            message => { if (!disposed) setMapError(message); });
+          if (disposed) { fallback.instance.remove(); return; }
+          instance = fallback.instance; library.current = fallback.library; map.current = instance; appliedStyle.current = styleRef.current;
+          syncLayers(); resize = new ResizeObserver(() => instance.resize()); resize.observe(container.current); return;
+        }
         let official = token!.startsWith("pk.") && !forceLibre, gl: any;
         try { gl = await loadMapEngine(official); } catch (error) { if (!official) throw error; official = false; gl = await loadMapEngine(false); }
         if (disposed || !container.current) return;
         if (official) gl.accessToken = token;
         library.current = gl;
         instance = new gl.Map({ container: container.current, style: trackingStyle(styleRef.current, official), center: [110.857, -6.76], zoom: 12, minZoom: 3, maxZoom: 22, maxPitch: 0, dragRotate: false, touchPitch: false, pitchWithRotate: false, attributionControl: { compact: true } });
-        instance.__official = official; map.current = instance; appliedStyle.current = styleRef.current;
+        instance.__official = official; instance.__styleReady = false; map.current = instance; appliedStyle.current = styleRef.current;
         instance.addControl(new gl.NavigationControl({ showCompass: false }), "bottom-right");
-        instance.on("style.load", () => { if (!disposed) { syncLayers(); setReady(true); setMapError(""); } });
+        let deliveredStyle = "";
+        instance.on("style.load", () => { if (!disposed) { instance.__styleReady = true; deliveredStyle = ""; try { syncLayers(); } catch { setRaster(true); } } });
+        const loaded = () => { if (!disposed && deliveredStyle !== styleRef.current) { deliveredStyle = styleRef.current; styleReady = true; clearTimeout(watchdog); setReady(true); setMapError(""); syncLayers(); } };
+        instance.on("load", loaded);
+        instance.on("idle", loaded);
         instance.on("error", (event: any) => {
           if (disposed) return;
           if (official && /401|403|token|Unauthorized|Forbidden/i.test(event.error?.message || "")) { setForceLibre(true); return; }
-          if (!instance.isStyleLoaded()) setMapError("Peta dasar belum dapat dimuat. Periksa koneksi lalu coba lagi.");
+          if (!instance.isStyleLoaded()) setRaster(true);
         });
         instance.on("click", (event: any) => {
           const ids = ["ticket-dots", "network-dots"].filter(id => instance.getLayer(id));
@@ -145,16 +165,21 @@ export function LiveDispatcherMap() {
           instance.on("mouseleave", layer, () => { instance.getCanvas().style.cursor = ""; });
         }
         resize = new ResizeObserver(() => instance.resize()); resize.observe(container.current);
-      } catch (error: any) { if (!disposed) setMapError(error.message || "Peta belum dapat dimuat."); }
+      } catch (error: any) { if (!disposed) { console.warn("[TrackingMap] initialization failed", error.message); if (!raster) setRaster(true); else setMapError("Peta belum dapat dimuat. Periksa koneksi lalu coba lagi."); } }
     }
     start();
-    return () => { disposed = true; resize?.disconnect(); markers.current.forEach(marker => marker.remove()); markers.current.clear(); dataCache.current.clear(); if (map.current === instance) map.current = null; instance?.remove(); };
-  }, [token, forceLibre, mapRevision, syncLayers]);
+    return () => { disposed = true; clearTimeout(watchdog); resize?.disconnect(); markers.current.forEach(marker => marker.remove()); markers.current.clear(); dataCache.current.clear(); if (map.current === instance) map.current = null; instance?.remove(); };
+  }, [token, forceLibre, mapRevision, syncLayers, raster]);
   React.useEffect(() => {
     const instance = map.current; if (!instance || appliedStyle.current === style) return;
-    appliedStyle.current = style; setReady(false); instance.setStyle(trackingStyle(style, Boolean(instance.__official)));
+    appliedStyle.current = style; setReady(false); instance.__styleReady = false; instance.setStyle(instance.__raster ? style : trackingStyle(style, Boolean(instance.__official)));
   }, [style]);
   React.useEffect(() => { if (ready) syncLayers(); }, [ready, geo, ticketGeo, routeGeo, visibleKinds, showCables, showTickets, highlighted, syncLayers]);
+  React.useEffect(() => {
+    if (ready || token === null) return;
+    const timer = window.setTimeout(() => { if (!raster) setRaster(true); else setMapError("Gambar peta belum tersedia. Periksa koneksi lalu coba lagi."); }, 18000);
+    return () => clearTimeout(timer);
+  }, [ready, token, raster, style, mapRevision]);
   const fitAll = React.useCallback(() => {
     const instance = map.current, gl = library.current; if (!instance || !gl) return;
     const positions = [...technicians.flatMap(tech => coordinatesOf(tech) ? [coordinatesOf(tech)!] : []), ...tickets.flatMap(ticket => showTickets && coordinatesOf(ticket) ? [coordinatesOf(ticket)!] : []), ...topology.nodes.filter(node => visibleKinds.includes(node.kind)).map(node => node.coordinates)];
@@ -237,8 +262,9 @@ export function LiveDispatcherMap() {
   const iconButton = "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/5 text-zinc-200 transition hover:bg-white/10 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-blue-400";
   const importButton = <button type="button" disabled={importing} onClick={() => fileInput.current?.click()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#4563ff] px-3 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}Impor topology.db</button>;
 
-  return <section aria-label="Peta tracking teknisi dan jaringan" className="tracking-map relative isolate h-[calc(100dvh-180px)] min-h-[560px] overflow-hidden rounded-[24px] border border-[var(--border-color)] bg-[#15151a]">
-    <div ref={container} className="absolute inset-0" />
+  return <section aria-label="Peta tracking teknisi dan jaringan" style={{ height: "calc(100dvh - 180px)", minHeight: 560 }} className="tracking-map relative isolate overflow-hidden rounded-[24px] border border-[var(--border-color)] bg-[#15151a]">
+    {/* SDK CSS sets position:relative; keep the canvas filling its parent regardless of stylesheet load order. */}
+    <div ref={container} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 0 }} />
     <input ref={fileInput} type="file" accept=".db,.sqlite,.sqlite3" className="hidden" aria-label="Database topologi" onChange={event => { const file = event.target.files?.[0]; if (file) importTopology(file); }} />
     <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex flex-wrap items-start justify-between gap-3 sm:inset-x-4 sm:top-4 sm:flex-nowrap">
       <div className={`pointer-events-auto flex w-full items-center justify-between gap-2 rounded-2xl p-1.5 sm:w-auto sm:justify-start ${panel}`}>

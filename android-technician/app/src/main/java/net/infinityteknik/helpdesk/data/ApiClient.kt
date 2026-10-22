@@ -195,6 +195,28 @@ object ApiClient {
         }
     }
 
+    suspend fun downloadAttachment(context: android.content.Context, serverUrl: String, token: String, attachment: TicketAttachment): Result<File> = withContext(Dispatchers.IO) {
+        runCatching {
+            val target = File(context.cacheDir,"attachments").apply { mkdirs() }
+            val safeName = attachment.name.replace(Regex("[^a-zA-Z0-9._ -]"),"_").take(150).ifBlank { "lampiran" }
+            val file = File(target, java.util.UUID.randomUUID().toString()+"-"+safeName)
+            try {
+                client.newCall(Request.Builder().url(serverUrl+"/api/attachments/"+attachment.id).header("Authorization","Bearer "+token).build()).execute().use { response ->
+                    if(!response.isSuccessful) throw ApiException(response.code,"Lampiran belum dapat diunduh")
+                    val body=response.body ?: throw java.io.IOException("Lampiran kosong")
+                    require(body.contentLength() <= 15L*1024*1024) { "Lampiran terlalu besar" }
+                    body.byteStream().use { input -> file.outputStream().use { output ->
+                        var size=0L; val buffer=ByteArray(8192)
+                        while(true) { val count=input.read(buffer); if(count<0) break
+                            size+=count; require(size<=15L*1024*1024) { "Lampiran terlalu besar" }; output.write(buffer,0,count)
+                        }
+                    } }
+                }
+                file
+            } catch(error:Exception) { file.delete(); throw error }
+        }
+    }
+
     suspend fun sendLocation(serverUrl: String, token: String, loc: LocationPayload): Result<Boolean> =
         withContext(Dispatchers.IO) {
             try {
@@ -346,7 +368,16 @@ object ApiClient {
             resolvedAt = o.optNullableString("resolvedAt"),
             specDataJson = specStr,
             statusHistory = historyList,
-            latestReport = latestReport
+            latestReport = latestReport,
+            categoryName = o.optJSONObject("category")?.optNullableString("name") ?: o.optNullableString("categoryName"),
+            subcategoryName = o.optJSONObject("subcategory")?.optNullableString("name") ?: o.optNullableString("subcategoryName"),
+            departmentName = o.optJSONObject("department")?.optNullableString("name") ?: o.optNullableString("departmentName"),
+            requesterName = o.optJSONObject("requester")?.optNullableString("name") ?: o.optNullableString("requesterName"),
+            attachments = o.optJSONArray("attachments")?.let { files -> (0 until files.length()).mapNotNull { index ->
+                val file = files.optJSONObject(index) ?: return@mapNotNull null
+                val id = file.optNullableString("id") ?: return@mapNotNull null
+                TicketAttachment(id, file.optNullableString("originalName") ?: file.optString("name", "Lampiran"), file.optString("mimeType", "application/octet-stream"), file.optLong("size"))
+            } } ?: emptyList()
         )
     }
 
@@ -373,6 +404,9 @@ object ApiClient {
             put("resolution", t.resolution ?: JSONObject.NULL)
             put("resolvedAt", t.resolvedAt ?: JSONObject.NULL)
             put("specDataJson", t.specDataJson ?: JSONObject.NULL)
+            put("categoryName", t.categoryName ?: JSONObject.NULL); put("subcategoryName", t.subcategoryName ?: JSONObject.NULL)
+            put("departmentName", t.departmentName ?: JSONObject.NULL); put("requesterName", t.requesterName ?: JSONObject.NULL)
+            put("attachments", JSONArray(t.attachments.map { file -> JSONObject().put("id", file.id).put("originalName", file.name).put("mimeType", file.mimeType).put("size", file.size) }))
 
             val shArr = JSONArray()
             for (sh in t.statusHistory) {

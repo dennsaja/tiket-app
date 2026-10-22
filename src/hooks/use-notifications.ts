@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import toast from "react-hot-toast";
 
 interface Notification {
   id: string;
@@ -17,6 +18,7 @@ interface UseNotificationsReturn {
   notifications: Notification[];
   unreadCount: number;
   loading: boolean;
+  marking: boolean;
   error: string | null;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
@@ -28,18 +30,27 @@ export function useNotifications(): UseNotificationsReturn {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [refreshKey, setRefreshKey] = React.useState(0);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const [marking, setMarking] = React.useState(false);
+  const generation = React.useRef(0);
+  const pending = React.useRef(false);
 
   React.useEffect(() => {
     let cancelled = false;
+    const request = ++generation.current;
     setLoading(true);
 
-    fetch("/api/notifications?limit=20")
+    fetch("/api/notifications?perPage=20", { cache: "no-store" })
       .then((res) => {
         if (!res.ok) throw new Error(`Error ${res.status}`);
         return res.json();
       })
       .then((json) => {
-        if (!cancelled) setNotifications(json.notifications || json || []);
+        if (!cancelled && request === generation.current && !pending.current) {
+          setNotifications(json.notifications || []);
+          setUnreadCount(json.unreadCount || 0);
+          setError(null);
+        }
       })
       .catch((err) => {
         if (!cancelled) setError(err.message);
@@ -52,39 +63,47 @@ export function useNotifications(): UseNotificationsReturn {
       setRefreshKey((k) => k + 1);
     };
     window.addEventListener("refresh-notifications", handleCustomRefresh);
+    window.addEventListener("focus", handleCustomRefresh);
+    const timer = window.setInterval(() => { if (!document.hidden) handleCustomRefresh(); }, 30000);
 
     return () => {
       cancelled = true;
       window.removeEventListener("refresh-notifications", handleCustomRefresh);
+      window.removeEventListener("focus", handleCustomRefresh);
+      clearInterval(timer);
     };
   }, [refreshKey]);
 
   const markRead = React.useCallback(async (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
+    if (pending.current) return;
+    pending.current = true; setMarking(true); ++generation.current;
     try {
-      await fetch(`/api/notifications/${id}/read`, { method: "POST" });
+      const response = await fetch(`/api/notifications/${encodeURIComponent(id)}`, { method: "PATCH" });
+      if (!response.ok) throw new Error("Status dibaca belum tersimpan. Coba lagi.");
+      setNotifications(previous => previous.map(item => item.id === id ? { ...item, isRead: true } : item));
     } catch {
-      // Optimistic update already applied; silently fail
-    }
+      toast.error("Status dibaca belum tersimpan. Coba lagi.");
+    } finally { pending.current = false; setMarking(false); setRefreshKey(key => key + 1); }
   }, []);
 
   const markAllRead = React.useCallback(async () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    if (pending.current) return;
+    pending.current = true; setMarking(true); ++generation.current;
     try {
-      await fetch("/api/notifications/read-all", { method: "POST" });
+      const response = await fetch("/api/notifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "mark_all_read" }) });
+      if (!response.ok) throw new Error("Status dibaca belum tersimpan. Coba lagi.");
+      setNotifications(previous => previous.map(item => ({ ...item, isRead: true })));
+      setUnreadCount(0);
     } catch {
-      // Silently fail
-    }
+      toast.error("Status dibaca belum tersimpan. Coba lagi.");
+    } finally { pending.current = false; setMarking(false); setRefreshKey(key => key + 1); }
   }, []);
-
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return {
     notifications,
     unreadCount,
     loading,
+    marking,
     error,
     markRead,
     markAllRead,

@@ -213,11 +213,15 @@ export default function NewTicketPage() {
 
   // Filter categories by selected department if any
   const filteredCategories = React.useMemo(() => {
-    if (!selectedDepartmentId || selectedDepartmentId === "none") return categories;
-    return categories.filter(
-      (c) => !c.departmentId || c.departmentId === selectedDepartmentId
-    );
-  }, [categories, selectedDepartmentId]);
+    return categories.filter(c => (!c.ticketType || c.ticketType === selectedType) &&
+      (!selectedDepartmentId || selectedDepartmentId === "none" || !c.departmentId || c.departmentId === selectedDepartmentId));
+  }, [categories, selectedDepartmentId, selectedType]);
+
+  React.useEffect(() => {
+    const recommended = filteredCategories.find(category => category.ticketType === selectedType);
+    setValue("categoryId", recommended?.id || "");
+    setValue("subcategoryId", "");
+  }, [selectedType, filteredCategories, setValue]);
 
   const currentCategory = categories.find((c) => c.id === selectedCategoryId);
   const subcategories = currentCategory?.subcategories || [];
@@ -1020,6 +1024,13 @@ export default function NewTicketPage() {
             )}
           </div>
         </div>
+
+        {subcategories.length > 0 && <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--surface)] p-5">
+          <div className="mb-4 flex items-center gap-2"><Layers className="h-4 w-4 text-[var(--accent)]" /><div><h2 className="text-sm font-semibold">Subkategori pekerjaan</h2><p className="mt-1 text-xs text-[var(--text-muted)]">Pilih rincian yang paling sesuai agar teknisi memahami tugasnya.</p></div></div>
+          <Controller control={control} name="subcategoryId" render={({ field }) => <div className="flex flex-wrap gap-2">{subcategories.map((item: any) =>
+            <button key={item.id} type="button" aria-pressed={field.value === item.id} onClick={() => field.onChange(field.value === item.id ? "" : item.id)}
+              className={`rounded-full border px-4 py-2.5 text-xs transition ${field.value === item.id ? "border-[#4563ff] bg-[#4563ff] text-white" : "border-[var(--border-color)] bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}>{item.name}</button>)}</div>} />
+        </div>}
 
         {/* Lampiran Berkas (Opsional) */}
         <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-3">

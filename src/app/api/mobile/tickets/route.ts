@@ -70,6 +70,8 @@ export async function GET(req: NextRequest) {
       updatedAt: true,
     },
     with: {
+      category: { columns: { name: true } }, subcategory: { columns: { name: true } }, department: { columns: { name: true } }, requester: { columns: { name: true } },
+      attachments: { columns: { id: true, originalName: true, mimeType: true, size: true }, where: (file, { and, eq, isNull }) => and(isNull(file.messageId), eq(file.isDeleted, false)) },
       assignee: {
         columns: { id: true, name: true, phone: true },
       },
@@ -143,6 +145,7 @@ export async function GET(req: NextRequest) {
         longitude: coords?.lng ?? null,
         isLead,
         specData: t.specData ?? null,
+        category: t.category, subcategory: t.subcategory, department: t.department, requester: t.requester, attachments: t.attachments,
         slaFirstResponseDue: t.slaFirstResponseDue ? t.slaFirstResponseDue.toISOString() : null,
         slaResolutionDue: t.slaResolutionDue ? t.slaResolutionDue.toISOString() : null,
         resolution: t.resolution ?? null,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { validateClassification } from "@/lib/tickets/validate-classification";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
@@ -230,6 +231,9 @@ export async function POST(req: NextRequest) {
   }
 
   const data = parsed.data;
+
+  const classificationError = await validateClassification(data.ticketType, data.categoryId, data.subcategoryId);
+  if (classificationError) return errorResponse(classificationError, 422);
 
   // Determine primary assignee and assigned team
   const rawAssignees = Array.isArray(data.assigneeIds) ? data.assigneeIds.filter(Boolean) : [];

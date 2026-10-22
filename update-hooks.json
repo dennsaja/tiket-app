@@ -1,6 +1,6 @@
 {
   "version": "1.0",
   "name": "HelpDesk Custom Update Hook",
-  "description": "Pembersihan tiket contoh bawaan dengan arsip pemulihan sebelum build produksi.",
-  "commands": ["npx tsx scripts/production-cleanup.ts --apply"]
+  "description": "Pembersihan tiket contoh, kategori layanan, dan reset SLA lama sekali dengan arsip pemulihan sebelum build produksi.",
+  "commands": ["npx tsx scripts/production-cleanup.ts --apply", "npx tsx scripts/prepare-workspace.ts"]
 }

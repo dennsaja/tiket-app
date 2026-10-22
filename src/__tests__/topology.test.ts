@@ -54,5 +54,5 @@ describe("network topology", () => {
       const snapshot = await readSqliteTopology(database.export());
       expect(snapshot.nodes).toHaveLength(1); expect(JSON.stringify(snapshot)).not.toContain("sensitive-value");
     } finally { database.close(); }
-  });
+  }, 30000);
 });

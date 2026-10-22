@@ -129,6 +129,7 @@ class TicketAdapter(
             primary.text = when {
                 LocationPolicy.isFinished(ticket.status) -> "Lihat laporan"
                 ticket.status == "in_progress" -> "Isi laporan"
+                ticket.status in setOf("open", "assigned", "reopened") -> "Terima tiket"
                 else -> "Buka penanganan"
             }
             primary.setOnClickListener { onPrimaryActionClick(ticket) }

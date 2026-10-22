@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { notifications, tickets, ticketAssignees } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { notificationBus } from "./bus";
 
 interface CreateNotificationInput {
@@ -277,7 +277,7 @@ export async function markNotificationRead(
   await db
     .update(notifications)
     .set({ isRead: true, readAt: new Date() })
-    .where(eq(notifications.id, notificationId));
+    .where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId)));
 }
 
 /**
@@ -287,5 +287,5 @@ export async function markAllNotificationsRead(userId: string): Promise<void> {
   await db
     .update(notifications)
     .set({ isRead: true, readAt: new Date() })
-    .where(eq(notifications.userId, userId));
+    .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
 }

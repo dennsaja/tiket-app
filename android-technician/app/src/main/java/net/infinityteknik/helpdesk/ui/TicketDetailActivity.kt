@@ -74,6 +74,8 @@ class TicketDetailActivity : AppCompatActivity() {
     private var ticketStatus: String = "open"
     private var latestReport: WorkReportSnapshot? = null
     private var metadataLoading = false
+    private var statusUpdating = false
+    private var detailSnapshot: TicketItem? = null
     private var ticketPriority: String = "medium"
     private var ticketType: String = ""
     private var reporterName: String = ""
@@ -299,6 +301,10 @@ class TicketDetailActivity : AppCompatActivity() {
         setupAutoDraftWatchers()
         updateWorkflowUi(ticketStatus)
         switchTab(initialTab)
+        if (intent.getBooleanExtra("accept_ticket", false) && ticketStatus in setOf("open", "assigned", "reopened")) {
+            intent.removeExtra("accept_ticket")
+            updateStatusTo("accepted", "Teknisi menerima penugasan")
+        }
     }
 
     private fun readIntentExtras() {
@@ -320,6 +326,7 @@ class TicketDetailActivity : AppCompatActivity() {
         // Chat and notification links only carry an ID; restore the full offline ticket.
         val cached = OfflineSyncManager.getCachedTickets(this).find { it.id == ticketId }
         if (cached != null) {
+            detailSnapshot = cached
             if (ticketNumber == 0) ticketNumber = cached.ticketNumber
             if (ticketTitle.isBlank()) ticketTitle = cached.title
             if (!intent.hasExtra(EXTRA_STATUS)) ticketStatus = cached.status
@@ -697,16 +704,30 @@ class TicketDetailActivity : AppCompatActivity() {
 
         tvInfoTitle.text = ticketTitle
         tvInfoType.text = "Jenis Pekerjaan: ${ticketType.ifBlank { "Umum" }.replace("_", " ").uppercase()} • Prioritas: ${ticketPriority.uppercase()}"
-        tvInfoCustomerName.text = "Pelanggan: ${reporterName.ifBlank { "Pelanggan" }}"
-        tvInfoCustomerPhone.text = "Telepon / WA: ${reporterPhone.ifBlank { "-" }}"
-        tvInfoCustomerAddress.text = "Alamat: ${reporterAddress.ifBlank { "-" }}"
-        tvInfoDescription.text = ticketDescription.ifBlank { "Tidak ada catatan deskripsi keluhan tambahan." }
+        tvInfoTitle.visibility = View.GONE
+        tvInfoType.visibility = View.GONE
+        tvInfoSla.visibility = if (slaResolutionDue.isNullOrBlank()) View.GONE else View.VISIBLE
+        tvInfoSla.text = slaResolutionDue?.let { due -> "Target SLA: " + (TicketAdapter.parseIsoDate(due)?.let { date ->
+            SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID")).apply { timeZone = TimeZone.getTimeZone("Asia/Jakarta") }.format(date) + " WIB"
+        } ?: due) }.orEmpty()
+        tvInfoCustomerName.text = "Pelapor: $reporterName"
+        tvInfoCustomerName.visibility = if (reporterName.isNotBlank()) View.VISIBLE else View.GONE
+        tvInfoCustomerPhone.text = "Telepon / WA: $reporterPhone"
+        tvInfoCustomerPhone.visibility = if (reporterPhone.isNotBlank()) View.VISIBLE else View.GONE
+        tvInfoCustomerAddress.text = "Alamat: $reporterAddress"
+        tvInfoCustomerAddress.visibility = if (reporterAddress.isNotBlank()) View.VISIBLE else View.GONE
+        tvInfoDescription.text = ticketDescription
+        tvInfoDescription.visibility = if (ticketDescription.isNotBlank()) View.VISIBLE else View.GONE
+        renderAdminDetails()
 
         if (latitude != 0.0 && longitude != 0.0) {
             tvInfoCoordinates.text = String.format(Locale.US, "Koordinat Pelanggan: %.6f, %.6f", latitude, longitude)
         } else {
-            tvInfoCoordinates.text = "Koordinat Pelanggan: Belum ditandai (Gunakan tombol Set Titik Pelanggan)"
+            tvInfoCoordinates.text = ""
         }
+        tvInfoCoordinates.visibility = if (tvInfoCoordinates.text.isNotBlank()) View.VISIBLE else View.GONE
+        btnCopyAddress.visibility = if (reporterAddress.isNotBlank()) View.VISIBLE else View.GONE
+        btnDetailMap.visibility = if (reporterMapUrl.isNotBlank() || LocationPolicy.hasCoordinates(latitude, longitude)) View.VISIBLE else View.GONE
 
         // Update distance & check-in radius badge
         updateDistanceAndRadiusUi()
@@ -723,6 +744,52 @@ class TicketDetailActivity : AppCompatActivity() {
         }
 
         renderStatusTimeline()
+    }
+
+    private fun renderAdminDetails() {
+        val summary = findViewById<LinearLayout>(R.id.ticketBrief)
+        summary.removeAllViews()
+        summary.addView(HelpdeskTheme.text(this,"DETAIL TIKET  /  #$ticketNumber",11f,HelpdeskTheme.blue,true))
+        summary.addView(HelpdeskTheme.text(this,ticketTitle,25f,Color.rgb(20,20,26),true).apply { setPadding(0,dp(10),0,dp(8)) })
+        summary.addView(HelpdeskTheme.text(this,TicketPresentation.typeLabel(ticketType) + "  ·  " + ticketPriority.replaceFirstChar { it.uppercase() },12f,Color.rgb(93,93,108)))
+        val container = findViewById<LinearLayout>(R.id.adminTicketDetails)
+        container.removeAllViews()
+        val snapshot = detailSnapshot ?: return
+        val fields = TicketPresentation.fields(snapshot)
+        if (fields.isNotEmpty()) {
+            container.addView(HelpdeskTheme.text(this,"Rincian dari admin",17f,bold=true))
+            fields.forEach { (label,value) ->
+                val row = HelpdeskTheme.column(this,14).apply { background=HelpdeskTheme.shape(this@TicketDetailActivity, HelpdeskTheme.surface,16) }
+                row.addView(HelpdeskTheme.text(this,label,11f,HelpdeskTheme.muted))
+                row.addView(HelpdeskTheme.text(this,value,14f).apply { setPadding(0,dp(4),0,0); setTextIsSelectable(true) })
+                container.addView(row,LinearLayout.LayoutParams(-1,-2).apply { topMargin=dp(8) })
+            }
+        }
+        if (snapshot.attachments.isNotEmpty()) {
+            container.addView(HelpdeskTheme.text(this,"Lampiran admin · ${snapshot.attachments.size}",17f,bold=true).apply { setPadding(0,dp(22),0,dp(8)) })
+            snapshot.attachments.forEach { file ->
+                val button = HelpdeskTheme.button(this,(if(file.mimeType.startsWith("image/")) "Foto" else "Berkas") + "  ·  " + file.name + "  ↗") {}
+                button.maxLines=3
+                button.setOnClickListener {
+                    if(file.mimeType.startsWith("image/")) startActivity(Intent(this,ReportPhotoActivity::class.java).putExtra("photo_path","/api/attachments/"+file.id))
+                    else {
+                        button.isEnabled=false
+                        lifecycleScope.launch {
+                            val token=session.token
+                            val downloaded=if(token!=null) ApiClient.downloadAttachment(this@TicketDetailActivity,session.serverUrl,token,file) else Result.failure(java.io.IOException("Silakan masuk kembali"))
+                            button.isEnabled=true
+                            downloaded.onSuccess { saved ->
+                                val uri=FileProvider.getUriForFile(this@TicketDetailActivity,packageName+".fileprovider",saved)
+                                try { startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri,file.mimeType).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)) }
+                                catch(_:android.content.ActivityNotFoundException) { Toast.makeText(this@TicketDetailActivity,"Aplikasi pembuka berkas belum tersedia.",Toast.LENGTH_LONG).show() }
+                            }.onFailure { Toast.makeText(this@TicketDetailActivity,it.message ?: "Lampiran belum dapat dibuka.",Toast.LENGTH_LONG).show() }
+                        }
+                    }
+                }
+                container.addView(button,LinearLayout.LayoutParams(-1,-2).apply { topMargin=dp(8) })
+            }
+        }
+        container.visibility=if(container.childCount>0) View.VISIBLE else View.GONE
     }
 
     private fun getCurrentDistanceToCustomerMeters(): Float? {
@@ -859,7 +926,7 @@ class TicketDetailActivity : AppCompatActivity() {
         tvWorkflowSubtitle.visibility = if (finished) View.GONE else View.VISIBLE
         btnPendingTask.visibility = if (finished) View.GONE else View.VISIBLE
         layoutResolvedBanner.visibility = if (finished) View.VISIBLE else View.GONE
-        btnWorkflowPrimary.text = if (status == "in_progress") "Isi laporan & selesaikan" else "Mulai pengerjaan"
+        btnWorkflowPrimary.text = when(status) { "open", "assigned", "reopened" -> "Terima tiket"; "in_progress" -> "Isi laporan & selesaikan"; else -> "Mulai pengerjaan" }
         btnWorkflowPrimary.backgroundTintList = ColorStateList.valueOf(HelpdeskTheme.blue)
         tvWorkflowSubtitle.text = if (status == "in_progress") "Catat hasil pekerjaan dan tambahkan foto bukti."
             else "Mulai penanganan saat siap. Navigasi dan chat tim tetap tersedia."
@@ -867,6 +934,7 @@ class TicketDetailActivity : AppCompatActivity() {
     private fun handlePrimaryWorkflowStep() {
         if (LocationPolicy.isFinished(ticketStatus)) return
         if (ticketStatus == "in_progress") switchTab(2)
+        else if (ticketStatus in setOf("open", "assigned", "reopened")) updateStatusTo("accepted", "Teknisi menerima penugasan")
         else updateStatusTo("in_progress", "Teknisi mulai melakukan penanganan")
     }
     private fun showPendingOrEscalateDialog() {
@@ -1005,6 +1073,7 @@ class TicketDetailActivity : AppCompatActivity() {
     }
 
     private fun updateStatusTo(newStatus: String, notes: String, distanceMeters: Double? = null) {
+        if (statusUpdating) return
         val token = session.token ?: return
         val lat = session.lastLatitude.takeIf { LocationPolicy.hasCoordinates(it, session.lastLongitude) && LocationPolicy.isFresh(session.lastUpdateTime) }
         val lng = session.lastLongitude.takeIf { LocationPolicy.hasCoordinates(session.lastLatitude, it) && LocationPolicy.isFresh(session.lastUpdateTime) }
@@ -1040,6 +1109,7 @@ class TicketDetailActivity : AppCompatActivity() {
         }
 
         btnWorkflowPrimary.isEnabled = false
+        statusUpdating = true
         val oldText = btnWorkflowPrimary.text
         btnWorkflowPrimary.text = "Memperbarui Status..."
 
@@ -1056,6 +1126,7 @@ class TicketDetailActivity : AppCompatActivity() {
                 distanceMeters = distanceMeters
             )
             btnWorkflowPrimary.isEnabled = true
+            statusUpdating = false
             btnWorkflowPrimary.text = oldText
 
             result.onSuccess {
@@ -1526,12 +1597,13 @@ class TicketDetailActivity : AppCompatActivity() {
     }
 
     private fun refreshCurrentTicketMetadata() {
-        if(metadataLoading) return
+        if(metadataLoading || statusUpdating || OfflineSyncManager.getQueuedActions(this).any { it.ticketId == ticketId && it.actionType == "status_update" }) return
         val token=session.token ?: return
         metadataLoading=true
         lifecycleScope.launch {
             try {
                 ApiClient.getTicketDetail(session.serverUrl,token,ticketId).onSuccess { fresh ->
+                    detailSnapshot = fresh
                     val cached=OfflineSyncManager.getCachedTickets(this@TicketDetailActivity)
                     OfflineSyncManager.saveCachedTickets(this@TicketDetailActivity,cached.filter { it.id!=fresh.id }+fresh)
                     ticketNumber=fresh.ticketNumber; ticketTitle=fresh.title; ticketStatus=fresh.status; ticketPriority=fresh.priority

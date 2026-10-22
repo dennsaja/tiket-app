@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { validateClassification } from "@/lib/tickets/validate-classification";
 import { auth } from "@/lib/auth";
 import { getAuthUser } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
@@ -159,6 +160,12 @@ export async function PATCH(
   }
 
   const data = parsed.data;
+  if (data.categoryId !== undefined || data.subcategoryId !== undefined || data.ticketType !== undefined) {
+    const classificationError = await validateClassification(data.ticketType ?? ticket.ticketType,
+      data.categoryId !== undefined ? data.categoryId : ticket.categoryId,
+      data.subcategoryId !== undefined ? data.subcategoryId : data.categoryId !== undefined && data.categoryId !== ticket.categoryId ? null : ticket.subcategoryId);
+    if (classificationError) return errorResponse(classificationError, 422);
+  }
   const updates: Record<string, any> = { updatedAt: new Date() };
 
   if (data.ticketType !== undefined) updates.ticketType = data.ticketType;
@@ -167,6 +174,7 @@ export async function PATCH(
   if (data.priority !== undefined) updates.priority = data.priority;
   if (data.departmentId !== undefined) updates.departmentId = data.departmentId;
   if (data.categoryId !== undefined) updates.categoryId = data.categoryId;
+  if (data.categoryId !== undefined && data.categoryId !== ticket.categoryId && data.subcategoryId === undefined) updates.subcategoryId = null;
   if (data.subcategoryId !== undefined) updates.subcategoryId = data.subcategoryId;
   if (data.specData !== undefined) updates.specData = data.specData;
   if (data.reporterName !== undefined) updates.reporterName = data.reporterName?.trim() || null;

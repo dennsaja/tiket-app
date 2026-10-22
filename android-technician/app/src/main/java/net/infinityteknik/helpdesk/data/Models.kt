@@ -36,6 +36,8 @@ data class WorkReportSnapshot(
     val createdAt: String
 )
 
+data class TicketAttachment(val id: String, val name: String, val mimeType: String, val size: Long)
+
 data class TicketItem(
     val id: String,
     val ticketNumber: Int,
@@ -59,7 +61,12 @@ data class TicketItem(
     val resolvedAt: String? = null,
     val specDataJson: String? = null,
     val statusHistory: List<TicketStatusHistoryItem> = emptyList(),
-    val latestReport: WorkReportSnapshot? = null
+    val latestReport: WorkReportSnapshot? = null,
+    val categoryName: String? = null,
+    val subcategoryName: String? = null,
+    val departmentName: String? = null,
+    val requesterName: String? = null,
+    val attachments: List<TicketAttachment> = emptyList()
 )
 
 data class TicketMessage(

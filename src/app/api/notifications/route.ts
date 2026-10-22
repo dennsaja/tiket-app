@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
       perPage,
       pageCount: Math.ceil(Number(total) / perPage),
     },
-  });
+  }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 // POST /api/notifications — mark all as read

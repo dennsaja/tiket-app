@@ -45,6 +45,9 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await props.params;
   const ticket = await db.query.tickets.findFirst({ where: and(eq(tickets.id,id),isNull(tickets.deletedAt)), with: {
+    category: { columns: { name: true } }, subcategory: { columns: { name: true } }, department: { columns: { name: true } },
+    requester: { columns: { name: true } },
+    attachments: { columns: { id: true, originalName: true, mimeType: true, size: true, messageId: true }, where: (file, { eq }) => eq(file.isDeleted, false) },
     statusHistory: { orderBy: (history, { asc }) => [asc(history.createdAt)] },
     workReports: { orderBy: [desc(ticketWorkReports.createdAt)], limit: 1 },
   } });
@@ -53,7 +56,8 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
   if (!["noc","owner","admin"].includes(actor.role) && !(actor.role==="agent" && (ticket.assigneeId===actor.id || member))) return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
   const coordinates = await resolveCoordinatesAsync(ticket.reporterMapUrl) || await resolveCoordinatesAsync(ticket.reporterAddress);
   return NextResponse.json({ success: true, ticket: { ...ticket, latitude: coordinates?.lat ?? null, longitude: coordinates?.lng ?? null,
-    isLead: member?.isLead ?? ticket.assigneeId===actor.id, latestReport: ticket.workReports[0] ?? null } });
+    attachments: ticket.attachments.filter(file => !file.messageId).map(({ messageId, ...file }) => file),
+    isLead: member?.isLead ?? ticket.assigneeId===actor.id, latestReport: ticket.workReports[0] ?? null } }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function PATCH(

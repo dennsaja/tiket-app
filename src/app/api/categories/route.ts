@@ -6,6 +6,7 @@ import { eq, asc } from "drizzle-orm";
 import { errorResponse } from "@/lib/api/helpers";
 import { createCategorySchema } from "@/lib/validations";
 import { createAuditLog, getClientIp } from "@/lib/audit";
+import { categoryTicketType } from "@/lib/tickets/taxonomy";
 
 // GET /api/categories
 export async function GET(req: NextRequest) {
@@ -36,7 +37,8 @@ export async function GET(req: NextRequest) {
     orderBy: [asc(categories.name)],
   });
 
-  return NextResponse.json(categoryList);
+  return NextResponse.json(categoryList.map(category => ({ ...category, ticketType: categoryTicketType(category),
+    subcategories: isAdmin && showAll ? category.subcategories : category.subcategories.filter(item => item.isActive) })));
 }
 
 // POST /api/categories (admin only)

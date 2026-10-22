@@ -5,7 +5,7 @@ import {
   businessHours,
   slaEvents,
 } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { addMinutes, isWithinInterval, setHours, setMinutes, startOfDay, addDays } from "date-fns";
 
 interface SlaCalculationResult {
@@ -37,6 +37,7 @@ export async function findSlaPolicy(
   const globalPolicy = await db.query.slaPolicies.findFirst({
     where: and(
       eq(slaPolicies.priority, priority as any),
+      isNull(slaPolicies.departmentId),
       eq(slaPolicies.isActive, true)
     ),
   });
