@@ -96,6 +96,16 @@ class MainActivity : AppCompatActivity() {
     private var polling: Job? = null
     private var permissionsBusy = false
     private var selectedTicket: TicketItem? = null
+    private var mobileConfiguration = MobileConfiguration()
+    private var configurationJob: Job? = null
+    private var configurationLastAttempt = 0L
+    private var configurationAppVersion = 0L
+    private lateinit var homeSubtitle: TextView
+    private lateinit var announcement: LinearLayout
+    private lateinit var announcementTitle: TextView
+    private lateinit var announcementBody: TextView
+    private lateinit var activityPanel: LinearLayout
+    private lateinit var configurationStatus: TextView
     private val preferences by lazy { getSharedPreferences("helpdesk_permission_choices", MODE_PRIVATE) }
 
     private val detailLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { refreshTickets(false) }
@@ -120,6 +130,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         session = SessionManager(this)
         if (!session.isLoggedIn) { openLogin(); return }
+        val packageInfo = packageManager.getPackageInfo(packageName, 0)
+        configurationAppVersion = if (Build.VERSION.SDK_INT >= 28) packageInfo.longVersionCode else packageInfo.versionCode.toLong()
+        mobileConfiguration = session.mobileConfigurationJson?.let { raw ->
+            runCatching { MobileConfiguration.parse(raw, configurationAppVersion) }.getOrNull()
+        } ?: MobileConfiguration()
         session.userId?.let { OfflineSyncManager.prepareAccount(this, it) }
         activeTab = savedInstanceState?.getInt("tab", 0) ?: 0
         ticketFilter = savedInstanceState?.getString("filter") ?: "active"
@@ -139,6 +154,7 @@ class MainActivity : AppCompatActivity() {
             when (activeTab) { 1 -> ticketList.canScrollVertically(-1); 2 -> roomList.canScrollVertically(-1); 3 -> true; else -> screens[activeTab].canScrollVertically(-1) }
         }
         buildOverview(); buildTickets(); buildChats(); buildMap(); buildAccount(); buildNavigation()
+        applyMobileConfiguration()
         selectTab(activeTab)
         allTickets = OfflineSyncManager.getCachedTickets(this)
         hasData = allTickets.isNotEmpty()
@@ -170,10 +186,17 @@ class MainActivity : AppCompatActivity() {
         greeting = label("Halo, " + (session.userName ?: "Tim").substringBefore(" ") + ".", 32f, bold = true)
         root.addView(greeting)
         gap(root, 6)
-        root.addView(label("Ruang kerja kamu, lebih terhubung.", 13f, HelpdeskTheme.muted))
+        homeSubtitle = label(mobileConfiguration.homeSubtitle, 13f, HelpdeskTheme.muted)
+        root.addView(homeSubtitle)
         gap(root, 10)
         root.addView(label(SimpleDateFormat("EEEE, dd MMMM", Locale("id", "ID")).apply { timeZone = TimeZone.getTimeZone("Asia/Jakarta") }.format(Date()), 11f, Color.rgb(156,174,255)))
         gap(root, 24)
+        announcement = panel(18)
+        announcement.background = HelpdeskTheme.shape(this, Color.rgb(23, 30, 56), 22, Color.rgb(49, 67, 113))
+        announcementTitle = label("Informasi tim", 15f, Color.rgb(172, 189, 255), true)
+        announcementBody = label("", 13f, HelpdeskTheme.text)
+        announcement.addView(announcementTitle); gap(announcement, 6); announcement.addView(announcementBody)
+        root.addView(announcement, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(20) })
         val titles = listOf("Total tiket", "Dalam proses", "SLA terlewat", "Tiket selesai")
         for (r in 0..1) {
             val grid = row()
@@ -201,6 +224,7 @@ class MainActivity : AppCompatActivity() {
         }
         gap(root, 4)
         val activity = panel()
+        activityPanel = activity
         activity.addView(label("Aktivitas tiket", 17f, bold = true))
         activity.addView(label("Tiket masuk · 7 hari terakhir · WIB", 11f, HelpdeskTheme.muted))
         chart = WeeklyTimelineChartView(this)
@@ -359,6 +383,12 @@ class MainActivity : AppCompatActivity() {
         button(tracking, "Pengaturan baterai aplikasi") { safeOpen(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + packageName))) }
         root.addView(tracking); gap(root)
         button(root, "Sinkronkan data sekarang") { refreshTickets(true) }; gap(root, 10)
+        val updatesPanel = panel(18)
+        updatesPanel.addView(label("Pembaruan tampilan", 16f, bold = true)); gap(updatesPanel, 8)
+        configurationStatus = label("", 12f, HelpdeskTheme.muted)
+        updatesPanel.addView(configurationStatus); gap(updatesPanel, 12)
+        button(updatesPanel, "Periksa pembaruan tampilan") { refreshMobileConfiguration(true) }
+        root.addView(updatesPanel); gap(root, 16)
         button(root, "Buka helpdesk di browser") { safeOpen(Intent(Intent.ACTION_VIEW, Uri.parse(session.serverUrl))) }; gap(root, 24)
         button(root, "Keluar dari akun") { confirmLogout() }; gap(root, 24)
         root.addView(label("Draf dan antrean offline disimpan per akun. GPS hanya aktif saat ada pekerjaan yang belum selesai.", 11f, HelpdeskTheme.muted))
@@ -416,7 +446,7 @@ class MainActivity : AppCompatActivity() {
         chart.setData(keys.map { date -> allTickets.count { TicketAdapter.parseIsoDate(it.createdAt)?.let { created -> day.format(created) == day.format(date) } == true } }.toIntArray(),
             keys.map { SimpleDateFormat("EEE", Locale("id", "ID")).apply { timeZone = zone }.format(it) })
         homeRecent.removeAllViews()
-        val recent = allTickets.filter { !LocationPolicy.isFinished(it.status) }.take(3)
+        val recent = allTickets.filter { !LocationPolicy.isFinished(it.status) }.take(mobileConfiguration.recentTicketLimit)
         if (recent.isEmpty()) homeRecent.addView(label(if (hasData) "Tidak ada tiket aktif. Semua sudah tertangani." else "Tiket akan tampil setelah data berhasil dimuat.", 13f, HelpdeskTheme.muted))
         recent.forEach { ticket ->
             val card = panel(17)
@@ -666,6 +696,43 @@ class MainActivity : AppCompatActivity() {
         try { startActivity(intent) } catch (_: RuntimeException) { toast("Aplikasi yang diperlukan belum tersedia.") }
     }
 
+    private fun applyMobileConfiguration() {
+        homeSubtitle.text = mobileConfiguration.homeSubtitle
+        announcement.visibility = if (mobileConfiguration.announcementBody.isBlank()) View.GONE else View.VISIBLE
+        announcementTitle.text = mobileConfiguration.announcementTitle.ifBlank { "Informasi tim" }
+        announcementBody.text = mobileConfiguration.announcementBody
+        activityPanel.visibility = if (mobileConfiguration.showActivityChart) View.VISIBLE else View.GONE
+        configurationStatus.text = if (mobileConfiguration.version == 0L) "Pengaturan bawaan · diperbarui otomatis saat online."
+            else "Konfigurasi v${mobileConfiguration.version} aktif · tersimpan untuk penggunaan offline."
+    }
+
+    private fun refreshMobileConfiguration(manual: Boolean = false) {
+        if (configurationJob?.isActive == true) return
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!manual && configurationLastAttempt > 0 && now - configurationLastAttempt < 60_000) return
+        val token = session.token ?: return
+        val account = session.userId ?: return
+        configurationLastAttempt = now
+        configurationJob = lifecycleScope.launch {
+            val result = ApiClient.getMobileConfiguration(session.serverUrl, token)
+            if (!isActive || session.token != token || session.userId != account) return@launch
+            val raw = result.getOrNull()
+            val incoming = raw?.let { runCatching { MobileConfiguration.parse(it, configurationAppVersion) }.getOrNull() }
+            if (incoming != null) {
+                val changed = incoming != mobileConfiguration
+                // Validate the entire response before replacing the last good account cache.
+                session.mobileConfigurationJson = raw
+                mobileConfiguration = incoming
+                applyMobileConfiguration()
+                if (changed) render()
+                if (manual) toast(if (changed) "Pembaruan tampilan diterapkan." else "Tampilan sudah terbaru.")
+            } else {
+                configurationStatus.text = "Belum dapat memeriksa pembaruan. Pengaturan terakhir tetap digunakan."
+                if (manual) toast("Belum dapat memuat pembaruan. Coba lagi saat online.")
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         if (!::swipe.isInitialized || !session.isLoggedIn) return
@@ -676,8 +743,20 @@ class MainActivity : AppCompatActivity() {
             addAction(LocationManager.PROVIDERS_CHANGED_ACTION)
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
         ensureService(); refreshTickets(false); refreshRooms()
+        refreshMobileConfiguration()
         polling?.cancel()
-        polling = lifecycleScope.launch { while (isActive) { delay(15_000); refreshTickets(false); if(activeTab==2) refreshRooms() } }
+        polling = lifecycleScope.launch {
+            var lastDataRefresh = android.os.SystemClock.elapsedRealtime()
+            while (isActive) {
+                delay(5_000)
+                refreshMobileConfiguration()
+                val now = android.os.SystemClock.elapsedRealtime()
+                if (now - lastDataRefresh >= mobileConfiguration.refreshIntervalSeconds * 1000L) {
+                    lastDataRefresh = now
+                    refreshTickets(false); if (activeTab == 2) refreshRooms()
+                }
+            }
+        }
         if (Build.VERSION.SDK_INT >= 33 && !preferences.getBoolean("asked_notifications", false)) {
             preferences.edit().putBoolean("asked_notifications", true).apply()
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -688,6 +767,7 @@ class MainActivity : AppCompatActivity() {
     }
     override fun onPause() {
         polling?.cancel(); polling = null
+        configurationJob?.cancel(); configurationJob = null
         try { unregisterReceiver(updates) } catch (_: IllegalArgumentException) {}
         super.onPause()
     }

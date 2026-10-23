@@ -24,6 +24,21 @@ object ApiClient {
 
     private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 
+    suspend fun getMobileConfiguration(serverUrl: String, token: String): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder().url("$serverUrl/api/mobile/config")
+                .header("Authorization", "Bearer $token").header("Cache-Control", "no-cache").build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw ApiException(response.code, "Pembaruan belum dapat dimuat")
+                val body = response.body ?: error("Konfigurasi kosong")
+                val source = body.source()
+                // Bound both advertised and actual body size before parsing/caching.
+                require(body.contentLength() <= 8192 && !source.request(8193)) { "Konfigurasi terlalu besar" }
+                source.readUtf8()
+            }
+        }
+    }
+
     private fun JSONObject.optNullableString(key: String): String? {
         if (!has(key) || isNull(key)) return null
         val v = optString(key)

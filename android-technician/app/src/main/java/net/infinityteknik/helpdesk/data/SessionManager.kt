@@ -241,6 +241,9 @@ class SessionManager(context: Context) {
     var chatRoomsJson: String?
         get() = prefs.getString("chat_rooms_v1", null)
         set(value) = prefs.edit().putString("chat_rooms_v1", value).apply()
+    var mobileConfigurationJson: String?
+        get() = prefs.getString("mobile_configuration_v1", null)
+        set(value) = prefs.edit().putString("mobile_configuration_v1", value).apply()
     fun seenRoomMessage(ticketId: String) = prefs.getString("chat_seen_" + ticketId, null)
     fun markRoomSeen(ticketId: String, messageId: String?) { prefs.edit().putString("chat_seen_" + ticketId, messageId).apply() }
     fun chatDraft(ticketId: String) = prefs.getString("chat_draft_" + ticketId, "").orEmpty()

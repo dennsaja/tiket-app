@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { BrandMark } from "@/components/ui/brand-mark";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { ChartPie, Ticket, BookOpen, Users, Building2, FolderOpen, Timer, ScrollText, Settings, LogOut, User, ChevronsRight, ChevronsLeft, ClipboardList, Shield, X, ArrowUpCircle, MessagesSquare, MapPin, Archive, Plus } from "lucide-react";
+import { ChartPie, Ticket, BookOpen, Users, Building2, FolderOpen, Timer, ScrollText, Settings, LogOut, User, ChevronsRight, ChevronsLeft, ClipboardList, Shield, X, ArrowUpCircle, MessagesSquare, MapPin, Archive, Plus, Radio } from "lucide-react";
 
 interface NavItem {
   href: string;
@@ -34,6 +34,7 @@ const adminItems: NavItem[] = [
   { href: "/admin/audit", label: "Log aktivitas", icon: ScrollText },
   { href: "/admin/backup", label: "Backup & restore", icon: Archive },
   { href: "/admin/updates", label: "Pembaruan sistem", icon: ArrowUpCircle },
+  { href: "/admin/mobile-console", label: "Console Android", icon: Radio },
   { href: "/admin/settings", label: "Pengaturan", icon: Settings },
 ];
 
