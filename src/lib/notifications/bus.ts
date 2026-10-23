@@ -42,6 +42,13 @@ export interface RealtimeSystemEvent {
 }
 
 class NotificationBus extends EventEmitter {
+  emitMobileConfig(version: number) { this.emit("mobile_config", version); }
+
+  subscribeMobileConfig(callback: (version: number) => void) {
+    this.on("mobile_config", callback);
+    return () => { this.off("mobile_config", callback); };
+  }
+
   constructor() {
     super();
     this.setMaxListeners(500);

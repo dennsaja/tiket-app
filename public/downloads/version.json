@@ -1,10 +1,10 @@
 {
-  "versionCode": 11,
-  "versionName": "3.2.0",
+  "versionCode": 13,
+  "versionName": "3.3.1",
   "minSupportedVersion": 1,
   "downloadUrl": "/downloads/helpdesk-teknisi.apk",
-  "updatedAt": "2026-10-22T11:07:58.1777672Z",
-  "sha256": "576d9ac844ebbb69d5a41a65fb1f822afa1870f7a9af5c48020830d014b8b28d",
-  "fileSizeBytes": 5576966,
-  "releaseNotes": "v3.2.0: Terima tiket langsung membuka Detail tiket, data pelapor dan spesifikasi lengkap beserta lampiran admin, tombol tandai semua notifikasi dibaca, serta subkategori sesuai jenis pekerjaan. Perbarui web terlebih dahulu untuk perbaikan peta dan reset SLA sekali dengan arsip pemulihan; SLA baru selanjutnya diatur NOC."
+  "updatedAt": "2026-10-23T14:32:20.3440782Z",
+  "sha256": "8a16ed5396cbadf5964cdd0b58e2bcbdf07d84582c0af1d6787f1b70b40109fc",
+  "fileSizeBytes": 5589146,
+  "releaseNotes": "v3.3.1: Popup pembaruan konfigurasi dari Console Android, pilihan Terapkan sekarang/Nanti, konfirmasi penerapan di console, dan pemberitahuan versi APK baru. Termasuk realtime tiket/chat, tombol Tambah gambar dari kamera/galeri, serta laporan selesai kembali ke tab Tiket dengan idempotensi. Perbarui web terlebih dahulu lalu pasang APK ini satu kali untuk mengaktifkan dukungan console."
 }

@@ -22,21 +22,22 @@ dalam perubahan ini. Rujukan: https://developer.android.com/guide/playcore/in-ap
 ## Cara menggunakan
 
 1. Perbarui web melalui **Pembaruan sistem**.
-2. Bangun dan distribusikan **satu kali APK 3.3.0 (versionCode 12)** dengan sertifikat
+2. Bangun dan distribusikan **satu kali APK 3.3.1 (versionCode 13)** dengan sertifikat
    yang sama dengan aplikasi terpasang. Versi 3.2.0 belum memiliki pembaca konfigurasi.
 3. Masuk sebagai NOC/Owner, buka **Console Android**.
 4. Ubah isian, lihat pratinjau, pilih **Simpan draft**.
 5. Isi catatan perubahan, pilih **Terbitkan pembaruan**. Draft yang belum disimpan
    tidak bisa diterbitkan; draft tersimpan belum dikirim ke perangkat.
-6. Aplikasi online memeriksa konfigurasi saat layar utama dibuka (dibatasi sekali
-   per 60 detik) dan setiap 60 detik selama layar utama aktif. Tab Akun menyediakan
+6. Aplikasi online memeriksa konfigurasi saat layar utama dibuka, menerima sinyal
+   publikasi realtime, dan memakai pemeriksaan cadangan saat streaming terhalang. Tab Akun menyediakan
    **Periksa pembaruan tampilan** untuk pemeriksaan manual. Saat berada di layar
    Detail tiket atau chat terpisah, pemeriksaan berlanjut setelah kembali.
 7. Jika diperlukan, pilih **Pulihkan** pada riwayat. Ini menerbitkan isi versi lama
    sebagai versi baru dan mengganti draft. Untuk kembali ke kondisi awal, pilih
    **Gunakan pengaturan bawaan**, simpan, lalu terbitkan.
 
-Pembaruan diterapkan ke komponen yang ada tanpa me-restart activity, mengosongkan
+Pembaruan ditawarkan lewat popup dan diterapkan setelah memilih Terapkan sekarang,
+tanpa me-restart activity, mengosongkan
 draft laporan/chat, atau mengubah kebijakan GPS. Interval data tidak mengatur GPS
 atau polling notifikasi. Respons gagal atau konfigurasi yang tidak kompatibel
 mempertahankan konfigurasi terakhir. Cache terikat sesi dan dibersihkan saat akun
@@ -54,15 +55,11 @@ berganti/logout. Cache dapat dipakai offline. Pengumuman ditampilkan sebagai tek
 - Protocol `schemaVersion: 1`, `minAppVersionCode: 12`; aplikasi memvalidasi semua
   isian dan batas ukuran sebelum menyimpan/menerapkan.
 - Status di console adalah **publikasi server**, bukan bukti sudah diterima semua
-  perangkat. Tidak ada push FCM, laporan penerimaan perangkat, atau pembaruan saat
-  aplikasi ditutup dalam implementasi ini.
+  perangkat. Terdapat konfirmasi penerapan terakhir per akun di console. Tidak ada push FCM
+  atau pembaruan saat aplikasi ditutup.
 
-## Status distribusi perubahan ini
+## Status distribusi
 
-Source Android disiapkan untuk **3.3.0 / 12**. Sesuai permintaan, **tidak dijalankan
-tes, lint, type-check, emulator, atau build**. Perubahan source langsung dikirim ke
-GitHub. APK dan `public/downloads/version.json` tetap **3.2.0 / 11**; keduanya belum
-diganti dan tidak boleh dianggap sebagai APK yang sudah mendukung console.
-
-Saat APK 3.3.0 kelak dibangun, terbitkan APK bersama metadata versi, ukuran, dan
-SHA-256 yang benar. Tidak cukup menaikkan metadata tanpa mengganti berkas APK.
+APK pendukung diterbitkan sebagai **3.3.1 / 13**. Lihat [catatan rilis](ANDROID-v3.3.1.md)
+untuk popup, konfirmasi penerapan, batasan, dan urutan pembaruan. Rilis ini dibangun
+tanpa menjalankan tes atau emulator.

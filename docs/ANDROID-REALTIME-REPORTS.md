@@ -1,9 +1,9 @@
 # Pembaruan data, bukti foto, dan penyelesaian tiket Android
 
-Perubahan ini termasuk source Android 3.3.0 (12), yang belum dibangun atau diterbitkan.
-Sesuai permintaan, tidak menjalankan tes, emulator, lint, type-check, atau build.
-APK dan metadata unduhan tetap versi 3.2.0. Perbarui web dahulu, lalu bangun dan
-distribusikan APK dengan sertifikat yang sama agar perbaikan native ini tersedia.
+Perubahan ini awalnya termasuk source Android 3.3.0 (12). Kini disertakan dalam
+rilis APK **3.3.1 (13)** bersama popup dan perbaikan console. Perbarui web dahulu,
+lalu pasang APK 3.3.1. Lihat [catatan rilis](ANDROID-v3.3.1.md). Tidak menjalankan
+tes atau emulator; APK dibangun untuk distribusi.
 
 ## Data otomatis
 

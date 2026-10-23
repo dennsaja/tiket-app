@@ -45,6 +45,15 @@ object ApiClient {
         return if (v.isEmpty() || v == "null") null else v
     }
 
+    suspend fun acknowledgeConfiguration(serverUrl: String, token: String, version: Long, appCode: Long, appVersion: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        runCatching {
+            val body = JSONObject().put("version", version).put("appVersionCode", appCode).put("appVersion", appVersion)
+            jsonResponse(Request.Builder().url("$serverUrl/api/mobile/config").header("Authorization", "Bearer $token")
+                .post(body.toString().toRequestBody(JSON_MEDIA_TYPE)).build())
+            true
+        }
+    }
+
     suspend fun login(serverUrl: String, email: String, pass: String): Result<LoginResponse> =
         withContext(Dispatchers.IO) {
             try {

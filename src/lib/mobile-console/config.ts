@@ -27,6 +27,15 @@ export interface MobileConsoleState {
   draft: MobileConfig;
   published: MobileRelease | null;
   history: MobileRelease[];
+  receipts?: MobileDeviceReceipt[];
+}
+export interface MobileDeviceReceipt {
+  userId: string;
+  name: string;
+  appVersion: string;
+  appVersionCode: number;
+  version: number;
+  appliedAt: string;
 }
 export const emptyConsoleState = (): MobileConsoleState => ({
   revision: 0, draft: { ...defaultMobileConfig }, published: null, history: [],

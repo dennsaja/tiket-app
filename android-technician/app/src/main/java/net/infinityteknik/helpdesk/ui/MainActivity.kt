@@ -101,6 +101,12 @@ class MainActivity : AppCompatActivity() {
     private var configurationJob: Job? = null
     private var configurationLastAttempt = 0L
     private var configurationAppVersion = 0L
+    private var configurationRefreshPending = false
+    private var configurationDialog: AlertDialog? = null
+    private var offeredConfigurationVersion = -1L
+    private var deferredConfigurationVersion = -1L
+    private var acknowledgedConfigurationVersion = -1L
+    private var acknowledgementBusy = false
     private lateinit var homeSubtitle: TextView
     private lateinit var announcement: LinearLayout
     private lateinit var announcementTitle: TextView
@@ -719,31 +725,89 @@ class MainActivity : AppCompatActivity() {
             else "Konfigurasi v${mobileConfiguration.version} aktif · tersimpan untuk penggunaan offline."
     }
 
-    private fun refreshMobileConfiguration(manual: Boolean = false) {
-        if (configurationJob?.isActive == true) return
+    private fun refreshMobileConfiguration(manual: Boolean = false, force: Boolean = false) {
+        if (configurationJob?.isActive == true) { if (force || manual) configurationRefreshPending = true; return }
         val now = android.os.SystemClock.elapsedRealtime()
-        if (!manual && configurationLastAttempt > 0 && now - configurationLastAttempt < 60_000) return
+        if (!manual && !force && configurationLastAttempt > 0 && now - configurationLastAttempt < 60_000) return
         val token = session.token ?: return
         val account = session.userId ?: return
         configurationLastAttempt = now
         configurationJob = lifecycleScope.launch {
+            try {
             val result = ApiClient.getMobileConfiguration(session.serverUrl, token)
             if (!isActive || session.token != token || session.userId != account) return@launch
             val raw = result.getOrNull()
             val incoming = raw?.let { runCatching { MobileConfiguration.parse(it, configurationAppVersion) }.getOrNull() }
             if (incoming != null) {
-                val changed = incoming != mobileConfiguration
-                // Validate the entire response before replacing the last good account cache.
-                session.mobileConfigurationJson = raw
-                mobileConfiguration = incoming
-                applyMobileConfiguration()
-                if (changed) render()
-                if (manual) toast(if (changed) "Pembaruan tampilan diterapkan." else "Tampilan sudah terbaru.")
+                if (incoming.version != mobileConfiguration.version && incoming.version > 0) {
+                    configurationStatus.text = "Pembaruan v${incoming.version} tersedia · menunggu diterapkan."
+                    if ((manual || deferredConfigurationVersion != incoming.version) && (configurationDialog?.isShowing != true || offeredConfigurationVersion != incoming.version)) {
+                        configurationDialog?.dismiss()
+                        offeredConfigurationVersion = incoming.version
+                        configurationDialog = AlertDialog.Builder(this@MainActivity)
+                            .setTitle("Pembaruan tersedia")
+                            .setMessage("Pembaruan tampilan v${incoming.version} dari pengelola helpdesk.\n\n" + incoming.releaseNote.ifBlank { "Pengaturan tampilan terbaru tersedia untuk tim." } + "\n\nTerapkan sekarang? Draft laporan dan data offline tetap tersimpan.")
+                            .setPositiveButton("Terapkan sekarang") { _, _ ->
+                                if (session.token == token && session.userId == account) {
+                                    session.mobileConfigurationJson = raw
+                                    mobileConfiguration = incoming
+                                    applyMobileConfiguration(); render(); acknowledgeMobileConfiguration()
+                                    toast("Pembaruan v${incoming.version} berhasil diterapkan.")
+                                }
+                            }
+                            .setNegativeButton("Nanti") { _, _ -> deferredConfigurationVersion = incoming.version }
+                            .setOnCancelListener { deferredConfigurationVersion = incoming.version }
+                            .create().also { it.show() }
+                    }
+                } else {
+                    session.mobileConfigurationJson = raw
+                    mobileConfiguration = incoming
+                    applyMobileConfiguration()
+                    acknowledgeMobileConfiguration()
+                    showApkUpdate(raw, manual)
+                    if (manual) toast("Konfigurasi tampilan sudah terbaru.")
+                }
             } else {
                 configurationStatus.text = "Belum dapat memeriksa pembaruan. Pengaturan terakhir tetap digunakan."
                 if (manual) toast("Belum dapat memuat pembaruan. Coba lagi saat online.")
             }
+            } finally {
+                configurationJob = null
+                if (configurationRefreshPending && !isFinishing) {
+                    configurationRefreshPending = false
+                    refreshMobileConfiguration(force = true)
+                }
+            }
         }
+    }
+
+    private fun acknowledgeMobileConfiguration() {
+        if (acknowledgementBusy || acknowledgedConfigurationVersion == mobileConfiguration.version) return
+        val token = session.token ?: return
+        val account = session.userId
+        val version = mobileConfiguration.version
+        acknowledgementBusy = true
+        lifecycleScope.launch {
+            try {
+                val appVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: "3.3.1"
+                val result = ApiClient.acknowledgeConfiguration(session.serverUrl, token, version, configurationAppVersion, appVersion)
+                if (result.isSuccess && session.token == token && session.userId == account) acknowledgedConfigurationVersion = version
+            } finally { acknowledgementBusy = false }
+        }
+    }
+
+    private fun showApkUpdate(raw: String, manual: Boolean) {
+        val apk = runCatching { org.json.JSONObject(raw).optJSONObject("apk") }.getOrNull() ?: return
+        val code = apk.optLong("versionCode")
+        if (code <= configurationAppVersion || configurationDialog?.isShowing == true) return
+        val shown = preferences.getLong("apk_update_shown", 0)
+        if (!manual && shown == code) return
+        preferences.edit().putLong("apk_update_shown", code).apply()
+        configurationDialog = AlertDialog.Builder(this)
+            .setTitle("Versi aplikasi baru tersedia")
+            .setMessage("HelpDesk " + apk.optString("versionName").take(24) + "\n\n" + apk.optString("releaseNotes").take(1200))
+            .setPositiveButton("Buka pembaruan") { _, _ -> safeOpen(Intent(Intent.ACTION_VIEW, Uri.parse(session.serverUrl + "/download"))) }
+            .setNegativeButton("Nanti", null).create().also { it.show() }
     }
 
     override fun onResume() {
@@ -760,8 +824,9 @@ class MainActivity : AppCompatActivity() {
         realtimeJob = net.infinityteknik.helpdesk.util.RealtimeUpdates.start(this, session) {
             if (loading) realtimeRefreshPending = true else refreshTickets(false)
             refreshRooms()
+            refreshMobileConfiguration(force = true)
         }
-        refreshMobileConfiguration()
+        refreshMobileConfiguration(force = true)
         polling?.cancel()
         polling = lifecycleScope.launch {
             var lastDataRefresh = android.os.SystemClock.elapsedRealtime()
@@ -793,6 +858,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
     override fun onPause() {
+        configurationRefreshPending = false
+        configurationDialog?.dismiss(); configurationDialog = null
         realtimeRefreshPending = false
         realtimeJob?.cancel(); realtimeJob = null
         polling?.cancel(); polling = null

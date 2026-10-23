@@ -6,7 +6,7 @@ import { users } from "@/lib/db/schema";
 import { createAuditLog, getClientIp } from "@/lib/audit";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { consoleActionSchema } from "@/lib/mobile-console/config";
-import { changeMobileConsole, ConsoleConflict, readMobileConsole } from "@/lib/mobile-console/store";
+import { changeMobileConsole, ConsoleConflict, readMobileConsole, readMobileReceipts } from "@/lib/mobile-console/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +20,8 @@ async function operator(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     if (!await operator(req)) return NextResponse.json({ error: "Console hanya tersedia untuk NOC dan Owner." }, { status: 403 });
-    return NextResponse.json(await readMobileConsole(), { headers });
+    const [state, receipts] = await Promise.all([readMobileConsole(), readMobileReceipts()]);
+    return NextResponse.json({ ...state, receipts }, { headers });
   } catch {
     return NextResponse.json({ error: "Console belum dapat dimuat." }, { status: 503, headers });
   }

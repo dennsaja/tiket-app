@@ -9,6 +9,7 @@ export const metadata = {
 };
 const features = [
   { icon: Smartphone, title: "Workspace yang lebih ringkas", text: "Lima tab: Beranda, Tiket, Chat, Peta, dan Akun. Tampilan gelap, kartu statistik, dan transisi yang lebih halus." },
+  { icon: Smartphone, title: "Popup pembaruan dari console", text: "Terima pemberitahuan konfigurasi terbaru dari pengelola, lalu pilih Terapkan sekarang. Konfirmasi penerapan tampil di console dan konfigurasi tersimpan untuk penggunaan offline." },
   { icon: ShieldCheck, title: "Login lewat browser atau akun", text: "Login di browser lalu kembali ke aplikasi, atau gunakan email dan kata sandi akun helpdesk. Alamat server sudah terpasang." },
   { icon: MapPin, title: "Lokasi sesuai pekerjaan", text: "GPS aktif untuk teknisi yang memiliki tiket belum selesai. Peta hanya menampilkan koordinat yang tersedia." },
   { icon: Camera, title: "Detail tiket, siap ditangani", text: "Terima tiket untuk langsung melihat pelapor, lokasi, subkategori, spesifikasi, dan lampiran admin. Laporan pekerjaan tetap dalam satu halaman." },

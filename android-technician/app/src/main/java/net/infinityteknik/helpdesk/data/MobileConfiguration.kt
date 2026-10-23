@@ -10,7 +10,8 @@ data class MobileConfiguration(
     val announcementBody: String = "",
     val showActivityChart: Boolean = true,
     val recentTicketLimit: Int = 3,
-    val refreshIntervalSeconds: Int = 15
+    val refreshIntervalSeconds: Int = 15,
+    val releaseNote: String = ""
 ) {
     companion object {
         fun parse(raw: String, appVersion: Long): MobileConfiguration {
@@ -28,7 +29,7 @@ data class MobileConfiguration(
             val refresh = data.getInt("refreshIntervalSeconds")
             require(subtitle.length in 1..140 && title.length <= 80 && body.length <= 600)
             require(recent in 1..8 && refresh in 15..120)
-            return MobileConfiguration(version, subtitle, title, body, data.getBoolean("showActivityChart"), recent, refresh)
+            return MobileConfiguration(version, subtitle, title, body, data.getBoolean("showActivityChart"), recent, refresh, envelope.optString("note").take(240))
         }
     }
 }

@@ -10,13 +10,13 @@ const panel = "rounded-[28px] border border-white/10 bg-[#17171c] p-6";
 const input = "mt-2 w-full rounded-2xl border border-white/10 bg-[#0c0c0f] px-4 py-3 text-sm text-white outline-none focus:border-blue-500 disabled:opacity-50";
 export function MobileConsole({ apkVersion, apkSupportsConsole }: { apkVersion: string; apkSupportsConsole: boolean }) {
   const [state, setState] = useState<MobileConsoleState | null>(null);
+  const [receipts, setReceipts] = useState<NonNullable<MobileConsoleState["receipts"]>>([]);
   const [draft, setDraft] = useState<MobileConfig>({ ...defaultMobileConfig });
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const dirty = !!state && JSON.stringify(draft) !== JSON.stringify(state.draft);
-  const unpublished = !!state && JSON.stringify(state.draft) !== JSON.stringify(state.published?.config);
-  function receive(data: MobileConsoleState) { setState(data); setDraft({ ...data.draft }); setError(""); }
+  function receive(data: MobileConsoleState) { setState(data); setDraft({ ...data.draft }); if (data.receipts) setReceipts(data.receipts); setError(""); }
   async function reload() {
     setBusy(true);
     try {
@@ -28,6 +28,15 @@ export function MobileConsole({ apkVersion, apkSupportsConsole }: { apkVersion: 
     finally { setBusy(false); }
   }
   useEffect(() => { void reload(); }, []);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void fetch("/api/admin/mobile-console", { cache: "no-store" }).then(async res => {
+        if (res.ok) { const data: MobileConsoleState = await res.json(); setReceipts(data.receipts ?? []); }
+      }).catch(() => {});
+    }, 15000);
+    return () => clearInterval(timer);
+  }, []);
   async function submit(action: ConsoleAction) {
     setBusy(true);
     try {
@@ -36,7 +45,7 @@ export function MobileConsole({ apkVersion, apkSupportsConsole }: { apkVersion: 
       if (!res.ok) throw new Error(data.error || "Perubahan gagal disimpan.");
       receive(data);
       if (action.action !== "save") setNote("");
-      toast.success(action.action === "save" ? "Draft tersimpan. Belum dikirim ke aplikasi." : "Konfigurasi diterbitkan. Aplikasi yang mendukung akan mengambilnya saat online.");
+      toast.success(action.action === "save" ? "Draft tersimpan. Belum dikirim ke aplikasi." : "Pembaruan diterbitkan. Popup dikirim ke aplikasi yang terhubung; lihat status penerimaan di bawah.");
     } catch (e) { const message = e instanceof Error ? e.message : "Perubahan gagal disimpan."; setError(message); toast.error(message); }
     finally { setBusy(false); }
   }
@@ -44,12 +53,12 @@ export function MobileConsole({ apkVersion, apkSupportsConsole }: { apkVersion: 
   return <div className="mx-auto max-w-7xl space-y-6 pb-10 text-[#f6f6f8]">
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div><p className="mb-2 text-xs tracking-[.2em] text-blue-400">HELPDESK / ANDROID</p><h1 className="text-3xl font-semibold tracking-tight">Console aplikasi</h1><p className="mt-2 text-sm text-zinc-400">Atur pengalaman tim, tanpa mengirim APK untuk setiap perubahan.</p></div>
-      <Button variant="secondary" disabled={busy} onClick={() => { if (!dirty || window.confirm("Muat ulang dan buang perubahan draft yang belum disimpan?")) void reload(); }}><RefreshCw className="h-4 w-4" />Muat ulang</Button>
+      <div className="flex flex-wrap gap-3"><a href="/downloads/helpdesk-teknisi.apk" className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm text-white"><Smartphone className="h-4 w-4" />Unduh APK {apkVersion}</a><Button variant="secondary" disabled={busy} onClick={() => { if (!dirty || window.confirm("Muat ulang dan buang perubahan draft yang belum disimpan?")) void reload(); }}><RefreshCw className="h-4 w-4" />Muat ulang</Button></div>
     </div>
     <div className="grid gap-4 md:grid-cols-3">
       <div className="rounded-[28px] bg-white p-6 text-zinc-950"><Radio className="mb-5 h-6 w-6 text-blue-600" /><p className="text-sm">Konfigurasi diterbitkan</p><p className="mt-2 text-3xl font-semibold">{state ? state.published ? `v${state.published.version}` : "Default" : "—"}</p><p className="mt-2 text-xs text-zinc-500">Status publikasi server; bukan konfirmasi semua perangkat.</p></div>
-      <div className={panel}><Smartphone className="mb-5 h-6 w-6 text-blue-400" /><p className="text-sm text-zinc-400">Dukungan aplikasi</p><p className="mt-2 text-2xl font-semibold">Mulai versi 3.3.0</p><p className="mt-2 text-xs text-zinc-400">Perlu satu kali memasang APK pendukung. APK 3.2.0 belum membaca konfigurasi ini.</p></div>
-      <div className={panel}><p className="text-sm text-zinc-400">Penerapan otomatis</p><p className="mt-2 text-2xl font-semibold">Saat online</p><p className="mt-3 text-sm leading-relaxed text-zinc-400">Diperiksa saat membuka aplikasi dan setiap 60 detik di layar utama. Saat offline, pengaturan terakhir tetap digunakan.</p></div>
+      <div className={panel}><Smartphone className="mb-5 h-6 w-6 text-blue-400" /><p className="text-sm text-zinc-400">APK pendukung popup</p><p className="mt-2 text-2xl font-semibold">Versi {apkVersion}</p><p className="mt-2 text-xs text-zinc-400">Pasang APK ini satu kali agar popup dan konfirmasi penerapan tersedia. APK 3.2.0 belum membaca konfigurasi console.</p></div>
+      <div className={panel}><p className="text-sm text-zinc-400">Sudah diterapkan</p><p className="mt-2 text-2xl font-semibold">{state?.published ? receipts.filter(item => item.version === state.published!.version).length : 0} akun</p><p className="mt-3 text-sm leading-relaxed text-zinc-400">Popup muncul saat aplikasi online di layar utama. Teknisi memilih Terapkan sekarang; status di bawah berasal dari konfirmasi aplikasi.</p></div>
     </div>
     <p className="rounded-2xl border border-blue-500/20 bg-blue-500/10 px-5 py-4 text-sm leading-relaxed text-blue-100">Console ini mengubah konten dan pengaturan yang sudah didukung aplikasi. Perubahan kode GPS, login, layar baru, atau perbaikan native tetap memerlukan APK. {apkSupportsConsole ? `APK ${apkVersion} di halaman unduh sudah mendukung console.` : `APK unduhan saat ini ${apkVersion}. Dukungan console baru tersedia setelah APK 3.3.0 atau lebih baru dibangun dan diterbitkan.`}</p>
     {error && <p role="alert" className="rounded-2xl bg-red-500/10 p-4 text-sm text-red-300">{error}</p>}
@@ -80,10 +89,15 @@ export function MobileConsole({ apkVersion, apkSupportsConsole }: { apkVersion: 
         </div>
         <div className={panel}><h2 className="text-lg font-semibold">Terbitkan untuk tim</h2><p className="mt-2 text-sm text-zinc-400">Simpan draft terlebih dahulu. Publikasi tersedia untuk semua akun staf di aplikasi yang mendukung.</p>
           <label className="mt-4 block text-sm">Catatan perubahan<input maxLength={240} className={input} disabled={busy || !state} value={note} onChange={e => setNote(e.target.value)} placeholder="Contoh: Pengumuman jadwal pemeliharaan" /></label>
-          <Button className="mt-4 w-full" disabled={busy || !state || dirty || !unpublished || !note.trim()} onClick={() => state && void submit({ action: "publish", revision: state.revision, note })}><Send className="h-4 w-4" />Terbitkan pembaruan</Button>
+          <Button className="mt-4 w-full" disabled={busy || !state || dirty || !note.trim()} onClick={() => state && void submit({ action: "publish", revision: state.revision, note })}><Send className="h-4 w-4" />Terbitkan pembaruan</Button>
+          <p className="mt-3 text-xs text-zinc-400">Bisa menerbitkan ulang konfigurasi yang sama untuk mengirim pemberitahuan versi baru.</p>
         </div>
       </div>
     </div>
+    <section className={panel}><h2 className="text-xl font-semibold">Penerimaan aplikasi</h2><p className="mt-2 text-sm text-zinc-400">Konfirmasi terakhir per akun, diperbarui setiap 15 detik. Akun tanpa konfirmasi mungkin belum memasang APK pendukung, sedang offline, atau belum menerapkan pembaruan. Maksimal 250 akun terakhir.</p>
+      {!receipts.length && <p className="py-6 text-sm text-amber-200">Belum ada konfirmasi aplikasi. Pasang APK {apkVersion}, login, lalu buka beranda aplikasi. Tombol terbitkan tidak memperbarui APK 3.2.0 yang sudah terpasang.</p>}
+      <div className="mt-4 divide-y divide-white/10">{receipts.map(item => <div key={item.userId} className="flex flex-wrap justify-between gap-3 py-4 text-sm"><div><p>{item.name}</p><p className="mt-1 text-xs text-zinc-500">APK {item.appVersion} · {new Date(item.appliedAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })} WIB</p></div><span className={(item.version === state?.published?.version || (item.version === 0 && !state?.published)) ? "text-emerald-300" : "text-amber-200"}>{(item.version === state?.published?.version || (item.version === 0 && !state?.published)) ? "Diterapkan" : "Menunggu versi terbaru"} · v{item.version}</span></div>)}</div>
+    </section>
     <section className={panel}><h2 className="text-xl font-semibold">Riwayat publikasi</h2><p className="mt-2 text-sm text-zinc-400">20 publikasi terakhir. Pemulihan menerbitkan konfigurasi lama sebagai versi baru.</p>
       {!state?.history.length && <p className="py-8 text-sm text-zinc-500">Belum ada pembaruan yang diterbitkan.</p>}
       <div className="mt-5 divide-y divide-white/10">{state?.history.map(release => <div key={release.version} className="flex flex-wrap items-center justify-between gap-4 py-5">

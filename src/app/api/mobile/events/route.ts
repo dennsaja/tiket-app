@@ -14,10 +14,11 @@ export async function GET(req: NextRequest) {
       const send = () => { if (!closed) { try { controller.enqueue(new TextEncoder().encode("data: refresh\n\n")); } catch { cleanup(); } } };
       const unsubscribe = notificationBus.subscribeSystemEvents(send);
       const unnotify = notificationBus.subscribeUser(user.id, send);
+      const unconfig = notificationBus.subscribeMobileConfig(send);
       // Also invalidates on another worker's changes and keeps proxies from buffering.
       const heartbeat = setInterval(send, 15000);
       const lifetime = setTimeout(() => { cleanup(); try { controller.close(); } catch {} }, 55000);
-      cleanup = () => { if (closed) return; closed = true; clearInterval(heartbeat); clearTimeout(lifetime); unsubscribe(); unnotify(); req.signal.removeEventListener("abort", abort); };
+      cleanup = () => { if (closed) return; closed = true; clearInterval(heartbeat); clearTimeout(lifetime); unsubscribe(); unnotify(); unconfig(); req.signal.removeEventListener("abort", abort); };
       const abort = () => { cleanup(); try { controller.close(); } catch {} };
       req.signal.addEventListener("abort", abort, { once: true });
       if (req.signal.aborted) abort(); else send();
