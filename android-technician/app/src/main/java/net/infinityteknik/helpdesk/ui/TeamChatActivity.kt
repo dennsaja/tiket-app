@@ -30,6 +30,7 @@ class TeamChatActivity : AppCompatActivity() {
     private var loading = false
     private var sending = false
     private var poll: Job? = null
+    private var realtimeJob: Job? = null
     private var hasAccess = true
     override fun onCreate(state: Bundle?) {
         super.onCreate(state); session = SessionManager(this)
@@ -124,7 +125,7 @@ class TeamChatActivity : AppCompatActivity() {
             } finally { sending = false; send.isEnabled = hasAccess }
         }
     }
-    override fun onResume() { super.onResume(); if(!::adapter.isInitialized) return; load(); poll = lifecycleScope.launch { while(isActive) { delay(8000); load() } } }
-    override fun onPause() { poll?.cancel(); poll=null; super.onPause() }
+    override fun onResume() { super.onResume(); if(!::adapter.isInitialized) return; load(); realtimeJob?.cancel(); realtimeJob = net.infinityteknik.helpdesk.util.RealtimeUpdates.start(this, session) { load() }; poll = lifecycleScope.launch { while(isActive) { delay(8000); load() } } }
+    override fun onPause() { realtimeJob?.cancel(); realtimeJob=null; poll?.cancel(); poll=null; super.onPause() }
     private fun dp(v: Int) = HelpdeskTheme.dp(this,v)
 }

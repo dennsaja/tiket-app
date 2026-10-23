@@ -74,6 +74,7 @@ class TicketDetailActivity : AppCompatActivity() {
     private var ticketStatus: String = "open"
     private var latestReport: WorkReportSnapshot? = null
     private var metadataLoading = false
+    private var realtimeRefreshPending = false
     private var statusUpdating = false
     private var detailSnapshot: TicketItem? = null
     private var ticketPriority: String = "medium"
@@ -149,11 +150,9 @@ class TicketDetailActivity : AppCompatActivity() {
     private lateinit var etReportMaterials: EditText
     private lateinit var etReportFinalResult: EditText
     private lateinit var btnCameraBefore: MaterialButton
-    private lateinit var btnGalleryBefore: MaterialButton
     private lateinit var tvBeforePhotosCount: TextView
     private lateinit var layoutBeforePreviews: LinearLayout
     private lateinit var btnCameraAfter: MaterialButton
-    private lateinit var btnGalleryAfter: MaterialButton
     private lateinit var tvAfterPhotosCount: TextView
     private lateinit var layoutAfterPreviews: LinearLayout
     private lateinit var btnClearSignature: TextView
@@ -167,6 +166,40 @@ class TicketDetailActivity : AppCompatActivity() {
 
     private var currentCameraTempFile: File? = null
     private var isCapturingBefore = true
+    private var reportSubmitting = false
+    private var reportCompleted = false
+    private var realtimeJob: Job? = null
+    private val submissionPreferences by lazy { getSharedPreferences("report_submissions_" + session.userId, MODE_PRIVATE) }
+    private fun reportRequestKey(): String {
+        val key = "request_" + ticketId
+        return submissionPreferences.getString(key, null) ?: UUID.randomUUID().toString().also {
+            submissionPreferences.edit().putString(key, it).commit()
+        }
+    }
+    private val addImageLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val raw = currentCameraTempFile
+        if (result.resultCode == RESULT_OK) {
+            val before = isCapturingBefore
+            val uris = mutableListOf<Uri>()
+            if (raw != null && raw.length() > 0) uris.add(FileProvider.getUriForFile(this, "$packageName.fileprovider", raw))
+            else {
+                result.data?.clipData?.let { clips -> for (i in 0 until clips.itemCount.coerceAtMost(12)) uris.add(clips.getItemAt(i).uri) }
+                if (uris.isEmpty()) result.data?.data?.let { uris.add(it) }
+            }
+            lifecycleScope.launch {
+                val photos = withContext(Dispatchers.IO) { uris.distinct().mapNotNull { uri ->
+                    runCatching { PhotoWatermarkHelper.processAndWatermarkUri(this@TicketDetailActivity, uri, ticketNumber,
+                        if (before) "BEFORE" else "AFTER", session.userName ?: "Teknisi",
+                        if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLatitude else 0.0,
+                        if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLongitude else 0.0, session.lastAccuracy) }.getOrNull()
+                } }
+                if (before) beforePhotoFiles.addAll(photos) else afterPhotoFiles.addAll(photos)
+                refreshPhotoPreviews(before)
+                if (photos.isEmpty() && uris.isNotEmpty()) Toast.makeText(this@TicketDetailActivity, "Gambar belum dapat dibaca. Pilih ulang gambar.", Toast.LENGTH_LONG).show()
+                raw?.delete()
+            }
+        } else raw?.delete()
+    }
 
     private val rootCauseOptions = arrayOf(
         "Instalasi Baru / Pekerjaan Normal",
@@ -178,92 +211,6 @@ class TicketDetailActivity : AppCompatActivity() {
         "Kamera CCTV / DVR / Adaptor Bermasalah",
         "Kendala Lainnya (Lihat Catatan Tindakan)"
     )
-
-    // Camera Result Launcher (Automatically compresses < 1MB & stamps Watermark Time + GPS)
-    private val takePictureLauncher = registerForActivityResult(
-        ActivityResultContracts.TakePicture()
-    ) { success ->
-        val rawFile = currentCameraTempFile
-        if (success && rawFile != null && rawFile.exists() && rawFile.length() > 0) {
-            val isBefore = isCapturingBefore
-            val stageLabel = if (isBefore) "BEFORE" else "AFTER"
-            Toast.makeText(this, "Memproses watermark waktu & koordinat GPS...", Toast.LENGTH_SHORT).show()
-            lifecycleScope.launch {
-                val processed = withContext(Dispatchers.IO) {
-                    PhotoWatermarkHelper.processAndWatermarkFile(
-                        context = this@TicketDetailActivity,
-                        sourceFile = rawFile,
-                        ticketNumber = ticketNumber,
-                        stageLabel = stageLabel,
-                        technicianName = session.userName ?: "Teknisi",
-                        latitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLatitude else 0.0,
-                        longitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLongitude else 0.0,
-                        accuracy = session.lastAccuracy
-                    )
-                }
-                if (isBefore) {
-                    beforePhotoFiles.add(processed)
-                    refreshPhotoPreviews(true)
-                } else {
-                    afterPhotoFiles.add(processed)
-                    refreshPhotoPreviews(false)
-                }
-            }
-        }
-    }
-
-    // Gallery Result Launchers (Also automatically compresses < 1MB & stamps Watermark Time + GPS)
-    private val pickGalleryBeforeLauncher = registerForActivityResult(
-        ActivityResultContracts.GetMultipleContents()
-    ) { uris ->
-        if (!uris.isNullOrEmpty()) {
-            Toast.makeText(this, "Memproses ${uris.size} foto dengan watermark GPS...", Toast.LENGTH_SHORT).show()
-            lifecycleScope.launch {
-                withContext(Dispatchers.IO) {
-                    for (uri in uris) {
-                        val f = PhotoWatermarkHelper.processAndWatermarkUri(
-                            context = this@TicketDetailActivity,
-                            uri = uri,
-                            ticketNumber = ticketNumber,
-                            stageLabel = "BEFORE",
-                            technicianName = session.userName ?: "Teknisi",
-                            latitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLatitude else 0.0,
-                            longitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLongitude else 0.0,
-                            accuracy = session.lastAccuracy
-                        )
-                        if (f != null) beforePhotoFiles.add(f)
-                    }
-                }
-                refreshPhotoPreviews(true)
-            }
-        }
-    }
-
-    private val pickGalleryAfterLauncher = registerForActivityResult(
-        ActivityResultContracts.GetMultipleContents()
-    ) { uris ->
-        if (!uris.isNullOrEmpty()) {
-            Toast.makeText(this, "Memproses ${uris.size} foto dengan watermark GPS...", Toast.LENGTH_SHORT).show()
-            lifecycleScope.launch {
-                withContext(Dispatchers.IO) {
-                    for (uri in uris) {
-                        val f = PhotoWatermarkHelper.processAndWatermarkUri(
-                            context = this@TicketDetailActivity,
-                            uri = uri,
-                            ticketNumber = ticketNumber,
-                            stageLabel = "AFTER",
-                            technicianName = session.userName ?: "Teknisi",
-                            latitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLatitude else 0.0,
-                            longitude = if (LocationPolicy.isFresh(session.lastUpdateTime)) session.lastLongitude else 0.0,
-                            accuracy = session.lastAccuracy
-                        )
-                        if (f != null) afterPhotoFiles.add(f)
-                    }
-                }
-                refreshPhotoPreviews(false)
-            }
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -396,11 +343,9 @@ class TicketDetailActivity : AppCompatActivity() {
         etReportMaterials = findViewById(R.id.etReportMaterials)
         etReportFinalResult = findViewById(R.id.etReportFinalResult)
         btnCameraBefore = findViewById(R.id.btnCameraBefore)
-        btnGalleryBefore = findViewById(R.id.btnGalleryBefore)
         tvBeforePhotosCount = findViewById(R.id.tvBeforePhotosCount)
         layoutBeforePreviews = findViewById(R.id.layoutBeforePreviews)
         btnCameraAfter = findViewById(R.id.btnCameraAfter)
-        btnGalleryAfter = findViewById(R.id.btnGalleryAfter)
         tvAfterPhotosCount = findViewById(R.id.tvAfterPhotosCount)
         layoutAfterPreviews = findViewById(R.id.layoutAfterPreviews)
         btnClearSignature = findViewById(R.id.btnClearSignature)
@@ -460,10 +405,10 @@ class TicketDetailActivity : AppCompatActivity() {
             confirmRecordCurrentCoordinate("odp")
         }
 
-        btnCameraBefore.setOnClickListener { launchCameraCapture(true) }
-        btnGalleryBefore.setOnClickListener { pickGalleryBeforeLauncher.launch("image/*") }
-        btnCameraAfter.setOnClickListener { launchCameraCapture(false) }
-        btnGalleryAfter.setOnClickListener { pickGalleryAfterLauncher.launch("image/*") }
+        btnCameraBefore.text = "Tambah gambar"
+        btnCameraBefore.setOnClickListener { chooseImage(true) }
+        btnCameraAfter.text = "Tambah gambar"
+        btnCameraAfter.setOnClickListener { chooseImage(false) }
 
         btnClearSignature.setOnClickListener {
             signaturePadView.clearSignature()
@@ -634,6 +579,7 @@ class TicketDetailActivity : AppCompatActivity() {
     }
 
     private fun saveDraftNow() {
+        if (reportCompleted || reportSubmitting || ticketStatus in setOf("resolved", "closed", "cancelled")) return
         if (LocationPolicy.isFinished(ticketStatus)) return
         val checked = checklistCheckBoxes.mapIndexedNotNull { idx, cb -> if (cb.isChecked) idx else null }.toSet()
         val draft = ReportDraftData(
@@ -910,7 +856,10 @@ class TicketDetailActivity : AppCompatActivity() {
     }
 
     private fun updateWorkflowUi(status: String) {
-        val finished = LocationPolicy.isFinished(status)
+        val finished = status in setOf("resolved", "closed", "cancelled")
+        btnSubmitReport.isEnabled = !finished && !reportSubmitting && !reportCompleted
+        findViewById<View>(R.id.btnCameraBefore).isEnabled = !finished
+        findViewById<View>(R.id.btnCameraAfter).isEnabled = !finished
         findViewById<View>(R.id.reportSection).visibility = if(finished) View.GONE else View.VISIBLE
         val completed = findViewById<View>(R.id.completedReport)
         completed.visibility = if(latestReport != null) View.VISIBLE else View.GONE
@@ -1217,25 +1166,21 @@ class TicketDetailActivity : AppCompatActivity() {
             } else viewTabDetail.smoothScrollTo(0,0)
         }
     }
-    private fun launchCameraCapture(isBefore: Boolean) {
-        isCapturingBefore = isBefore
+    private fun chooseImage(before: Boolean) {
+        if (reportSubmitting || reportCompleted) return
+        isCapturingBefore = before
         try {
-            val prefix = if (isBefore) "before" else "after"
-            val photoFile = File.createTempFile(
-                "${prefix}_${System.currentTimeMillis()}_",
-                ".jpg",
-                cacheDir
-            )
-            currentCameraTempFile = photoFile
-            val photoUri = FileProvider.getUriForFile(
-                this,
-                "${packageName}.fileprovider",
-                photoFile
-            )
-            takePictureLauncher.launch(photoUri)
-        } catch (e: Exception) {
-            Toast.makeText(this, "Gagal membuka kamera: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
+            val file = File.createTempFile("report_capture_", ".jpg", cacheDir)
+            currentCameraTempFile = file
+            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            val camera = Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE).apply {
+                putExtra(android.provider.MediaStore.EXTRA_OUTPUT, uri)
+                clipData = ClipData.newRawUri("Foto laporan", uri)
+                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            val gallery = Intent(Intent.ACTION_GET_CONTENT).apply { type = "image/*"; addCategory(Intent.CATEGORY_OPENABLE); putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true) }
+            addImageLauncher.launch(Intent.createChooser(gallery, "Tambah gambar").apply { putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(camera)) })
+        } catch (_: RuntimeException) { Toast.makeText(this, "Pemilih gambar belum tersedia.", Toast.LENGTH_SHORT).show() }
     }
 
     private fun refreshPhotoPreviews(isBefore: Boolean) {
@@ -1312,6 +1257,7 @@ class TicketDetailActivity : AppCompatActivity() {
      * shows a comprehensive preview summary, and submits (or queues offline if no internet).
      */
     private fun showPreviewAndSubmitReport() {
+        if (reportSubmitting || reportCompleted || ticketStatus in setOf("resolved", "closed", "cancelled")) return
         val summary = etReportSummary.text.toString().trim()
         val actionTaken = etReportActionTaken.text.toString().trim()
         val materialsUsed = etReportMaterials.text.toString().trim()
@@ -1401,16 +1347,20 @@ class TicketDetailActivity : AppCompatActivity() {
         recipientName: String,
         checkedItems: List<String>
     ) {
+        if (reportSubmitting || reportCompleted || ticketStatus in setOf("resolved", "closed", "cancelled")) return
         val token = session.token ?: return
+        reportSubmitting = true
+        btnSubmitReport.isEnabled = false
+        val requestKey = reportRequestKey()
 
         // Export customer signature if signed on screen
         val allAfterPhotos = ArrayList<File>(afterPhotoFiles)
-        val sigFile = signaturePadView.exportSignatureFile(
+        val sigFile = runCatching { signaturePadView.exportSignatureFile(
             this,
             ticketNumber,
             recipientName,
             session.userName ?: "Teknisi"
-        )
+        ) }.getOrNull()
         if (sigFile != null && sigFile.exists()) {
             allAfterPhotos.add(sigFile)
         }
@@ -1472,7 +1422,7 @@ class TicketDetailActivity : AppCompatActivity() {
             OfflineSyncManager.enqueueOfflineAction(
                 this,
                 OfflineActionItem(
-                    id = UUID.randomUUID().toString(),
+                    id = requestKey,
                     actionType = "work_report",
                     ticketId = ticketId,
                     ticketNumber = ticketNumber,
@@ -1500,8 +1450,7 @@ class TicketDetailActivity : AppCompatActivity() {
             ).show()
             updateStatusBadge("resolved")
             updateWorkflowUi("resolved")
-            setResult(RESULT_OK)
-            switchTab(0)
+            completeReportAndReturn()
             return
         }
 
@@ -1519,11 +1468,10 @@ class TicketDetailActivity : AppCompatActivity() {
                 finalResult = enrichedFinalResult,
                 beforePhotos = beforePhotoFiles,
                 afterPhotos = allAfterPhotos,
-                technicalDataJson = techJsonObj.toString()
+                technicalDataJson = techJsonObj.toString(),
+                idempotencyKey = requestKey
             )
 
-            btnSubmitReport.isEnabled = true
-            btnSubmitReport.text = "Kirim laporan"
 
             result.onSuccess {
                 OfflineSyncManager.updateCachedTicketStatusLocally(this@TicketDetailActivity, ticketId, "resolved")
@@ -1536,10 +1484,12 @@ class TicketDetailActivity : AppCompatActivity() {
                 ).show()
                 updateStatusBadge("resolved")
                 updateWorkflowUi("resolved")
-                setResult(RESULT_OK)
-                switchTab(0)
+                completeReportAndReturn()
             }.onFailure { err ->
                 if (err !is java.io.IOException) {
+                    reportSubmitting = false
+                    btnSubmitReport.isEnabled = true
+                    btnSubmitReport.text = "Kirim laporan"
                     Toast.makeText(this@TicketDetailActivity, err.message ?: "Laporan belum dapat dikirim. Draf tetap tersimpan.", Toast.LENGTH_LONG).show()
                     return@onFailure
                 }
@@ -1547,7 +1497,7 @@ class TicketDetailActivity : AppCompatActivity() {
                 OfflineSyncManager.enqueueOfflineAction(
                     this@TicketDetailActivity,
                     OfflineActionItem(
-                        id = UUID.randomUUID().toString(),
+                        id = requestKey,
                         actionType = "work_report",
                         ticketId = ticketId,
                         ticketNumber = ticketNumber,
@@ -1573,10 +1523,21 @@ class TicketDetailActivity : AppCompatActivity() {
                 ).show()
                 updateStatusBadge("resolved")
                 updateWorkflowUi("resolved")
-                setResult(RESULT_OK)
-                switchTab(0)
+                completeReportAndReturn()
             }
         }
+    }
+
+    private fun completeReportAndReturn() {
+        reportCompleted = true
+        reportSubmitting = false
+        ticketStatus = "resolved"
+        OfflineSyncManager.clearReportDraft(this, ticketId)
+        submissionPreferences.edit().remove("request_" + ticketId).apply()
+        btnSubmitReport.isEnabled = false
+        setResult(RESULT_OK, Intent().putExtra("report_completed", true))
+        startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra("report_completed", true))
+        finish()
     }
 
     private fun vibrateShortFeedback() {
@@ -1597,7 +1558,7 @@ class TicketDetailActivity : AppCompatActivity() {
     }
 
     private fun refreshCurrentTicketMetadata() {
-        if(metadataLoading || statusUpdating || OfflineSyncManager.getQueuedActions(this).any { it.ticketId == ticketId && it.actionType == "status_update" }) return
+        if(metadataLoading || statusUpdating || reportSubmitting || reportCompleted || OfflineSyncManager.getQueuedActions(this).any { it.ticketId == ticketId && it.actionType in setOf("status_update", "work_report") }) return
         val token=session.token ?: return
         metadataLoading=true
         lifecycleScope.launch {
@@ -1617,7 +1578,10 @@ class TicketDetailActivity : AppCompatActivity() {
                         Toast.makeText(this@TicketDetailActivity,"Tiket sudah tidak tersedia untuk akun ini.",Toast.LENGTH_LONG).show(); finish()
                     }
                 }
-            } finally { metadataLoading=false }
+            } finally {
+                metadataLoading=false
+                if (realtimeRefreshPending && !isFinishing) { realtimeRefreshPending=false; refreshCurrentTicketMetadata() }
+            }
         }
     }
     override fun onSaveInstanceState(outState: Bundle) {
@@ -1633,12 +1597,18 @@ class TicketDetailActivity : AppCompatActivity() {
         super.onResume()
         updateDistanceAndRadiusUi()
         refreshCurrentTicketMetadata()
+        realtimeJob?.cancel()
+        realtimeJob = net.infinityteknik.helpdesk.util.RealtimeUpdates.start(this, session) {
+            if (metadataLoading) realtimeRefreshPending = true else refreshCurrentTicketMetadata()
+        }
         metadataPoll?.cancel()
         metadataPoll = lifecycleScope.launch {
             while(isActive) { delay(20_000L); updateDistanceAndRadiusUi(); refreshCurrentTicketMetadata() }
         }
     }
     override fun onPause() {
+        realtimeRefreshPending = false
+        realtimeJob?.cancel(); realtimeJob = null
         super.onPause()
         metadataPoll?.cancel()
         metadataPoll = null

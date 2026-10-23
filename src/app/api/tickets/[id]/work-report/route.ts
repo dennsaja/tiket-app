@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { createHash } from "crypto";
 import { getAuthUser } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
 import {
@@ -8,8 +8,9 @@ import {
   ticketStatusHistory,
   attachments,
   ticketAssignees,
+  systemSettings,
 } from "@/lib/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, sql, desc } from "drizzle-orm";
 import { errorResponse } from "@/lib/api/helpers";
 import { createAuditLog, getClientIp } from "@/lib/audit";
 import { notifyStatusChange } from "@/lib/notifications";
@@ -65,6 +66,32 @@ export async function POST(
     );
   }
 
+  const requestKey = req.headers.get("idempotency-key");
+  if (requestKey && !/^[a-zA-Z0-9_-]{16,128}$/.test(requestKey)) return errorResponse("Idempotency-Key tidak valid", 422);
+  const receiptKey = requestKey ? "work_report:" + createHash("sha256").update(userId + ":" + id + ":" + requestKey).digest("hex") : null;
+  const writtenFiles: string[] = [];
+  const effects: { run?: () => Promise<void> } = {};
+  try {
+  const response = await db.transaction(async tx => {
+  // Serialize all submissions for a ticket across processes, including older APKs.
+  await tx.execute(sql`SELECT id FROM tickets WHERE id = ${id} FOR UPDATE`);
+  const lockedTicket = await tx.query.tickets.findFirst({ where: and(eq(tickets.id, id), isNull(tickets.deletedAt)) });
+  if (!lockedTicket) throw new ReportError("Ticket not found", 404);
+  if (userRole === "agent" && lockedTicket.assigneeId !== userId) {
+    const assigned = await tx.query.ticketAssignees.findFirst({ where: and(eq(ticketAssignees.ticketId, id), eq(ticketAssignees.userId, userId)) });
+    if (!assigned) throw new ReportError("Penugasan tiket telah berubah.", 403);
+  }
+  const receipt = receiptKey ? await tx.query.systemSettings.findFirst({ where: eq(systemSettings.key, receiptKey) }) : null;
+  if (receipt?.value) {
+    const report = await tx.query.ticketWorkReports.findFirst({ where: eq(ticketWorkReports.id, receipt.value) });
+    if (report) return NextResponse.json(report, { headers: { "Idempotency-Replayed": "true" } });
+  }
+  if (["resolved", "closed"].includes(lockedTicket.status)) {
+    const report = await tx.query.ticketWorkReports.findFirst({ where: eq(ticketWorkReports.ticketId, id), orderBy: [desc(ticketWorkReports.createdAt)] });
+    if (report) return NextResponse.json(report, { headers: { "Idempotency-Replayed": "true" } });
+    throw new ReportError("Tiket sudah selesai. Buka kembali tiket sebelum mengirim laporan baru.", 409);
+  }
+  if (lockedTicket.status === "cancelled") throw new ReportError("Tiket telah dibatalkan.", 409);
   const contentType = req.headers.get("content-type") || "";
   let summary = "";
   let actionTaken = "";
@@ -105,13 +132,13 @@ export async function POST(
     for (const [key, value] of formData.entries()) {
       if (value instanceof File && value.size > 0) {
         if (value.size > MAX_FILE_SIZE_BYTES) {
-          return errorResponse(`Ukuran file "${value.name}" melebihi batas 15MB`, 400);
+          throw new ReportError(`Ukuran file "${value.name}" melebihi batas 15MB`, 400);
         }
 
         const originalName = value.name;
         const ext = path.extname(originalName).replace(".", "").toLowerCase() || "jpg";
         if (!ALLOWED_IMAGE_EXTENSIONS.has(ext)) {
-          return errorResponse(`Format file .${ext} tidak didukung. Harap unggah foto (JPG/PNG/WebP).`, 400);
+          throw new ReportError(`Format file .${ext} tidak didukung. Harap unggah foto (JPG/PNG/WebP).`, 400);
         }
 
         const buffer = Buffer.from(await value.arrayBuffer());
@@ -119,9 +146,10 @@ export async function POST(
         const storedName = `report_${nanoid()}.${ext}`;
         const storagePath = path.join(uploadDirResolved, storedName);
 
+        writtenFiles.push(storagePath);
         await fs.writeFile(storagePath, buffer);
 
-        const [attachment] = await db
+        const [attachment] = await tx
           .insert(attachments)
           .values({
             ticketId: id,
@@ -160,10 +188,10 @@ export async function POST(
   }
 
   if (!summary.trim() || summary.trim().length < 3) {
-    return errorResponse("Ringkasan pekerjaan minimal 3 karakter", 422);
+    throw new ReportError("Ringkasan pekerjaan minimal 3 karakter", 422);
   }
   if (!actionTaken.trim() || actionTaken.trim().length < 3) {
-    return errorResponse("Tindakan penanganan yang dilakukan minimal 3 karakter", 422);
+    throw new ReportError("Tindakan penanganan yang dilakukan minimal 3 karakter", 422);
   }
 
   let parsedTechData: Record<string, any> | null = null;
@@ -174,7 +202,7 @@ export async function POST(
   }
 
   // 1. Insert Work Report
-  const [workReport] = await db
+  const [workReport] = await tx
     .insert(ticketWorkReports)
     .values({
       ticketId: id,
@@ -194,8 +222,8 @@ export async function POST(
   }${finalResult.trim() ? `\nHasil Akhir: ${finalResult.trim()}` : ""}`;
 
   const updatedSpecData =
-    ticket.specData && typeof ticket.specData === "object"
-      ? { ...(ticket.specData as Record<string, any>) }
+    lockedTicket.specData && typeof lockedTicket.specData === "object"
+      ? { ...(lockedTicket.specData as Record<string, any>) }
       : {};
   if (parsedTechData) {
     updatedSpecData.fieldReport = {
@@ -205,7 +233,7 @@ export async function POST(
     };
   }
 
-  await db
+  await tx
     .update(tickets)
     .set({
       status: "resolved",
@@ -218,14 +246,25 @@ export async function POST(
     .where(eq(tickets.id, id));
 
   // 3. Status History
-  await db.insert(ticketStatusHistory).values({
+  await tx.insert(ticketStatusHistory).values({
     ticketId: id,
-    fromStatus: ticket.status,
+    fromStatus: lockedTicket.status,
     toStatus: "resolved",
     changedById: userId,
     reason: "Laporan kerja teknisi berhasil diserahkan",
   });
 
+  const fullReport = await tx.query.ticketWorkReports.findFirst({
+    where: eq(ticketWorkReports.id, workReport.id),
+    with: {
+      technician: {
+        columns: { id: true, name: true, avatarUrl: true, role: true },
+      },
+    },
+  });
+
+  if (receiptKey) await tx.insert(systemSettings).values({ key: receiptKey, value: workReport.id, description: "Work report idempotency receipt" });
+  effects.run = async () => {
   // 4. Notify
   await notifyStatusChange(
     id,
@@ -252,15 +291,6 @@ export async function POST(
     ipAddress: getClientIp(req),
   });
 
-  const fullReport = await db.query.ticketWorkReports.findFirst({
-    where: eq(ticketWorkReports.id, workReport.id),
-    with: {
-      technician: {
-        columns: { id: true, name: true, avatarUrl: true, role: true },
-      },
-    },
-  });
-
   notificationBus.emitSystemEvent({
     action: "work_report_submitted",
     ticketId: id,
@@ -271,5 +301,17 @@ export async function POST(
     timestamp: new Date().toISOString(),
   });
 
+  };
   return NextResponse.json(fullReport, { status: 201 });
+  });
+  if (effects.run) await effects.run().catch(error => console.error("[work-report] Post-commit notification failed", error));
+  return response;
+  } catch (error) {
+    await Promise.all(writtenFiles.map(file => fs.unlink(file).catch(() => {})));
+    if (error instanceof ReportError) return errorResponse(error.message, error.status);
+    console.error("[work-report] Submission failed", error);
+    return errorResponse("Laporan belum tersimpan. Coba ulang dengan permintaan yang sama.", 503);
+  }
 }
+
+class ReportError extends Error { constructor(message: string, public status: number) { super(message); } }

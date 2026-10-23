@@ -622,7 +622,8 @@ object ApiClient {
         finalResult: String,
         beforePhotos: List<File>,
         afterPhotos: List<File>,
-        technicalDataJson: String? = null
+        technicalDataJson: String? = null,
+        idempotencyKey: String = java.util.UUID.randomUUID().toString()
     ): Result<Boolean> =
         withContext(Dispatchers.IO) {
             try {
@@ -649,6 +650,7 @@ object ApiClient {
 
                 val request = Request.Builder()
                     .url("$serverUrl/api/tickets/$ticketId/work-report")
+                    .header("Idempotency-Key", idempotencyKey)
                     .addHeader("Authorization", "Bearer $token")
                     .post(builder.build())
                     .build()

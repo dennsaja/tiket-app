@@ -91,6 +91,7 @@ class MainActivity : AppCompatActivity() {
     private var ticketFilter = "active"
     private var query = ""
     private var loading = false
+    private var realtimeRefreshPending = false
     private var hasData = false
     private var connected = true
     private var polling: Job? = null
@@ -108,7 +109,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var configurationStatus: TextView
     private val preferences by lazy { getSharedPreferences("helpdesk_permission_choices", MODE_PRIVATE) }
 
-    private val detailLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { refreshTickets(false) }
+    private val detailLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.data?.getBooleanExtra("report_completed", false) == true) { ticketFilter = "all"; selectTab(1) }
+        allTickets = OfflineSyncManager.getCachedTickets(this); render(); refreshTickets(false)
+    }
+    private var realtimeJob: Job? = null
     private val locationPermission = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         permissionsBusy = false; updateGpsUi(); ensureService()
     }
@@ -136,8 +141,8 @@ class MainActivity : AppCompatActivity() {
             runCatching { MobileConfiguration.parse(raw, configurationAppVersion) }.getOrNull()
         } ?: MobileConfiguration()
         session.userId?.let { OfflineSyncManager.prepareAccount(this, it) }
-        activeTab = savedInstanceState?.getInt("tab", 0) ?: 0
-        ticketFilter = savedInstanceState?.getString("filter") ?: "active"
+        activeTab = if (intent.getBooleanExtra("report_completed", false)) 1 else savedInstanceState?.getInt("tab", 0) ?: 0
+        ticketFilter = if (intent.getBooleanExtra("report_completed", false)) "all" else savedInstanceState?.getString("filter") ?: "active"
         query = savedInstanceState?.getString("query") ?: ""
         setContentView(R.layout.activity_main)
         pages = findViewById(R.id.workspacePages)
@@ -512,8 +517,13 @@ class MainActivity : AppCompatActivity() {
                 if (OfflineSyncManager.isOnline(this@MainActivity)) OfflineSyncManager.flushAllPendingQueues(this@MainActivity, session)
                 val result = ApiClient.getTickets(session.serverUrl, token)
                 result.onSuccess {
-                    connected = true; allTickets = it; hasData = true
-                    OfflineSyncManager.saveCachedTickets(this@MainActivity, it)
+                    val pending = OfflineSyncManager.getQueuedActions(this@MainActivity)
+                    connected = true; allTickets = it.map { ticket ->
+                        val action = pending.lastOrNull { action -> action.ticketId == ticket.id && action.actionType in setOf("work_report", "status_update") }
+                        if (action != null) ticket.copy(status = if (action.actionType == "work_report") "resolved" else action.status ?: ticket.status) else ticket
+                    }; hasData = true
+                    OfflineSyncManager.saveCachedTickets(this@MainActivity, allTickets)
+                    render()
                     NotificationHelper.syncAndDispatchNotifications(this@MainActivity, session, it)?.let { payload -> notifications = payload.notifications }
                 }.onFailure {
                     connected = false
@@ -522,7 +532,10 @@ class MainActivity : AppCompatActivity() {
                     if (cached.isNotEmpty()) { allTickets = cached; hasData = true }
                 }
                 render(); ensureService(); maybeRequestLocation()
-            } finally { loading = false; swipe.isRefreshing = false }
+            } finally {
+                loading = false; swipe.isRefreshing = false
+                if (realtimeRefreshPending && !isFinishing) { realtimeRefreshPending = false; refreshTickets(false) }
+            }
         }
     }
 
@@ -743,6 +756,11 @@ class MainActivity : AppCompatActivity() {
             addAction(LocationManager.PROVIDERS_CHANGED_ACTION)
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
         ensureService(); refreshTickets(false); refreshRooms()
+        realtimeJob?.cancel()
+        realtimeJob = net.infinityteknik.helpdesk.util.RealtimeUpdates.start(this, session) {
+            if (loading) realtimeRefreshPending = true else refreshTickets(false)
+            refreshRooms()
+        }
         refreshMobileConfiguration()
         polling?.cancel()
         polling = lifecycleScope.launch {
@@ -765,7 +783,18 @@ class MainActivity : AppCompatActivity() {
         }
         updateGpsUi()
     }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra("report_completed", false) && ::swipe.isInitialized) {
+            ticketFilter = "all"; query = ""; searchInput.setText("")
+            allTickets = OfflineSyncManager.getCachedTickets(this)
+            selectTab(1); render(); refreshTickets(false)
+        }
+    }
     override fun onPause() {
+        realtimeRefreshPending = false
+        realtimeJob?.cancel(); realtimeJob = null
         polling?.cancel(); polling = null
         configurationJob?.cancel(); configurationJob = null
         try { unregisterReceiver(updates) } catch (_: IllegalArgumentException) {}

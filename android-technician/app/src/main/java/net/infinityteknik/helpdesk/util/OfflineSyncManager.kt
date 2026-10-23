@@ -253,6 +253,7 @@ object OfflineSyncManager {
     @Synchronized
     fun enqueueOfflineAction(context: Context, item: OfflineActionItem) {
         val current = getQueuedActions(context).toMutableList()
+        if (current.any { it.id == item.id || (item.actionType == "work_report" && it.ticketId == item.ticketId && it.actionType == "work_report") }) return
         current.add(item)
         saveQueuedActions(context, current)
         broadcastSyncState(context)
@@ -409,7 +410,8 @@ object OfflineSyncManager {
                             finalResult = act.reportFinalResult ?: "",
                             beforePhotos = beforeFiles,
                             afterPhotos = afterFiles,
-                            technicalDataJson = act.reportTechnicalJson
+                            technicalDataJson = act.reportTechnicalJson,
+                            idempotencyKey = act.id
                         )
                         if (session.userId != ownerId || session.token != token) return@withLock flushedCount
                         if (res.isSuccess) {
