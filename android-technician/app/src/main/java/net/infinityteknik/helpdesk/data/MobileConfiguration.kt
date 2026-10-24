@@ -11,6 +11,7 @@ data class MobileConfiguration(
     val showActivityChart: Boolean = true,
     val recentTicketLimit: Int = 3,
     val refreshIntervalSeconds: Int = 15,
+    val gpsIntervalMinutes: Int = 5,
     val releaseNote: String = ""
 ) {
     companion object {
@@ -27,9 +28,10 @@ data class MobileConfiguration(
             val body = data.getString("announcementBody").trim()
             val recent = data.getInt("recentTicketLimit")
             val refresh = data.getInt("refreshIntervalSeconds")
+            val gpsInterval = data.optInt("gpsIntervalMinutes", 5).coerceIn(1, 60)
             require(subtitle.length in 1..140 && title.length <= 80 && body.length <= 600)
             require(recent in 1..8 && refresh in 15..120)
-            return MobileConfiguration(version, subtitle, title, body, data.getBoolean("showActivityChart"), recent, refresh, envelope.optString("note").take(240))
+            return MobileConfiguration(version, subtitle, title, body, data.getBoolean("showActivityChart"), recent, refresh, gpsInterval, envelope.optString("note").take(240))
         }
     }
 }

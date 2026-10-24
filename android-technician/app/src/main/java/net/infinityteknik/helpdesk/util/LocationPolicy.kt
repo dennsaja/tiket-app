@@ -1,7 +1,7 @@
 package net.infinityteknik.helpdesk.util
 
 object LocationPolicy {
-    const val MAX_FIX_AGE_MS = 120_000L
+    const val MAX_FIX_AGE_MS = 600_000L // 10 minutes (optimal for 5-minute interval)
     const val MAX_ACCURACY_METERS = 100f
 
     fun hasCoordinates(latitude: Double?, longitude: Double?): Boolean =

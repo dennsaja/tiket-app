@@ -1,10 +1,10 @@
 {
-  "versionCode": 13,
-  "versionName": "3.3.1",
+  "versionCode": 15,
+  "versionName": "3.5.0",
   "minSupportedVersion": 1,
   "downloadUrl": "/downloads/helpdesk-teknisi.apk",
-  "updatedAt": "2026-10-23T14:32:20.3440782Z",
-  "sha256": "8a16ed5396cbadf5964cdd0b58e2bcbdf07d84582c0af1d6787f1b70b40109fc",
-  "fileSizeBytes": 5589146,
-  "releaseNotes": "v3.3.1: Popup pembaruan konfigurasi dari Console Android, pilihan Terapkan sekarang/Nanti, konfirmasi penerapan di console, dan pemberitahuan versi APK baru. Termasuk realtime tiket/chat, tombol Tambah gambar dari kamera/galeri, serta laporan selesai kembali ke tab Tiket dengan idempotensi. Perbarui web terlebih dahulu lalu pasang APK ini satu kali untuk mengaktifkan dukungan console."
+  "updatedAt": "2026-10-24T02:04:00.000Z",
+  "sha256": "d29441cea168070a9a53ebd2ec0d8299b3dd25c41fb690abdadb525a4cd8dedb",
+  "fileSizeBytes": 5590371,
+  "releaseNotes": "v3.5.0: Fitur pembaruan kode Git langsung dari Console Android, indikator jumlah tiket aktif pada tab bar bawah (Tiket), dan sinkronisasi GPS optimal interval 5 menit hemat baterai saat ada tiket aktif."
 }

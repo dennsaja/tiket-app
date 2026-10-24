@@ -7,6 +7,7 @@ export const mobileConfigSchema = z.object({
   showActivityChart: z.boolean(),
   recentTicketLimit: z.number().int().min(1).max(8),
   refreshIntervalSeconds: z.number().int().min(15).max(120),
+  gpsIntervalMinutes: z.number().int().min(1).max(60).default(5),
 }).strict();
 
 export type MobileConfig = z.infer<typeof mobileConfigSchema>;
@@ -14,6 +15,7 @@ export const defaultMobileConfig: MobileConfig = {
   homeSubtitle: "Ruang kerja kamu, lebih terhubung.",
   announcementTitle: "", announcementBody: "", showActivityChart: true,
   recentTicketLimit: 3, refreshIntervalSeconds: 15,
+  gpsIntervalMinutes: 5,
 };
 export interface MobileRelease {
   version: number;

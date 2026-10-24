@@ -62,8 +62,8 @@ class LocationTrackingService : Service() {
         const val ACTION_LOGOUT = "ACTION_LOGOUT"
         const val ACTION_FORCE_PING = "ACTION_FORCE_PING"
 
-        private const val PING_INTERVAL_MS = 60_000L // Strictly 1 minute between GPS transmissions
-        private const val GPS_ACQUIRE_TIMEOUT_MS = 7_000L // Max 7s GPS burst, then hardware sleeps
+        private const val PING_INTERVAL_MS = 300_000L // 5 minutes between GPS transmissions (optimal & battery saving)
+        private const val GPS_ACQUIRE_TIMEOUT_MS = 8_000L // Max 8s GPS burst, then hardware sleeps
         private const val NOTIF_POLL_INTERVAL_MS = 15_000L // Notification polling interval
     }
 
@@ -113,10 +113,10 @@ class LocationTrackingService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Pelacakan GPS Teknisi (Hemat Daya)",
+                "Pelacakan GPS Teknisi (Hemat Daya & Optimal)",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Sinkronisasi lokasi teknisi setiap 1 menit saat ada tiket aktif (Mode Hemat Baterai & Anti Panas)"
+                description = "Sinkronisasi lokasi teknisi setiap 5 menit saat ada tiket aktif (Mode Hemat Baterai & Optimal)"
                 setShowBadge(false)
             }
             val manager = getSystemService(NotificationManager::class.java)
@@ -229,7 +229,7 @@ class LocationTrackingService : Service() {
             return
         }
 
-        if (!updateForegroundNotification("GPS aktif · " + session.activeTicketsCount + " tiket")) return
+        if (!updateForegroundNotification("GPS aktif (5 menit) · " + session.activeTicketsCount + " tiket")) return
         session.isDutyActive = true
         ensureNotificationPoller()
 
@@ -284,7 +284,7 @@ class LocationTrackingService : Service() {
             var waited = 0L
             while (waited < GPS_ACQUIRE_TIMEOUT_MS && canTrackNow()) {
                 val fix = captured.get()
-                if (fix != null && fix.accuracy <= 35f) break
+                if (fix != null && fix.accuracy <= 25f) break
                 delay(500L)
                 waited += 500L
             }

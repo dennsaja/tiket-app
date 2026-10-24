@@ -418,19 +418,26 @@ class MainActivity : AppCompatActivity() {
             val icon = ImageView(this).apply { setImageResource(icons[index]); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
             val text = label(name, 10f)
             navIcons.add(icon); navLabels.add(text)
-            val iconRow = LinearLayout(this).apply { gravity = Gravity.CENTER }
-            iconRow.addView(icon, LinearLayout.LayoutParams(dp(22), dp(22)))
+            val iconRow = FrameLayout(this).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(36), dp(24)).apply { gravity = Gravity.CENTER }
+            }
+            iconRow.addView(icon, FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER))
             if (index == 1) {
-                ticketBadge = label("", 10f, Color.WHITE, bold = true).apply {
-                    gravity = Gravity.CENTER; minWidth = dp(20); setPadding(dp(4), 0, dp(4), 0)
-                    background = HelpdeskTheme.shape(this@MainActivity, Color.rgb(239, 92, 106), 12, Color.TRANSPARENT)
+                ticketBadge = label("", 9f, Color.WHITE, bold = true).apply {
+                    gravity = Gravity.CENTER
+                    minWidth = dp(16)
+                    setPadding(dp(4), dp(1), dp(4), dp(1))
+                    background = HelpdeskTheme.shape(this@MainActivity, Color.rgb(220, 38, 38), 10, Color.TRANSPARENT)
                     visibility = View.GONE
                 }
-                iconRow.addView(ticketBadge, LinearLayout.LayoutParams(-2, dp(20)).apply { leftMargin = dp(3) })
+                iconRow.addView(ticketBadge, FrameLayout.LayoutParams(-2, dp(15), Gravity.TOP or Gravity.END).apply {
+                    topMargin = 0
+                    rightMargin = 0
+                })
             }
-            item.addView(iconRow, LinearLayout.LayoutParams(-2, dp(22)))
-            item.addView(text, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(4) })
-            navigation.addView(item, LinearLayout.LayoutParams(0, dp(58), 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
+            item.addView(iconRow)
+            item.addView(text, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(2) })
+            navigation.addView(item, LinearLayout.LayoutParams(0, dp(58), 1f).apply { setMargins(dp(2), 0, dp(2), 0) })
         }
     }
 
@@ -458,8 +465,11 @@ class MainActivity : AppCompatActivity() {
     private fun render() {
         val active = allTickets.count { !LocationPolicy.isFinished(it.status) }
         ticketBadge.text = if (active > 99) "99+" else active.toString()
-        ticketBadge.visibility = if (hasData && active > 0) View.VISIBLE else View.GONE
-        navigation.getChildAt(1).contentDescription = "Tiket, $active belum selesai"
+        ticketBadge.visibility = if (active > 0) View.VISIBLE else View.GONE
+        if (navLabels.size > 1) {
+            navLabels[1].text = if (active > 0) "Tiket ($active)" else "Tiket"
+        }
+        navigation.getChildAt(1).contentDescription = "Tiket, $active harus dikerjakan"
         val working = allTickets.count { it.status in setOf("accepted", "on_site", "in_progress") }
         val overdue = allTickets.count { !LocationPolicy.isFinished(it.status) && (TicketAdapter.parseIsoDate(it.slaResolutionDue)?.time ?: Long.MAX_VALUE) < System.currentTimeMillis() }
         val done = allTickets.count { it.status in setOf("resolved", "closed") }
@@ -616,7 +626,7 @@ class MainActivity : AppCompatActivity() {
         gpsTitle.text = title
         gpsTitle.setTextColor(if (ready && fresh && session.isDutyActive) HelpdeskTheme.green else HelpdeskTheme.text)
         gpsSummary.text = summary
-        accountGps.text = title + "\n\nGPS mengirim lokasi setiap menit selama ada pekerjaan aktif. Izin notifikasi tidak menghalangi izin lokasi."
+        accountGps.text = title + "\n\nGPS mengirim lokasi setiap 5 menit selama ada pekerjaan aktif (mode optimal & hemat baterai). Izin notifikasi tidak menghalangi izin lokasi."
     }
 
     private fun updateSyncBanner() {
@@ -754,6 +764,7 @@ class MainActivity : AppCompatActivity() {
             val raw = result.getOrNull()
             val incoming = raw?.let { runCatching { MobileConfiguration.parse(it, configurationAppVersion) }.getOrNull() }
             if (incoming != null) {
+                showApkUpdate(raw, manual)
                 if (incoming.version != mobileConfiguration.version && incoming.version > 0) {
                     configurationStatus.text = "Pembaruan v${incoming.version} tersedia · menunggu diterapkan."
                     if ((manual || deferredConfigurationVersion != incoming.version) && (configurationDialog?.isShowing != true || offeredConfigurationVersion != incoming.version)) {
