@@ -5,6 +5,7 @@
   "commands": [
     "npx tsx scripts/production-cleanup.ts --apply",
     "npx tsx scripts/prepare-workspace.ts",
-    "npx tsx scripts/prepare-production-v4.ts"
+    "npx tsx scripts/prepare-production-v4.ts",
+    "npx tsx scripts/seed-accounts.ts"
   ]
 }

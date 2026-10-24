@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import * as dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import * as schema from "../src/lib/db/schema";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { TICKET_TAXONOMY } from "../src/lib/tickets/taxonomy";
 
 dotenv.config({ path: ".env.local" });
@@ -197,6 +197,45 @@ async function seed() {
     }
   }
 
+  // ── Requested Accounts (uqi, kiky, repan) ───────────────────────────────────
+  console.log("  Ensuring technician accounts (uqi, kiky, repan)...");
+  const techUserHash = await bcrypt.hash("12345678", 12);
+  const targetAccounts = [
+    { username: "uqi", email: "uqi@helpdesk.local", name: "Uqi", role: "agent" as const },
+    { username: "kiky", email: "kiky@helpdesk.local", name: "Kiky", role: "agent" as const },
+    { username: "repan", email: "repan@helpdesk.local", name: "Repan", role: "agent" as const },
+  ];
+  for (const acc of targetAccounts) {
+    const existing = await db.query.users.findFirst({
+      where: or(eq(schema.users.email, acc.email), eq(schema.users.username, acc.username)),
+    });
+    if (existing) {
+      await db
+        .update(schema.users)
+        .set({
+          username: acc.username,
+          email: acc.email,
+          name: acc.name,
+          passwordHash: techUserHash,
+          role: acc.role,
+          isActive: true,
+          deletedAt: null,
+        })
+        .where(eq(schema.users.id, existing.id));
+    } else {
+      await db.insert(schema.users).values({
+        username: acc.username,
+        email: acc.email,
+        name: acc.name,
+        passwordHash: techUserHash,
+        role: acc.role,
+        departmentId: techDept?.id,
+        emailVerified: new Date(),
+        isActive: true,
+      });
+    }
+  }
+
   // ── System Settings ───────────────────────────────────────────────────────────
   console.log("  Creating system settings...");
   await db
@@ -294,6 +333,9 @@ async function seed() {
   console.log("  Admin:     admin@helpdesk.local  /  Admin@123456");
   console.log("  Teknisi 1: agent@helpdesk.local  /  Agent@123456");
   console.log("  Teknisi 2: agent2@helpdesk.local /  Agent@123456");
+  console.log("  Teknisi Uqi:   uqi@helpdesk.local (user: uqi)   /  12345678");
+  console.log("  Teknisi Kiky:  kiky@helpdesk.local (user: kiky)  /  12345678");
+  console.log("  Teknisi Repan: repan@helpdesk.local (user: repan) /  12345678");
   console.log("  User:      user@helpdesk.local   /  User@123456");
 
   } else console.log("Production defaults installed without demo accounts or tickets.");
