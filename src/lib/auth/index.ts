@@ -3,7 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "@/lib/db";
 import { users, sessions, accounts, verificationTokens } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { loginSchema } from "@/lib/validations";
 import { authConfig } from "./auth.config";
@@ -16,6 +16,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     sessionsTable: sessions as any,
     verificationTokensTable: verificationTokens as any,
   }),
+  callbacks: {
+    ...authConfig.callbacks,
+    async jwt({ token, user }) {
+      const id = user?.id || token.id;
+      if (typeof id !== "string") return null;
+      const current = await db.query.users.findFirst({ where: eq(users.id, id) });
+      if (!current || !current.isActive || current.deletedAt) return null;
+      return { ...token, id: current.id, role: current.role, name: current.name, email: current.email, picture: current.avatarUrl };
+    },
+  },
   providers: [
     Credentials({
       name: "credentials",
@@ -30,7 +40,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const { email, password } = parsed.data;
 
         const user = await db.query.users.findFirst({
-          where: eq(users.email, email.toLowerCase()),
+          where: or(eq(users.email, email.toLowerCase().trim()), eq(users.username, email.toLowerCase().trim())),
         });
 
         if (!user || !user.passwordHash) return null;

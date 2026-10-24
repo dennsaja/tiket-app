@@ -46,6 +46,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var syncBanner: TextView
     private lateinit var notificationCount: TextView
     private lateinit var heading: TextView
+    private lateinit var ticketBadge: TextView
     private lateinit var navigation: LinearLayout
     private lateinit var ticketsAdapter: TicketAdapter
     private lateinit var ticketList: RecyclerView
@@ -417,7 +418,17 @@ class MainActivity : AppCompatActivity() {
             val icon = ImageView(this).apply { setImageResource(icons[index]); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
             val text = label(name, 10f)
             navIcons.add(icon); navLabels.add(text)
-            item.addView(icon, LinearLayout.LayoutParams(dp(22), dp(22)))
+            val iconRow = LinearLayout(this).apply { gravity = Gravity.CENTER }
+            iconRow.addView(icon, LinearLayout.LayoutParams(dp(22), dp(22)))
+            if (index == 1) {
+                ticketBadge = label("", 10f, Color.WHITE, bold = true).apply {
+                    gravity = Gravity.CENTER; minWidth = dp(20); setPadding(dp(4), 0, dp(4), 0)
+                    background = HelpdeskTheme.shape(this@MainActivity, Color.rgb(239, 92, 106), 12, Color.TRANSPARENT)
+                    visibility = View.GONE
+                }
+                iconRow.addView(ticketBadge, LinearLayout.LayoutParams(-2, dp(20)).apply { leftMargin = dp(3) })
+            }
+            item.addView(iconRow, LinearLayout.LayoutParams(-2, dp(22)))
             item.addView(text, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(4) })
             navigation.addView(item, LinearLayout.LayoutParams(0, dp(58), 1f).apply { setMargins(dp(3), 0, dp(3), 0) })
         }
@@ -446,6 +457,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun render() {
         val active = allTickets.count { !LocationPolicy.isFinished(it.status) }
+        ticketBadge.text = if (active > 99) "99+" else active.toString()
+        ticketBadge.visibility = if (hasData && active > 0) View.VISIBLE else View.GONE
+        navigation.getChildAt(1).contentDescription = "Tiket, $active belum selesai"
         val working = allTickets.count { it.status in setOf("accepted", "on_site", "in_progress") }
         val overdue = allTickets.count { !LocationPolicy.isFinished(it.status) && (TicketAdapter.parseIsoDate(it.slaResolutionDue)?.time ?: Long.MAX_VALUE) < System.currentTimeMillis() }
         val done = allTickets.count { it.status in setOf("resolved", "closed") }
@@ -457,6 +471,7 @@ class MainActivity : AppCompatActivity() {
         chart.setData(keys.map { date -> allTickets.count { TicketAdapter.parseIsoDate(it.createdAt)?.let { created -> day.format(created) == day.format(date) } == true } }.toIntArray(),
             keys.map { SimpleDateFormat("EEE", Locale("id", "ID")).apply { timeZone = zone }.format(it) })
         homeRecent.removeAllViews()
+        if (hasData && active > 0) homeRecent.addView(label("$active tiket aktif menunggu penanganan", 14f, HelpdeskTheme.blue, bold = true).apply { setPadding(0, 0, 0, dp(12)); setOnClickListener { selectTab(1) } })
         val recent = allTickets.filter { !LocationPolicy.isFinished(it.status) }.take(mobileConfiguration.recentTicketLimit)
         if (recent.isEmpty()) homeRecent.addView(label(if (hasData) "Tidak ada tiket aktif. Semua sudah tertangani." else "Tiket akan tampil setelah data berhasil dimuat.", 13f, HelpdeskTheme.muted))
         recent.forEach { ticket ->

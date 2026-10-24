@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { signMobileToken } from "@/lib/auth/mobile";
 import { z } from "zod";
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().min(1).max(255),
   password: z.string().min(1),
 });
 
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const parsed = loginSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Format email atau password tidak valid" },
+        { error: "Format username/email atau password tidak valid" },
         { status: 400 }
       );
     }
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const { email, password } = parsed.data;
 
     const user = await db.query.users.findFirst({
-      where: eq(users.email, email.toLowerCase().trim()),
+      where: or(eq(users.email, email.toLowerCase().trim()), eq(users.username, email.toLowerCase().trim())),
     });
 
     if (!user || !user.passwordHash) {

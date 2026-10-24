@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateClassification } from "@/lib/tickets/validate-classification";
+import { categoryTicketType } from "@/lib/tickets/taxonomy";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   tickets,
+  users,
+  categories,
   ticketAssignees,
   ticketWorkReports,
   ticketStatusHistory,
@@ -232,11 +235,19 @@ export async function POST(req: NextRequest) {
 
   const data = parsed.data;
 
+  if (!data.categoryId) return errorResponse("Pilih kategori pekerjaan", 422);
+  const category = await db.query.categories.findFirst({ where: eq(categories.id, data.categoryId) });
+  if (!category?.isActive) return errorResponse("Kategori tidak tersedia", 422);
+  data.ticketType = (categoryTicketType(category) || "maintenance") as typeof data.ticketType;
+
   const classificationError = await validateClassification(data.ticketType, data.categoryId, data.subcategoryId);
   if (classificationError) return errorResponse(classificationError, 422);
 
   // Determine primary assignee and assigned team
-  const rawAssignees = Array.isArray(data.assigneeIds) ? data.assigneeIds.filter(Boolean) : [];
+  const rawAssignees = Array.isArray(data.assigneeIds) ? [...new Set(data.assigneeIds.filter(Boolean))] : [];
+  if (data.leadAssigneeId && !rawAssignees.includes(data.leadAssigneeId)) return errorResponse("Ketua tim harus termasuk teknisi yang dipilih", 422);
+  const team = rawAssignees.length ? await db.query.users.findMany({ where: and(inArray(users.id, rawAssignees), eq(users.role, "agent"), eq(users.isActive, true), isNull(users.deletedAt)) }) : [];
+  if (team.length !== rawAssignees.length) return errorResponse("Teknisi tidak aktif atau tidak tersedia", 422);
   const primaryAssigneeId = data.leadAssigneeId || (rawAssignees.length > 0 ? rawAssignees[0] : null);
   const initialStatus = primaryAssigneeId || rawAssignees.length > 0 ? "assigned" : "open";
 
@@ -251,7 +262,7 @@ export async function POST(req: NextRequest) {
       status: initialStatus,
       requesterId: userId,
       assigneeId: primaryAssigneeId,
-      departmentId: data.departmentId || null,
+      departmentId: team.find(person => person.id === primaryAssigneeId)?.departmentId || null,
       categoryId: data.categoryId || null,
       subcategoryId: data.subcategoryId || null,
       specData: data.specData || null,

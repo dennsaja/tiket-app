@@ -8,6 +8,7 @@ import { createAuditLog, getClientIp } from "@/lib/audit";
 import { z } from "zod";
 
 const updateCategorySchema = z.object({
+  ticketType: z.enum(["psb", "perbaikan_infrastruktur", "pemasangan_cctv", "perbaikan_cctv", "maintenance"]).optional(),
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(500).optional(),
   departmentId: z.string().uuid().nullable().optional(),

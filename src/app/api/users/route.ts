@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
     db.query.users.findMany({
       where,
       columns: {
-        id: true, name: true, email: true, role: true, avatarUrl: true,
+        id: true, name: true, username: true, email: true, role: true, avatarUrl: true,
         phone: true, isActive: true, lastLoginAt: true, createdAt: true,
         departmentId: true,
         // Exclude passwordHash
@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
     where: eq(users.email, data.email.toLowerCase()),
   });
   if (existing) return errorResponse("Email already in use", 409);
+  if (await db.query.users.findFirst({ where: eq(users.username, data.username) })) return errorResponse("Username sudah digunakan", 409);
 
   const passwordHash = await bcrypt.hash(data.password, 12);
 
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest) {
     .insert(users)
     .values({
       name: data.name,
+      username: data.username,
       email: data.email.toLowerCase(),
       passwordHash,
       role: data.role,

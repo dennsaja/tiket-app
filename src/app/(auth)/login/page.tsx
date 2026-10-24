@@ -14,7 +14,7 @@ import Link from "next/link";
 import { BrandMark } from "@/components/ui/brand-mark";
 
 const loginSchema = z.object({
-  email: z.string().email("Format alamat email tidak valid"),
+  email: z.string().trim().min(1, "Username atau email wajib diisi"),
   password: z.string().min(1, "Kata sandi wajib diisi"),
   rememberMe: z.boolean().optional(),
 });
@@ -99,9 +99,9 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input
               label="Alamat Email"
-              type="email"
+              type="text"
               placeholder="nama@perusahaan.com"
-              autoComplete="email"
+              autoComplete="username"
               error={errors.email?.message}
               required
               {...register("email")}

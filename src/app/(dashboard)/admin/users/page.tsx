@@ -24,12 +24,14 @@ export default function AdminUsersPage() {
   const [isLoading, setIsLoading] = React.useState(true);
 
   // New user modal
+  const [profilePhoto, setProfilePhoto] = React.useState<File | null>(null);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [editModalOpen, setEditModalOpen] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<any>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [formData, setFormData] = React.useState({
     name: "",
+    username: "", phone: "",
     email: "",
     password: "",
     role: "agent" as "noc" | "owner" | "admin" | "agent" | "user",
@@ -78,6 +80,7 @@ export default function AdminUsersPage() {
     try {
       const payload: any = {
         name: formData.name,
+        username: formData.username, phone: formData.phone,
         email: formData.email,
         password: formData.password,
         role: formData.role,
@@ -97,10 +100,20 @@ export default function AdminUsersPage() {
         throw new Error(err.error || "Gagal membuat pengguna");
       }
 
+      const created = await res.json();
+      if (profilePhoto) {
+        const photo = new FormData(); photo.append("file", profilePhoto); photo.append("userId", created.id);
+        try {
+          const upload = await fetch("/api/users/avatar", { method: "POST", body: photo });
+          if (!upload.ok) throw new Error("Upload failed");
+        } catch { toast.error("Akun berhasil dibuat, tetapi foto gagal diunggah. Unggah ulang melalui Edit Pengguna."); }
+      }
+      setProfilePhoto(null);
       toast.success("Pengguna baru berhasil dibuat");
       setModalOpen(false);
       setFormData({
         name: "",
+        username: "", phone: "",
         email: "",
         password: "",
         role: "agent",
@@ -355,6 +368,9 @@ export default function AdminUsersPage() {
         description="Buat akun untuk NOC administrator, owner, admin, teknisi support, atau pelapor"
       >
         <form onSubmit={handleCreateUser} className="space-y-3 pt-2">
+          <Input label="Foto profil" type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { const file = e.target.files?.[0]; if (file && file.size > 5 * 1024 * 1024) { toast.error("Foto maksimal 5 MB"); e.target.value = ""; return; } setProfilePhoto(file || null); }} />
+          <Input label="Username" required minLength={3} maxLength={50} pattern="[a-zA-Z0-9_.-]+" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} />
+          <Input label="Nomor telepon" type="tel" maxLength={50} value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
           <Input
             label="Nama Lengkap"
             value={formData.name}

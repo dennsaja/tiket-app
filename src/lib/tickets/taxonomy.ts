@@ -6,6 +6,6 @@ export const TICKET_TAXONOMY = [
   { type: "perbaikan_cctv", name: "Perbaikan CCTV", items: ["Kamera mati / gambar bermasalah", "Rekaman / hard disk", "NVR / DVR offline", "Kabel / konektor / daya", "Akses aplikasi / remote"] },
   { type: "maintenance", name: "Maintenance berkala", items: ["Audit redaman dan koneksi", "Pembersihan rack / perangkat", "Pemeriksaan UPS / catu daya", "Pemeliharaan kamera CCTV", "Pembaruan konfigurasi / firmware"] },
 ] as const;
-export function categoryTicketType(category: { id: string; name?: string }): string | null {
-  return TICKET_TAXONOMY.find(item => category.id === `service-${item.type}` || item.name.toLocaleLowerCase("id") === category.name?.toLocaleLowerCase("id"))?.type ?? null;
+export function categoryTicketType(category: { id: string; name?: string; ticketType?: string | null }): string | null {
+  return category.ticketType || (TICKET_TAXONOMY.find(item => category.id === `service-${item.type}` || item.name.toLocaleLowerCase("id") === category.name?.toLocaleLowerCase("id"))?.type ?? null);
 }

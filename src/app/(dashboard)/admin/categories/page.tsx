@@ -30,6 +30,7 @@ type Subcategory = {
 };
 
 type Category = {
+  ticketType?: string | null;
   id: string;
   name: string;
   description: string | null;
@@ -39,7 +40,7 @@ type Category = {
   subcategories: Subcategory[];
 };
 
-const EMPTY_CAT_FORM = { name: "", description: "", departmentId: "" };
+const EMPTY_CAT_FORM = { ticketType: "maintenance", name: "", description: "", departmentId: "" };
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = React.useState<Category[]>([]);
@@ -111,7 +112,7 @@ export default function AdminCategoriesPage() {
     e.preventDefault();
     setIsSavingCat(true);
     try {
-      const payload: any = { name: catForm.name, description: catForm.description };
+      const payload: any = { ticketType: catForm.ticketType, name: catForm.name, description: catForm.description };
       if (catForm.departmentId && catForm.departmentId !== "none") {
         payload.departmentId = catForm.departmentId;
       }
@@ -138,6 +139,7 @@ export default function AdminCategoriesPage() {
     setEditCatTarget(cat);
     setEditCatForm({
       name: cat.name,
+      ticketType: cat.ticketType || "maintenance",
       description: cat.description || "",
       departmentId: cat.departmentId || "",
     });
@@ -150,6 +152,7 @@ export default function AdminCategoriesPage() {
     try {
       const payload: any = {
         name: editCatForm.name,
+        ticketType: editCatForm.ticketType,
         description: editCatForm.description,
         departmentId: editCatForm.departmentId && editCatForm.departmentId !== "none"
           ? editCatForm.departmentId
@@ -456,6 +459,7 @@ export default function AdminCategoriesPage() {
         description="Kategori mengelompokkan jenis kendala atau keluhan tiket"
       >
         <form onSubmit={handleCreateCategory} className="space-y-3 pt-2">
+          <Select label="Formulir pekerjaan" value={catForm.ticketType} onValueChange={(value) => setCatForm({ ...catForm, ticketType: value })} options={[{value:"psb",label:"Pemasangan internet"},{value:"perbaikan_infrastruktur",label:"Perbaikan infrastruktur"},{value:"pemasangan_cctv",label:"Pemasangan CCTV"},{value:"perbaikan_cctv",label:"Perbaikan CCTV"},{value:"maintenance",label:"Maintenance / pekerjaan umum"}]} />
           <Input
             label="Nama Kategori"
             value={catForm.name}
@@ -502,6 +506,7 @@ export default function AdminCategoriesPage() {
         description={`Perbarui informasi kategori "${editCatTarget?.name}"`}
       >
         <form onSubmit={handleEditCategory} className="space-y-3 pt-2">
+          <Select label="Formulir pekerjaan" value={editCatForm.ticketType} onValueChange={(value) => setEditCatForm({ ...editCatForm, ticketType: value })} options={[{value:"psb",label:"Pemasangan internet"},{value:"perbaikan_infrastruktur",label:"Perbaikan infrastruktur"},{value:"pemasangan_cctv",label:"Pemasangan CCTV"},{value:"perbaikan_cctv",label:"Perbaikan CCTV"},{value:"maintenance",label:"Maintenance / pekerjaan umum"}]} />
           <Input
             label="Nama Kategori"
             value={editCatForm.name}

@@ -136,6 +136,7 @@ export const users = pgTable(
     id: text("id").primaryKey().$defaultFn(() => generateUuid()),
     email: varchar("email", { length: 255 }).notNull().unique(),
     name: varchar("name", { length: 255 }).notNull(),
+    username: varchar("username", { length: 50 }).unique(),
     passwordHash: text("password_hash"),
     role: userRoleEnum("role").notNull().default("user"),
     avatarUrl: text("avatar_url"),
@@ -228,6 +229,7 @@ export const categories = pgTable(
   {
     id: text("id").primaryKey().$defaultFn(() => generateUuid()),
     name: varchar("name", { length: 255 }).notNull(),
+    ticketType: varchar("ticket_type", { length: 50 }),
     description: text("description"),
     departmentId: text("department_id").references(() => departments.id, {
       onDelete: "set null",

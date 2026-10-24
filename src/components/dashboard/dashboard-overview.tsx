@@ -21,6 +21,7 @@ export interface RecentDashboardTicket {
   department: { name: string } | null;
 }
 export interface DashboardOverviewProps {
+  activeCount?: number;
   name: string;
   role: string;
   days: DashboardPeriod;
@@ -33,7 +34,7 @@ export interface DashboardOverviewProps {
   dataUnavailable?: boolean;
 }
 
-export function DashboardOverview({ name, role, days, dateLabel, stats, overdue, assigned, recentTickets, activity, dataUnavailable }: DashboardOverviewProps) {
+export function DashboardOverview({ activeCount = 0, name, role, days, dateLabel, stats, overdue, assigned, recentTickets, activity, dataUnavailable }: DashboardOverviewProps) {
   const ticketsHref = "/tickets?days=" + days;
   const canCreate = ["noc", "owner", "admin"].includes(role);
   const staff = ["noc", "owner", "admin", "agent"].includes(role);
@@ -58,6 +59,7 @@ export function DashboardOverview({ name, role, days, dateLabel, stats, overdue,
       <div className="overview-heading-actions"><PeriodSelect days={days} />{canCreate && <Link className="primary-action" href="/tickets/new"><Plus className="h-4 w-4" />Buat tiket</Link>}</div>
     </section>
     {dataUnavailable && <div role="status" className="data-unavailable"><AlertTriangle className="h-4 w-4 shrink-0" />Data tiket belum dapat dimuat. Coba muat ulang halaman beberapa saat lagi.</div>}
+    {!dataUnavailable && activeCount > 0 && <Link href="/tickets?view=active" role="status" className="flex items-center gap-3 rounded-3xl border border-blue-500/30 bg-blue-500/10 p-5 text-blue-500"><Ticket className="h-5 w-5" /><span className="flex-1"><strong>{activeCount} tiket aktif</strong><span className="block text-sm">Masih ada pekerjaan yang belum selesai. Buka daftar tiket untuk menindaklanjuti.</span></span><ArrowRight className="h-5 w-5" /></Link>}
     <section className="overview-primary" aria-label="Statistik dan aktivitas tiket">
       <div className="metrics-grid">
         <StatCard title="Total tiket" value={stats.total} description={"Tiket masuk · " + days + " hari terakhir"} featured href={ticketsHref} icon={<Ticket className="h-3.5 w-3.5" />} badge="Semua status" />

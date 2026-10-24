@@ -10,8 +10,8 @@
       <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingStart="14dp" android:paddingEnd="14dp" android:text="atau masuk dengan akun" android:textColor="@color/text_muted" android:textSize="11sp" />
       <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" android:background="@color/card_border" />
     </LinearLayout>
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:labelFor="@id/etEmail" android:text="Email akun" android:textColor="@color/text_secondary" android:textSize="12sp" />
-    <EditText android:id="@+id/etEmail" style="@style/Helpdesk.Input" android:layout_marginTop="8dp" android:hint="nama@perusahaan.com" android:inputType="textEmailAddress" android:autofillHints="emailAddress" android:imeOptions="actionNext" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:labelFor="@id/etEmail" android:text="Username atau email" android:textColor="@color/text_secondary" android:textSize="12sp" />
+    <EditText android:id="@+id/etEmail" style="@style/Helpdesk.Input" android:layout_marginTop="8dp" android:hint="Username atau nama@perusahaan.com" android:inputType="text" android:autofillHints="username" android:imeOptions="actionNext" />
     <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:labelFor="@id/etPassword" android:text="Kata sandi" android:textColor="@color/text_secondary" android:textSize="12sp" />
     <FrameLayout android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginTop="8dp">
       <EditText android:id="@+id/etPassword" style="@style/Helpdesk.Input" android:hint="Kata sandi akun kamu" android:inputType="textPassword" android:autofillHints="password" android:imeOptions="actionDone" android:paddingEnd="56dp" />

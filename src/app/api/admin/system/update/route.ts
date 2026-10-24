@@ -527,7 +527,7 @@ export async function POST(req: NextRequest) {
             log("HOOK_EXEC", `Menjalankan perintah kustom: ${cmd}`);
             const hookRes = await spawnStreamingCmd(cmd, cwd, (line) => log("HOOK_OUTPUT", line), 180000);
             if (hookRes.exitCode !== 0) {
-              log("HOOK_WARN", `Perintah "${cmd}" selesai dengan exit code ${hookRes.exitCode}`);
+              throw new Error(`Persiapan pembaruan gagal: ${cmd} (exit ${hookRes.exitCode}). Build dibatalkan agar skema dan aplikasi tetap konsisten.`);
             }
           }
         }

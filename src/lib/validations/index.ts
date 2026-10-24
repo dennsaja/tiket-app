@@ -3,7 +3,7 @@ import { z } from "zod";
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().trim().min(1, "Username atau email wajib diisi").max(255),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -214,6 +214,7 @@ export const ticketFiltersSchema = z.object({
 export const userRoles = ["noc", "owner", "admin", "agent", "user"] as const;
 
 export const createUserSchema = z.object({
+  username: z.string().trim().toLowerCase().min(3).max(50).regex(/^[a-z0-9_.-]+$/, "Username hanya huruf, angka, titik, garis bawah, dan tanda hubung"),
   name: z.string().min(2, "Nama minimal 2 karakter").max(255),
   email: z.string().email("Format email tidak valid"),
   password: z.string().min(8, "Password minimal 8 karakter").regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password harus mengandung huruf besar, kecil, dan angka"),
@@ -260,6 +261,7 @@ export const updateDepartmentSchema = createDepartmentSchema
 // ─── Categories ───────────────────────────────────────────────────────────────
 
 export const createCategorySchema = z.object({
+  ticketType: z.enum(["psb", "perbaikan_infrastruktur", "pemasangan_cctv", "perbaikan_cctv", "maintenance"]).default("maintenance"),
   name: z.string().min(2).max(255),
   description: z.string().max(1000).optional(),
   departmentId: z.string().optional(),

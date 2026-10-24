@@ -89,7 +89,6 @@ export default function NewTicketPage() {
   const userRole = (session?.user as any)?.role;
 
   const [selectedType, setSelectedType] = React.useState<TicketType>("psb");
-  const [departments, setDepartments] = React.useState<any[]>([]);
   const [categories, setCategories] = React.useState<any[]>([]);
   const [technicians, setTechnicians] = React.useState<any[]>([]);
   const [selectedTechIds, setSelectedTechIds] = React.useState<string[]>([]);
@@ -164,7 +163,6 @@ export default function NewTicketPage() {
     },
   });
 
-  const selectedDepartmentId = watch("departmentId");
   const selectedCategoryId = watch("categoryId");
   const currentPriority = watch("priority") || "medium";
   const reporterNameVal = watch("reporterName");
@@ -173,12 +171,10 @@ export default function NewTicketPage() {
   React.useEffect(() => {
     async function loadMeta() {
       try {
-        const [deptRes, catRes, techRes] = await Promise.all([
-          fetch("/api/departments"),
+        const [catRes, techRes] = await Promise.all([
           fetch("/api/categories"),
-          fetch("/api/users?role=agent&perPage=100"),
+          fetch("/api/users?role=agent&isActive=true&perPage=100"),
         ]);
-        if (deptRes.ok) setDepartments(await deptRes.json());
         if (catRes.ok) setCategories(await catRes.json());
         if (techRes.ok) {
           const techData = await techRes.json();
@@ -211,17 +207,14 @@ export default function NewTicketPage() {
     setValue("title", `[${typePrefix}]${name}`);
   }, [selectedType, reporterNameVal, setValue]);
 
-  // Filter categories by selected department if any
-  const filteredCategories = React.useMemo(() => {
-    return categories.filter(c => (!c.ticketType || c.ticketType === selectedType) &&
-      (!selectedDepartmentId || selectedDepartmentId === "none" || !c.departmentId || c.departmentId === selectedDepartmentId));
-  }, [categories, selectedDepartmentId, selectedType]);
-
   React.useEffect(() => {
-    const recommended = filteredCategories.find(category => category.ticketType === selectedType);
-    setValue("categoryId", recommended?.id || "");
-    setValue("subcategoryId", "");
-  }, [selectedType, filteredCategories, setValue]);
+    if (categories.length && !categories.some(c => c.id === selectedCategoryId)) {
+      const first = categories[0];
+      setValue("categoryId", first.id);
+      setSelectedType((first.ticketType || "maintenance") as TicketType);
+      setValue("subcategoryId", "");
+    }
+  }, [categories, selectedCategoryId, setValue]);
 
   const currentCategory = categories.find((c) => c.id === selectedCategoryId);
   const subcategories = currentCategory?.subcategories || [];
@@ -270,6 +263,7 @@ export default function NewTicketPage() {
   const onSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
+      if (!categories.some(c => c.id === data.categoryId)) throw new Error("Pilih kategori pekerjaan yang tersedia terlebih dahulu.");
       const specData = getCompiledSpecData();
       
       // Auto-populate description if left empty
@@ -292,9 +286,6 @@ export default function NewTicketPage() {
         specData,
       };
 
-      if (data.departmentId && data.departmentId !== "none") {
-        payload.departmentId = data.departmentId;
-      }
       if (data.categoryId && data.categoryId !== "none") {
         payload.categoryId = data.categoryId;
       }
@@ -412,7 +403,7 @@ export default function NewTicketPage() {
                 LANGKAH 1
               </span>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">
-                Pilih Jenis Pekerjaan / Tiket
+                Pilih Kategori Pekerjaan / Tiket
               </h2>
             </div>
             <span className="text-[11px] text-zinc-500 font-medium">
@@ -421,14 +412,15 @@ export default function NewTicketPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
-            {TICKET_TYPE_OPTIONS.map((opt) => {
-              const isSelected = selectedType === opt.id;
+            {categories.map((category) => {
+              const opt = TICKET_TYPE_OPTIONS.find(item => item.id === category.ticketType) || TICKET_TYPE_OPTIONS[TICKET_TYPE_OPTIONS.length - 1];
+              const isSelected = selectedCategoryId === category.id;
               const IconComponent = opt.icon;
               return (
                 <button
                   type="button"
-                  key={opt.id}
-                  onClick={() => setSelectedType(opt.id as TicketType)}
+                  key={category.id}
+                  onClick={() => { setValue("categoryId", category.id); setValue("subcategoryId", ""); setSelectedType((category.ticketType || "maintenance") as TicketType); }}
                   className={`flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer relative ${
                     isSelected
                       ? "border-black bg-zinc-50/90 ring-2 ring-black/5 dark:border-white dark:bg-zinc-900 dark:ring-white/10 shadow-xs"
@@ -452,10 +444,10 @@ export default function NewTicketPage() {
                     )}
                   </div>
                   <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                    {opt.title}
+                    {category.name}
                   </h3>
                   <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
-                    {opt.description}
+                    {category.description || opt.description}
                   </p>
                 </button>
               );
@@ -982,47 +974,7 @@ export default function NewTicketPage() {
             </div>
           </div>
 
-          {/* Departemen & Kategori (Opsional) */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-            {departments.length > 0 && (
-              <Controller
-                control={control}
-                name="departmentId"
-                render={({ field }) => (
-                  <Select
-                    label="Departemen (Opsional)"
-                    value={field.value || "none"}
-                    onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
-                    options={[
-                      { value: "none", label: "Pilih Departemen" },
-                      ...departments.map((d) => ({ value: d.id, label: d.name })),
-                    ]}
-                  />
-                )}
-              />
-            )}
 
-            {filteredCategories.length > 0 && (
-              <Controller
-                control={control}
-                name="categoryId"
-                render={({ field }) => (
-                  <Select
-                    label="Kategori (Opsional)"
-                    value={field.value || "none"}
-                    onValueChange={(val) => {
-                      field.onChange(val === "none" ? "" : val);
-                      setValue("subcategoryId", "");
-                    }}
-                    options={[
-                      { value: "none", label: "Pilih Kategori" },
-                      ...filteredCategories.map((c) => ({ value: c.id, label: c.name })),
-                    ]}
-                  />
-                )}
-              />
-            )}
-          </div>
         </div>
 
         {subcategories.length > 0 && <div className="rounded-3xl border border-[var(--border-color)] bg-[var(--surface)] p-5">

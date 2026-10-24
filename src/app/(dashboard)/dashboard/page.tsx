@@ -25,6 +25,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   // created_at is a UTC timestamp without timezone; group by its Jakarta calendar day.
   const dayExpression = sql<string>`to_char(${tickets.createdAt} + interval '7 hours', 'YYYY-MM-DD')`;
   let stats = summarizeStatuses([]);
+  let activeCount = 0;
   let overdue = 0;
   let assigned = 0;
   let recentTickets: RecentDashboardTicket[] = [];
@@ -32,7 +33,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   let dataUnavailable = false;
 
   try {
-    const [statusRows, overdueRows, assignedRows, recentRows, dailyRows] = await Promise.all([
+    const [statusRows, overdueRows, assignedRows, recentRows, dailyRows, activeRows] = await Promise.all([
       db.select({ status: tickets.status, count: count() }).from(tickets).where(baseWhere).groupBy(tickets.status),
       db.select({ count: count() }).from(tickets).where(and(baseWhere, lt(tickets.slaResolutionDue, now), sql`${tickets.status} NOT IN ('resolved', 'closed', 'cancelled')`)),
       ["noc", "owner", "admin", "agent"].includes(role)
@@ -49,7 +50,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         limit: 5,
       }),
       db.select({ date: dayExpression, count: count() }).from(tickets).where(baseWhere).groupBy(dayExpression).orderBy(dayExpression),
+      db.select({ count: count() }).from(tickets).where(and(isNull(tickets.deletedAt), roleFilter, role === "agent" ? myAssignment : undefined, sql`${tickets.status} NOT IN ('resolved', 'closed', 'cancelled')`)),
     ]);
+    activeCount = Number(activeRows[0]?.count || 0);
     stats = summarizeStatuses(statusRows);
     overdue = Number(overdueRows[0]?.count || 0);
     assigned = Number(assignedRows[0]?.count || 0);
@@ -67,5 +70,5 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   }));
   const dateFormatter = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", timeZone: "Asia/Jakarta" });
   const dateLabel = dateFormatter.format(range.start) + " – " + dateFormatter.format(now);
-  return <DashboardOverview name={user?.name || "User"} role={role} days={days} dateLabel={dateLabel} stats={stats} overdue={overdue} assigned={assigned} recentTickets={recentTickets} activity={activity} dataUnavailable={dataUnavailable} />;
+  return <DashboardOverview activeCount={activeCount} name={user?.name || "User"} role={role} days={days} dateLabel={dateLabel} stats={stats} overdue={overdue} assigned={assigned} recentTickets={recentTickets} activity={activity} dataUnavailable={dataUnavailable} />;
 }

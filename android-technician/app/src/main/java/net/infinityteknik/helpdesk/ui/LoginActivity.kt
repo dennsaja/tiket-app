@@ -72,7 +72,7 @@ class LoginActivity : AppCompatActivity() {
         val identifier = email.text.toString().trim()
         // Passwords are sent exactly as entered, including intentional spaces.
         val secret = password.text.toString()
-        if (identifier.isBlank()) { email.error = "Email akun wajib diisi"; email.requestFocus(); return }
+        if (identifier.isBlank()) { email.error = "Username atau email wajib diisi"; email.requestFocus(); return }
         if (secret.isEmpty()) { password.error = "Kata sandi wajib diisi"; password.requestFocus(); return }
         setBusy(true)
         error.visibility = View.GONE
