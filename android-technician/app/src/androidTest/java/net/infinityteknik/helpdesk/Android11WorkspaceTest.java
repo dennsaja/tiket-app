@@ -61,13 +61,19 @@ public class Android11WorkspaceTest {
     @Test public void testAdminWorkspace(){open("admin");assertTrue(text(activity.getWindow().getDecorView(),"ADMIN WORKSPACE"));assertNotNull(web(activity.getWindow().getDecorView()));}
     @Test public void testTechnicianWorkspace(){open("agent");assertTrue(text(activity.getWindow().getDecorView(),"SUPPORT WORKSPACE"));assertNull(web(activity.getWindow().getDecorView()));}
     @Test public void testInvalidUpdateShowsRealFailure() throws Exception {
-        open("agent");
+        assertEquals(30, Build.VERSION.SDK_INT);
+        SessionManager session = new SessionManager(getInstrumentation().getTargetContext());
+        session.setToken("android11-offline-fixture"); session.setUserId("qa-updater"); session.setUserRole("agent");
         Intent intent = new Intent(getInstrumentation().getTargetContext(), AppUpdateActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("release","{\"versionName\":\"QA\",\"fileSizeBytes\":0,\"sha256\":\"invalid\"}");
-        activity.finish(); activity=getInstrumentation().startActivitySync(intent);
-        Thread.sleep(1000);getInstrumentation().waitForIdleSync();
-        android.view.accessibility.AccessibilityNodeInfo root = getInstrumentation().getUiAutomation().getRootInActiveWindow();
-        assertNotNull("Update dialog missing", root);
-        assertFalse("Failure state missing",root.findAccessibilityNodeInfosByText("Pembaruan gagal").isEmpty());
+        activity=getInstrumentation().startActivitySync(intent);
+        getInstrumentation().waitForIdleSync();
+        java.lang.reflect.Field dialogField=AppUpdateActivity.class.getDeclaredField("dialog"); dialogField.setAccessible(true);
+        androidx.appcompat.app.AlertDialog dialog=(androidx.appcompat.app.AlertDialog)dialogField.get(activity);
+        assertNotNull("Update dialog missing",dialog);
+        getInstrumentation().runOnMainSync(()->{
+            assertTrue("Update dialog is not shown",dialog.isShowing());
+            assertTrue("Failure state missing",text(dialog.getWindow().getDecorView(),"Pembaruan gagal"));
+        });
     }
     @After public void tearDown() throws Exception { if(activity!=null)getInstrumentation().runOnMainSync(()->activity.finish()); }
 }
