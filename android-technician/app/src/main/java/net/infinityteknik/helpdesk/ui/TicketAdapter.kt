@@ -127,12 +127,13 @@ class TicketAdapter(
             }
             sla.setTextColor(if (!LocationPolicy.isFinished(ticket.status) && due != null && due.time < System.currentTimeMillis()) HelpdeskTheme.red else HelpdeskTheme.muted)
             primary.text = when {
+                SessionManager(context).userRole != "agent" -> "Lihat detail"
                 LocationPolicy.isFinished(ticket.status) -> "Lihat laporan"
                 ticket.status == "in_progress" -> "Isi laporan"
                 ticket.status in setOf("open", "assigned", "reopened") -> "Terima tiket"
                 else -> "Buka penanganan"
             }
-            primary.setOnClickListener { onPrimaryActionClick(ticket) }
+            primary.setOnClickListener { if (SessionManager(context).userRole == "agent") onPrimaryActionClick(ticket) else onDetailClick(ticket) }
             chat.setOnClickListener { onChatClick(ticket) }
             itemView.setOnClickListener { onDetailClick(ticket) }
         }

@@ -1,10 +1,11 @@
 {
-  "versionCode": 15,
-  "versionName": "3.5.0",
+  "versionCode": 16,
+  "versionName": "3.6.0",
   "minSupportedVersion": 1,
   "downloadUrl": "/downloads/helpdesk-teknisi.apk",
-  "updatedAt": "2026-10-24T02:04:00.000Z",
-  "sha256": "d29441cea168070a9a53ebd2ec0d8299b3dd25c41fb690abdadb525a4cd8dedb",
-  "fileSizeBytes": 5590371,
-  "releaseNotes": "v3.5.0: Fitur pembaruan kode Git langsung dari Console Android, indikator jumlah tiket aktif pada tab bar bawah (Tiket), dan sinkronisasi GPS optimal interval 5 menit hemat baterai saat ada tiket aktif."
+  "updatedAt": "2026-10-25T14:35:24.395Z",
+  "sha256": "050c06703d22aa5fe3e4ef64f1bc38125ef32b85b1bac558efd53d95119e3d6a",
+  "fileSizeBytes": 5646183,
+  "androidSourceSha256": "736f2802e3cd84b4209a5be241b6a2b11e8dd3c0e3b9fda42a922d73af03d81a",
+  "releaseNotes": "v3.6.0: Pembaruan APK dari console dengan progres unduhan nyata, pemeriksaan integritas dan sertifikat, serta hasil pemasangan Android. Beranda owner/admin sesuai peran, statistik kinerja dan live tracking tim. Jalur jaringan tetap tampil saat beralih Peta/Satelit. Pasang versi ini sekali untuk mengaktifkan updater di dalam aplikasi."
 }

@@ -19,6 +19,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { ApkPublisher } from "./apk-publisher";
 import { Button } from "@/components/ui/button";
 import {
   MobileConfig,
@@ -260,7 +261,7 @@ export function MobileConsole({
           <p className="mb-2 text-xs tracking-[.2em] text-blue-400">HELPDESK / ANDROID CONSOLE</p>
           <h1 className="text-3xl font-semibold tracking-tight">Console &amp; Pembaruan Aplikasi</h1>
           <p className="mt-2 text-sm text-zinc-400">
-            Pusat kendali aplikasi: tarik pembaruan kode/fix via Git dan atur pengalaman teknisi secara remote.
+            Perbarui server dari GitHub, publikasikan APK terbaru, dan pantau laporan penerimaan dari aplikasi.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -297,6 +298,7 @@ export function MobileConsole({
       </div>
 
       {/* Grid Status Cards (4 Cards) */}
+      <ApkPublisher />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Card 1: Git & Code Update Status */}
         <div className="rounded-[28px] border border-blue-500/30 bg-blue-500/10 p-6 flex flex-col justify-between">

@@ -6,7 +6,7 @@ import { useSSE } from "@/hooks/use-sse";
 import { formatRelativeTime } from "@/lib/utils";
 import { distanceMeters, formatDistance, LOCATION_STALE_MS } from "@/lib/utils/geo";
 import { emptyTopology, NETWORK_COLORS, NETWORK_LABELS, topologyGeoJson, upstreamLinks, validPosition, type LngLat, type NetworkKind, type TopologySnapshot } from "@/lib/map/topology";
-import { loadMapEngine, trackingStyle, type TrackingStyle } from "@/lib/map/styles";
+import { type TrackingStyle } from "@/lib/map/styles";
 import toast from "react-hot-toast";
 import "leaflet/dist/leaflet.css";
 
@@ -25,7 +25,6 @@ const fresh = (tech: TechnicianItem, now: number) => Boolean(tech.isTracking && 
 export function LiveDispatcherMap() {
   const container = React.useRef<HTMLDivElement>(null), map = React.useRef<any>(null), library = React.useRef<any>(null);
   const markers = React.useRef(new Map<string, any>()), fileInput = React.useRef<HTMLInputElement>(null), firstFit = React.useRef(false);
-  const dataCache = React.useRef(new Map<string, { source: any; data: unknown }>());
   const [topology, setTopology] = React.useState<TopologySnapshot>(emptyTopology);
   const [technicians, setTechnicians] = React.useState<TechnicianItem[]>([]), [tickets, setTickets] = React.useState<TicketItem[]>([]);
   const [selection, setSelection] = React.useState<Selection>(null), [style, setStyle] = React.useState<TrackingStyle>("streets");
@@ -36,15 +35,11 @@ export function LiveDispatcherMap() {
   const [loading, setLoading] = React.useState(true), [importing, setImporting] = React.useState(false);
   const [dataError, setDataError] = React.useState(""), [mapError, setMapError] = React.useState("");
   const [ready, setReady] = React.useState(false), [mapRevision, setMapRevision] = React.useState(0);
-  const [forceLibre, setForceLibre] = React.useState(false), [token, setToken] = React.useState<string | null>(null);
-  const [raster, setRaster] = React.useState(false);
   const [route, setRoute] = React.useState<RoadRoute | null>(null), [now, setNow] = React.useState(Date.now);
   const request = React.useRef<AbortController | null>(null), topologyRequest = React.useRef<AbortController | null>(null);
   const routeCache = React.useRef<{ key: string; origin: LngLat; route: RoadRoute; time: number } | null>(null);
 
   React.useEffect(() => {
-    let saved = ""; try { saved = window.localStorage.getItem("helpdesk_mapbox_access_token") || ""; } catch {}
-    setToken((saved || process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || "").trim());
     const timer = window.setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(timer);
   }, []);
@@ -87,99 +82,35 @@ export function LiveDispatcherMap() {
   const ticketGeo = React.useMemo(() => ({ type: "FeatureCollection", features: tickets.flatMap(ticket => { const point = coordinatesOf(ticket); return point ? [{ type: "Feature", id: ticket.id, properties: { id: ticket.id, number: ticket.ticketNumber, urgent: ["critical", "high"].includes(ticket.priority) }, geometry: { type: "Point", coordinates: point } }] : []; }) }), [tickets]);
   const view = React.useRef<any>(null);
   view.current = { geo, ticketGeo, routeGeo, visibleKinds, showCables, showTickets, highlighted };
-  const syncLayers = React.useCallback(() => {
-    const instance = map.current; if (!instance) return;
-    const state = view.current;
-    if (instance.__raster) { instance.render(state); return; }
-    if (!instance.__styleReady || !instance.getStyle()?.sources) return;
-    const source = (id: string, data: unknown) => {
-      if (!instance.getSource(id)) instance.addSource(id, { type: "geojson", data });
-      const current = instance.getSource(id), previous = dataCache.current.get(id);
-      if (previous?.source !== current || previous?.data !== data) { current.setData(data); dataCache.current.set(id, { source: current, data }); }
-    };
-    source("network-lines", state.geo.lines); source("network-points", state.geo.points); source("ticket-points", state.ticketGeo); source("dispatch-route", state.routeGeo);
-    const add = (layer: any) => { if (!instance.getLayer(layer.id)) instance.addLayer(layer); };
-    const color = ["match", ["get", "kind"], "server", NETWORK_COLORS.server, "router", NETWORK_COLORS.router, "odp", NETWORK_COLORS.odp, NETWORK_COLORS.customer];
-    add({ id: "network-cables", type: "line", source: "network-lines", layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": color, "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1, 17, 2.4], "line-opacity": 0.75 } });
-    add({ id: "network-schematic", type: "line", source: "network-lines", paint: { "line-color": color, "line-width": 1.5, "line-dasharray": [3, 3], "line-opacity": 0.65 } });
-    add({ id: "network-highlight", type: "line", source: "network-lines", paint: { "line-color": "#4563ff", "line-width": 5, "line-opacity": 0.9 } });
-    add({ id: "network-dots", type: "circle", source: "network-points", paint: { "circle-color": color, "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 2.5, 16, 5.5], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } });
-    const fonts = instance.getStyle().layers.find((layer: any) => layer.type === "symbol" && layer.layout?.["text-font"])?.layout?.["text-font"] || ["Noto Sans Regular"];
-    add({ id: "network-labels", type: "symbol", source: "network-points", minzoom: 14.5, layout: { "text-field": ["step", ["zoom"], ["case", ["==", ["get", "kind"], "customer"], "", ["get", "name"]], 17, ["get", "name"]], "text-font": fonts, "text-size": 11, "text-offset": [0, 1.3], "text-anchor": "top", "text-max-width": 12 }, paint: { "text-color": "#172033", "text-halo-color": "#fff", "text-halo-width": 2 } });
-    add({ id: "ticket-dots", type: "circle", source: "ticket-points", paint: { "circle-radius": 8, "circle-color": ["case", ["get", "urgent"], "#ef4444", "#4563ff"], "circle-stroke-color": "#fff", "circle-stroke-width": 3 } });
-    add({ id: "ticket-labels", type: "symbol", source: "ticket-points", layout: { "text-field": ["concat", "#", ["to-string", ["get", "number"]]], "text-font": fonts, "text-size": 11, "text-offset": [0, -1.6], "text-anchor": "bottom" }, paint: { "text-color": "#172033", "text-halo-color": "#fff", "text-halo-width": 2 } });
-    add({ id: "dispatch-route-road", type: "line", source: "dispatch-route", filter: ["==", ["get", "road"], true], layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": "#4563ff", "line-width": 6, "line-opacity": 0.9 } });
-    add({ id: "dispatch-route-direction", type: "line", source: "dispatch-route", filter: ["==", ["get", "road"], false], paint: { "line-color": "#4563ff", "line-width": 3, "line-dasharray": [3, 3] } });
-    const kinds = ["in", ["get", "kind"], ["literal", state.visibleKinds]];
-    instance.setFilter("network-cables", ["all", kinds, ["==", ["get", "traced"], true]]);
-    instance.setFilter("network-schematic", ["all", kinds, ["==", ["get", "traced"], false]]);
-    instance.setFilter("network-highlight", ["all", kinds, ["in", ["get", "id"], ["literal", [...state.highlighted]]]]);
-    for (const id of ["network-cables", "network-schematic", "network-highlight"]) instance.setLayoutProperty(id, "visibility", state.showCables ? "visible" : "none");
-    for (const id of ["network-dots", "network-labels"]) instance.setFilter(id, kinds);
-    for (const id of ["ticket-dots", "ticket-labels"]) instance.setLayoutProperty(id, "visibility", state.showTickets ? "visible" : "none");
-  }, []);
-  const appliedStyle = React.useRef(""), styleRef = React.useRef(style); styleRef.current = style;
+  const syncLayers = React.useCallback(() => { map.current?.render(view.current); }, []);
+  const appliedStyle = React.useRef("");
+  const styleRef = React.useRef(style); styleRef.current = style;
   React.useEffect(() => {
-    if (token === null) return;
     let disposed = false; let instance: any; let resize: ResizeObserver | undefined;
-    let styleReady = false;
-    const watchdog = window.setTimeout(() => { if (!disposed && !styleReady) { if (!raster) setRaster(true); else setMapError("Peta belum dapat dimuat. Periksa koneksi lalu coba lagi."); } }, 14000);
     setReady(false); setMapError("");
     async function start() {
       try {
-        if (raster) {
-          const { createRasterMap } = await import("@/lib/map/raster-engine");
-          if (disposed || !container.current) return;
-          const fallback = await createRasterMap(container.current, styleRef.current, (kind, id) => { setSelection({ kind, id }); setSidebarOpen(true); },
-            () => { if (!disposed) { styleReady = true; clearTimeout(watchdog); setReady(true); setMapError(""); } },
-            message => { if (!disposed) setMapError(message); });
-          if (disposed) { fallback.instance.remove(); return; }
-          instance = fallback.instance; library.current = fallback.library; map.current = instance; appliedStyle.current = styleRef.current;
-          syncLayers(); resize = new ResizeObserver(() => instance.resize()); resize.observe(container.current); return;
-        }
-        let official = token!.startsWith("pk.") && !forceLibre, gl: any;
-        try { gl = await loadMapEngine(official); } catch (error) { if (!official) throw error; official = false; gl = await loadMapEngine(false); }
+        if (!(window as any).createHelpdeskSatelliteLayer) await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script"); script.src = "/map/satellite.js"; script.onload = () => resolve(); script.onerror = () => reject(new Error("Lapisan satelit belum dapat dimuat")); document.head.appendChild(script);
+        });
+        const { createRasterMap } = await import("@/lib/map/raster-engine");
         if (disposed || !container.current) return;
-        if (official) gl.accessToken = token;
-        library.current = gl;
-        instance = new gl.Map({ container: container.current, style: trackingStyle(styleRef.current, official), center: [110.857, -6.76], zoom: 12, minZoom: 3, maxZoom: 22, maxPitch: 0, dragRotate: false, touchPitch: false, pitchWithRotate: false, attributionControl: { compact: true } });
-        instance.__official = official; instance.__styleReady = false; map.current = instance; appliedStyle.current = styleRef.current;
-        instance.addControl(new gl.NavigationControl({ showCompass: false }), "bottom-right");
-        let deliveredStyle = "";
-        instance.on("style.load", () => { if (!disposed) { instance.__styleReady = true; deliveredStyle = ""; try { syncLayers(); } catch { setRaster(true); } } });
-        const loaded = () => { if (!disposed && deliveredStyle !== styleRef.current) { deliveredStyle = styleRef.current; styleReady = true; clearTimeout(watchdog); setReady(true); setMapError(""); syncLayers(); } };
-        instance.on("load", loaded);
-        instance.on("idle", loaded);
-        instance.on("error", (event: any) => {
-          if (disposed) return;
-          if (official && /401|403|token|Unauthorized|Forbidden/i.test(event.error?.message || "")) { setForceLibre(true); return; }
-          if (!instance.isStyleLoaded()) setRaster(true);
-        });
-        instance.on("click", (event: any) => {
-          const ids = ["ticket-dots", "network-dots"].filter(id => instance.getLayer(id));
-          const feature = instance.queryRenderedFeatures(event.point, { layers: ids })?.[0];
-          if (feature?.properties?.id) { setSelection({ kind: feature.layer.id === "ticket-dots" ? "ticket" : "network", id: feature.properties.id }); setSidebarOpen(true); }
-        });
-        for (const layer of ["ticket-dots", "network-dots"]) {
-          instance.on("mouseenter", layer, () => { instance.getCanvas().style.cursor = "pointer"; });
-          instance.on("mouseleave", layer, () => { instance.getCanvas().style.cursor = ""; });
-        }
-        resize = new ResizeObserver(() => instance.resize()); resize.observe(container.current);
-      } catch (error: any) { if (!disposed) { console.warn("[TrackingMap] initialization failed", error.message); if (!raster) setRaster(true); else setMapError("Peta belum dapat dimuat. Periksa koneksi lalu coba lagi."); } }
+        const built = await createRasterMap(container.current, styleRef.current, (kind, id) => { setSelection({ kind, id }); setSidebarOpen(true); },
+          () => { if (!disposed) { setReady(true); setMapError(""); } }, message => { if (!disposed) { setReady(true); setMapError(message); } });
+        instance = built.instance;
+        if (disposed) { instance.remove(); return; }
+        map.current = instance; library.current = built.library; appliedStyle.current = styleRef.current;
+        syncLayers(); resize = new ResizeObserver(() => instance.resize()); resize.observe(container.current);
+      } catch (error) { if (!disposed) setMapError(error instanceof Error ? error.message : "Peta belum dapat dimuat"); }
     }
     start();
-    return () => { disposed = true; clearTimeout(watchdog); resize?.disconnect(); markers.current.forEach(marker => marker.remove()); markers.current.clear(); dataCache.current.clear(); if (map.current === instance) map.current = null; instance?.remove(); };
-  }, [token, forceLibre, mapRevision, syncLayers, raster]);
+    return () => { disposed = true; resize?.disconnect(); markers.current.forEach(marker => marker.remove()); markers.current.clear(); if (map.current === instance) map.current = null; instance?.remove(); };
+  }, [mapRevision, syncLayers]);
   React.useEffect(() => {
-    const instance = map.current; if (!instance || appliedStyle.current === style) return;
-    appliedStyle.current = style; setReady(false); instance.__styleReady = false; instance.setStyle(instance.__raster ? style : trackingStyle(style, Boolean(instance.__official)));
-  }, [style]);
-  React.useEffect(() => { if (ready) syncLayers(); }, [ready, geo, ticketGeo, routeGeo, visibleKinds, showCables, showTickets, highlighted, syncLayers]);
-  React.useEffect(() => {
-    if (ready || token === null) return;
-    const timer = window.setTimeout(() => { if (!raster) setRaster(true); else setMapError("Gambar peta belum tersedia. Periksa koneksi lalu coba lagi."); }, 18000);
-    return () => clearTimeout(timer);
-  }, [ready, token, raster, style, mapRevision]);
+    if (!map.current || appliedStyle.current === style) return;
+    appliedStyle.current = style; setMapError(""); map.current.setStyle(style); syncLayers();
+  }, [style, syncLayers]);
+  React.useEffect(() => { syncLayers(); }, [ready, geo, ticketGeo, routeGeo, visibleKinds, showCables, showTickets, highlighted, syncLayers]);
   const fitAll = React.useCallback(() => {
     const instance = map.current, gl = library.current; if (!instance || !gl) return;
     const positions = [...technicians.flatMap(tech => coordinatesOf(tech) ? [coordinatesOf(tech)!] : []), ...tickets.flatMap(ticket => showTickets && coordinatesOf(ticket) ? [coordinatesOf(ticket)!] : []), ...topology.nodes.filter(node => visibleKinds.includes(node.kind)).map(node => node.coordinates)];

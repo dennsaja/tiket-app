@@ -40,6 +40,13 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
+    private val managerRole get() = session.userRole in setOf("owner", "admin", "noc")
+    private var staffOverview: org.json.JSONObject? = null
+    private var staffBusy = false
+    private var staffMapBusy = false
+    private var lastStaffMapRefresh = 0L
+    private var staffMap: StaffTrackingMapView? = null
+    private lateinit var performancePanel: LinearLayout
     private lateinit var session: SessionManager
     private lateinit var pages: FrameLayout
     private lateinit var swipe: SwipeRefreshLayout
@@ -193,7 +200,7 @@ class MainActivity : AppCompatActivity() {
     }
     private fun buildOverview() {
         val root = column(20)
-        root.addView(label("SUPPORT WORKSPACE", 10f, HelpdeskTheme.muted).apply { letterSpacing = .13f })
+        root.addView(label(when(session.userRole) { "owner" -> "OWNER WORKSPACE"; "admin" -> "ADMIN WORKSPACE"; "noc" -> "NOC WORKSPACE"; else -> "SUPPORT WORKSPACE" }, 10f, HelpdeskTheme.muted).apply { letterSpacing = .13f })
         gap(root, 10)
         greeting = label("Halo, " + (session.userName ?: "Tim").substringBefore(" ") + ".", 32f, bold = true)
         root.addView(greeting)
@@ -242,7 +249,10 @@ class MainActivity : AppCompatActivity() {
         chart = WeeklyTimelineChartView(this)
         activity.addView(chart, LinearLayout.LayoutParams(-1, dp(190)).apply { topMargin = dp(14) })
         root.addView(activity); gap(root)
-        val gps = panel(18)
+        performancePanel = panel(18)
+        performancePanel.visibility = if (managerRole) View.VISIBLE else View.GONE
+        root.addView(performancePanel); gap(root)
+        val gps = panel(18).apply { visibility = if (managerRole) View.GONE else View.VISIBLE }
         gps.background = OrbitBackdrop()
         gpsTitle = label("Status lokasi", 14f, bold = true)
         gpsSummary = label("", 12f, HelpdeskTheme.muted)
@@ -263,7 +273,7 @@ class MainActivity : AppCompatActivity() {
     }
     private fun buildTickets() {
         val root = column(20)
-        root.addView(label("Tiket kamu", 28f, bold = true))
+        root.addView(label(if (managerRole) "Tiket tim" else "Tiket kamu", 28f, bold = true))
         ticketCount = label("Memuat penugasan...", 12f, HelpdeskTheme.muted)
         root.addView(ticketCount); gap(root, 18)
         searchInput = EditText(this).apply {
@@ -357,6 +367,13 @@ class MainActivity : AppCompatActivity() {
     }
     private fun buildMap() {
         val root = column(20)
+        if (managerRole) {
+            root.addView(label("Live tracking tim", 26f, bold = true)); gap(root, 8)
+            mapSummary = label("GPS terbaru dan topologi jaringan", 12f, HelpdeskTheme.muted)
+            root.addView(mapSummary); gap(root, 12)
+            staffMap = StaffTrackingMapView(this)
+            root.addView(staffMap, LinearLayout.LayoutParams(-1, 0, 1f)); addScreen(root); return
+        }
         root.addView(label("Peta penugasan", 28f, bold = true))
         mapSummary = label("", 12f, HelpdeskTheme.muted); root.addView(mapSummary); gap(root, 12)
         root.addView(label("Sebaran koordinat tiket. Buka navigasi untuk rute jalan.", 11f, HelpdeskTheme.muted)); gap(root, 16)
@@ -390,7 +407,7 @@ class MainActivity : AppCompatActivity() {
         val tracking = panel()
         tracking.addView(label("Lokasi & notifikasi", 17f, bold = true)); gap(tracking, 8)
         accountGps = label("", 12f, HelpdeskTheme.muted); tracking.addView(accountGps); gap(tracking)
-        button(tracking, "Periksa izin lokasi") { showLocationHelp() }; gap(tracking, 10)
+        if (managerRole) button(tracking, "Buka live tracking tim") { selectTab(3) } else button(tracking, "Periksa izin lokasi") { showLocationHelp() }; gap(tracking, 10)
         button(tracking, "Pengaturan notifikasi") { NotificationHelper.openNotificationSettings(this) }; gap(tracking, 10)
         button(tracking, "Pengaturan baterai aplikasi") { safeOpen(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + packageName))) }
         root.addView(tracking); gap(root)
@@ -492,6 +509,7 @@ class MainActivity : AppCompatActivity() {
             card.isClickable = true; card.isFocusable = true; card.setOnClickListener { openTicket(ticket) }
             homeRecent.addView(card); gap(homeRecent, 10)
         }
+        renderStaffOverview()
         updateGpsUi(); updateSyncBanner(); renderTickets(); renderNotificationCount()
         if (activeTab == 3) renderMap()
     }
@@ -520,6 +538,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderMap() {
+        if (managerRole) { refreshStaffMap(); return }
         val active = allTickets.filter { !LocationPolicy.isFinished(it.status) }
         val mapped = active.count { LocationPolicy.hasCoordinates(it.latitude, it.longitude) }
         mapSummary.text = mapped.toString() + " titik tersedia · " + (active.size - mapped) + " tiket belum memiliki koordinat"
@@ -554,7 +573,7 @@ class MainActivity : AppCompatActivity() {
                         if (action != null) ticket.copy(status = if (action.actionType == "work_report") "resolved" else action.status ?: ticket.status) else ticket
                     }; hasData = true
                     OfflineSyncManager.saveCachedTickets(this@MainActivity, allTickets)
-                    render()
+                    render(); refreshStaffOverview()
                     NotificationHelper.syncAndDispatchNotifications(this@MainActivity, session, it)?.let { payload -> notifications = payload.notifications }
                 }.onFailure {
                     connected = false
@@ -608,6 +627,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateGpsUi() {
         if (!::gpsTitle.isInitialized) return
+        if (managerRole) { accountGps.text = "Pantau lokasi teknisi di tab Peta. Lokasi terakhir ditandai terpisah dari GPS yang baru dikirim."; return }
         val ready = LocationPolicy.canTrack(session.isLoggedIn, session.userRole, session.activeTicketsCount, hasLocationPermission(), locationEnabled())
         val fresh = LocationPolicy.isFresh(session.lastUpdateTime)
         val title = when {
@@ -741,7 +761,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyMobileConfiguration() {
-        homeSubtitle.text = mobileConfiguration.homeSubtitle
+        homeSubtitle.text = if (managerRole) when (session.userRole) { "owner" -> "Statistik operasional, kinerja tim, dan pantauan lokasi."; "admin" -> "Pantau tiket aktif, prioritas, dan penanganan tim."; else -> "Kendali operasional jaringan dan koordinasi teknisi." } else mobileConfiguration.homeSubtitle
         announcement.visibility = if (mobileConfiguration.announcementBody.isBlank()) View.GONE else View.VISIBLE
         announcementTitle.text = mobileConfiguration.announcementTitle.ifBlank { "Informasi tim" }
         announcementBody.text = mobileConfiguration.announcementBody
@@ -764,7 +784,7 @@ class MainActivity : AppCompatActivity() {
             val raw = result.getOrNull()
             val incoming = raw?.let { runCatching { MobileConfiguration.parse(it, configurationAppVersion) }.getOrNull() }
             if (incoming != null) {
-                showApkUpdate(raw, manual)
+                if (showApkUpdate(raw, manual)) return@launch
                 if (incoming.version != mobileConfiguration.version && incoming.version > 0) {
                     configurationStatus.text = "Pembaruan v${incoming.version} tersedia · menunggu diterapkan."
                     if ((manual || deferredConfigurationVersion != incoming.version) && (configurationDialog?.isShowing != true || offeredConfigurationVersion != incoming.version)) {
@@ -822,18 +842,72 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showApkUpdate(raw: String, manual: Boolean) {
-        val apk = runCatching { org.json.JSONObject(raw).optJSONObject("apk") }.getOrNull() ?: return
+    private fun showApkUpdate(raw: String, manual: Boolean): Boolean {
+        val apk = runCatching { org.json.JSONObject(raw).optJSONObject("apk") }.getOrNull() ?: return false
         val code = apk.optLong("versionCode")
-        if (code <= configurationAppVersion || configurationDialog?.isShowing == true) return
-        val shown = preferences.getLong("apk_update_shown", 0)
-        if (!manual && shown == code) return
-        preferences.edit().putLong("apk_update_shown", code).apply()
-        configurationDialog = AlertDialog.Builder(this)
-            .setTitle("Versi aplikasi baru tersedia")
+        if (code <= configurationAppVersion) {
+            val revision = apk.optString("revision")
+            if (revision.isNotBlank() && preferences.getString("installed_apk_revision", "") != revision) lifecycleScope.launch {
+                if (UpdateReporter.send(this@MainActivity, apk, "installed")) preferences.edit().putString("installed_apk_revision", revision).apply()
+            }
+            return false
+        }
+        if (configurationDialog?.isShowing == true) return false
+        val revision = apk.optString("revision", code.toString())
+        if (!manual && preferences.getString("apk_offer", "") == revision && System.currentTimeMillis() - preferences.getLong("apk_offer_time", 0) < 86400000) return false
+        preferences.edit().putString("apk_offer", revision).putLong("apk_offer_time", System.currentTimeMillis()).apply()
+        lifecycleScope.launch { UpdateReporter.send(this@MainActivity, apk, "offered") }
+        configurationDialog = AlertDialog.Builder(this).setTitle("Update aplikasi tersedia")
             .setMessage("HelpDesk " + apk.optString("versionName").take(24) + "\n\n" + apk.optString("releaseNotes").take(1200))
-            .setPositiveButton("Buka pembaruan") { _, _ -> safeOpen(Intent(Intent.ACTION_VIEW, Uri.parse(session.serverUrl + "/download"))) }
+            .setPositiveButton("Update sekarang") { _, _ -> startActivity(Intent(this, AppUpdateActivity::class.java).putExtra("release", apk.toString())) }
             .setNegativeButton("Nanti", null).create().also { it.show() }
+        return true
+    }
+
+    private fun refreshStaffOverview() {
+        if (!managerRole || staffBusy) return
+        val token = session.token ?: return; staffBusy = true
+        lifecycleScope.launch {
+            try { ApiClient.getStaffOverview(session.serverUrl, token).onSuccess { if (session.token == token) { staffOverview = it; renderStaffOverview() } }.onFailure { if (staffOverview == null) { performancePanel.removeAllViews(); performancePanel.addView(label("Ringkasan tim belum tersedia. Periksa koneksi lalu sinkronkan kembali.", 13f, HelpdeskTheme.muted)) } } }
+            finally { staffBusy = false }
+        }
+    }
+    private fun renderStaffOverview() {
+        if (!managerRole) return
+        homeSubtitle.text = when(session.userRole) { "owner" -> "Statistik operasional, kinerja tim, dan pantauan lokasi."; "admin" -> "Pantau tiket aktif, prioritas, dan penanganan tim."; else -> "Kendali operasional jaringan dan koordinasi teknisi." }
+        performancePanel.removeAllViews()
+        performancePanel.addView(label(if (session.userRole == "owner") "Kinerja teknisi" else "Koordinasi tim", 18f, bold = true)); gap(performancePanel, 6)
+        performancePanel.addView(label("Penugasan tiket masuk 30 hari terakhir", 11f, HelpdeskTheme.muted)); gap(performancePanel, 14)
+        val data = staffOverview ?: return
+        val stats = data.optJSONObject("stats") ?: return
+        val daily = data.optJSONArray("daily") ?: org.json.JSONArray()
+        val zone = TimeZone.getTimeZone("Asia/Jakarta")
+        val keys = (6 downTo 0).map { offset -> Calendar.getInstance(zone).apply { add(Calendar.DAY_OF_YEAR, -offset) }.time }
+        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = zone }
+        chart.setData(keys.map { date -> (0 until daily.length()).map { daily.getJSONObject(it) }.firstOrNull { it.optString("date") == formatter.format(date) }?.optInt("count") ?: 0 }.toIntArray(), keys.map { SimpleDateFormat("EEE", Locale("id", "ID")).apply { timeZone = zone }.format(it) })
+        listOf("total", "working", "overdue", "completed").forEachIndexed { i, key -> statValues[i].text = stats.optInt(key).toString() }
+        val active = stats.optInt("active")
+        ticketBadge.text = if (active > 99) "99+" else active.toString(); ticketBadge.visibility = if (active > 0) View.VISIBLE else View.GONE
+        val people = data.optJSONArray("performance") ?: org.json.JSONArray()
+        for (i in 0 until minOf(people.length(), 8)) {
+            val person = people.getJSONObject(i)
+            performancePanel.addView(label(person.optString("name"), 14f, bold = true))
+            performancePanel.addView(label(person.optInt("completed").toString() + " selesai · " + person.optInt("active") + " aktif · " + person.optInt("assigned") + " penugasan", 12f, HelpdeskTheme.muted)); gap(performancePanel, 14)
+        }
+        if (people.length() == 0) performancePanel.addView(label("Belum ada teknisi aktif.", 13f, HelpdeskTheme.muted))
+        if (session.userRole != "owner") {
+            val priorities = data.optJSONArray("priorities") ?: org.json.JSONArray()
+            for (i in 0 until priorities.length()) { val p = priorities.getJSONObject(i); performancePanel.addView(label(p.optString("priority").uppercase() + " · " + p.optInt("count") + " tiket aktif", 12f, HelpdeskTheme.muted)) }
+        }
+        gap(performancePanel, 8); button(performancePanel, "Pantau lokasi tim  ↗", true) { selectTab(3) }
+    }
+    private fun refreshStaffMap() {
+        if (!managerRole || staffMapBusy || android.os.SystemClock.elapsedRealtime() - lastStaffMapRefresh < 15000) return
+        val token = session.token ?: return; staffMapBusy = true; lastStaffMapRefresh = android.os.SystemClock.elapsedRealtime()
+        lifecycleScope.launch {
+            try { ApiClient.getStaffMap(session.serverUrl, token).onSuccess { if (session.token == token) { staffMap?.setData(it); mapSummary.text = "Lokasi terakhir tim · diperbarui " + SimpleDateFormat("HH:mm:ss", Locale.US).format(Date()) } }.onFailure { mapSummary.text = "Lokasi belum dapat diperbarui. Data terakhir tetap ditampilkan." } }
+            finally { staffMapBusy = false }
+        }
     }
 
     override fun onResume() {
@@ -845,7 +919,23 @@ class MainActivity : AppCompatActivity() {
             addAction(NotificationHelper.ACTION_NOTIFICATION_SYNCED)
             addAction(LocationManager.PROVIDERS_CHANGED_ACTION)
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
-        ensureService(); refreshTickets(false); refreshRooms()
+        staffMap?.onResume()
+        ensureService(); refreshTickets(false); refreshRooms(); refreshStaffOverview()
+        if (managerRole && activeTab == 3) refreshStaffMap()
+        val installer = getSharedPreferences("apk_installer", MODE_PRIVATE)
+        val installResult = installer.getString("result", "").orEmpty()
+        val previousRelease = runCatching { org.json.JSONObject(installer.getString("release", "").orEmpty()) }.getOrNull()
+        if (previousRelease != null && configurationAppVersion >= previousRelease.optLong("versionCode", Long.MAX_VALUE)) {
+            AlertDialog.Builder(this).setTitle("Pembaruan berhasil").setMessage("HelpDesk " + previousRelease.optString("versionName") + " sudah terpasang.").setPositiveButton("Lanjutkan", null).show()
+            lifecycleScope.launch { UpdateReporter.send(this@MainActivity, previousRelease, "installed") }
+            installer.edit().clear().apply()
+        }
+        if (installResult.startsWith("failed:")) {
+            val release = runCatching { org.json.JSONObject(installer.getString("release", "").orEmpty()) }.getOrNull()
+            AlertDialog.Builder(this).setTitle("Pembaruan gagal").setMessage(installResult.removePrefix("failed:")).setPositiveButton("Mengerti", null).show()
+            if (release != null) lifecycleScope.launch { UpdateReporter.send(this@MainActivity, release, "failed", installResult.removePrefix("failed:")) }
+            installer.edit().remove("result").apply()
+        }
         realtimeJob?.cancel()
         realtimeJob = net.infinityteknik.helpdesk.util.RealtimeUpdates.start(this, session) {
             if (loading) realtimeRefreshPending = true else refreshTickets(false)
@@ -884,6 +974,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
     override fun onPause() {
+        staffMap?.onPause()
         configurationRefreshPending = false
         configurationDialog?.dismiss(); configurationDialog = null
         realtimeRefreshPending = false
@@ -893,6 +984,7 @@ class MainActivity : AppCompatActivity() {
         try { unregisterReceiver(updates) } catch (_: IllegalArgumentException) {}
         super.onPause()
     }
+    override fun onDestroy() { staffMap?.destroy(); super.onDestroy() }
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt("tab", activeTab); outState.putString("filter", ticketFilter); outState.putString("query", query)
         super.onSaveInstanceState(outState)

@@ -16,6 +16,16 @@ import java.util.concurrent.TimeUnit
 class ApiException(val statusCode: Int, message: String) : Exception(message)
 
 object ApiClient {
+    suspend fun getStaffOverview(serverUrl: String, token: String): Result<JSONObject> = withContext(Dispatchers.IO) {
+        runCatching { JSONObject(jsonResponse(Request.Builder().url(serverUrl + "/api/mobile/overview").header("Authorization", "Bearer " + token).build())) }
+    }
+    suspend fun getStaffMap(serverUrl: String, token: String): Result<JSONObject> = withContext(Dispatchers.IO) {
+        runCatching {
+            val locations = JSONObject(jsonResponse(Request.Builder().url(serverUrl + "/api/technicians/location").header("Authorization", "Bearer " + token).build()))
+            val topology = JSONObject(jsonResponse(Request.Builder().url(serverUrl + "/api/admin/map/topology").header("Authorization", "Bearer " + token).build()))
+            JSONObject().put("locations", locations).put("topology", topology)
+        }
+    }
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)

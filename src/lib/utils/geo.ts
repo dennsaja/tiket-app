@@ -143,5 +143,5 @@ export function formatDistance(meters: number): string {
 }
 
 /** A technician is considered online if the last GPS ping is within this window */
-export const LOCATION_STALE_MS = 3 * 60 * 1000;
+export const LOCATION_STALE_MS = 6 * 60 * 1000;
 

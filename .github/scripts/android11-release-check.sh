@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p qa-results
+test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 30
+adb install android-technician/app/build/outputs/apk/debug/app-debug.apk
+adb install android-technician/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell appops set net.infinityteknik.helpdesk REQUEST_INSTALL_PACKAGES allow
+adb shell svc wifi disable
+adb shell svc data disable
+adb shell am instrument -w net.infinityteknik.helpdesk.test/androidx.test.runner.AndroidJUnitRunner | tee qa-results/instrumentation.txt
+grep 'OK (4 tests)' qa-results/instrumentation.txt
+adb shell svc wifi enable
+adb shell svc data enable
+adb uninstall net.infinityteknik.helpdesk.test
+adb uninstall net.infinityteknik.helpdesk
+git show ac0343e:public/downloads/helpdesk-teknisi.apk > "$RUNNER_TEMP/previous.apk"
+adb install "$RUNNER_TEMP/previous.apk" | tee qa-results/install-previous.txt
+adb install -r public/downloads/helpdesk-teknisi.apk | tee qa-results/upgrade.txt
+adb shell dumpsys package net.infinityteknik.helpdesk | grep 'versionCode=16'
+adb shell am start -n net.infinityteknik.helpdesk/.ui.SplashActivity
+sleep 3
+adb shell pidof net.infinityteknik.helpdesk
+adb uninstall net.infinityteknik.helpdesk
+adb install public/downloads/helpdesk-teknisi.apk | tee qa-results/install-clean.txt
+adb shell am start -n net.infinityteknik.helpdesk/.ui.SplashActivity
+sleep 3
+adb shell pidof net.infinityteknik.helpdesk

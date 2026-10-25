@@ -1,6 +1,6 @@
 export type TrackingStyle = "streets" | "satellite";
 // Overzoom existing imagery rather than requesting unavailable high-resolution tiles.
-export const SATELLITE_NATIVE_ZOOM = 17;
+export const SATELLITE_NATIVE_ZOOM = 19;
 export function trackingStyle(preset: TrackingStyle, mapbox: boolean): string | Record<string, unknown> {
   if (mapbox) return preset === "satellite" ? "mapbox://styles/mapbox/satellite-streets-v12" : "mapbox://styles/mapbox/streets-v12";
   if (preset === "streets") return "https://tiles.openfreemap.org/styles/liberty";

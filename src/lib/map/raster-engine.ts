@@ -9,14 +9,15 @@ export async function createRasterMap(container: HTMLElement, style: TrackingSty
   L.control.zoom({ position: "bottomright" }).addTo(raw);
   raw.attributionControl.setPrefix(false);
   const features = L.layerGroup().addTo(raw);
-  let base: import("leaflet").TileLayer;
+  let base: import("leaflet").GridLayer;
   let lastState: any;
   let tileCount = 0;
   let deadline: ReturnType<typeof setTimeout> | undefined;
   const applyStyle = (preset: TrackingStyle) => {
     if (base) raw.removeLayer(base);
+    raw.setMaxZoom(preset === "satellite" ? 19 : 22);
     clearTimeout(deadline); tileCount = 0;
-    base = L.tileLayer(preset === "satellite"
+    base = preset === "satellite" && (window as any).createHelpdeskSatelliteLayer ? (window as any).createHelpdeskSatelliteLayer(L) : L.tileLayer(preset === "satellite"
       ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
       : "https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       minZoom: 3, maxZoom: 22, maxNativeZoom: preset === "satellite" ? SATELLITE_NATIVE_ZOOM : 19,
@@ -26,6 +27,8 @@ export async function createRasterMap(container: HTMLElement, style: TrackingSty
     base.on("tileload", () => { tileCount++; clearTimeout(deadline); onReady(); });
     deadline = setTimeout(() => { if (!tileCount) onError("Gambar peta belum tersedia. Periksa koneksi atau ganti mode Peta / Satelit."); }, 15000);
     base.addTo(raw);
+    // Data overlays belong to their own group; changing imagery never removes them.
+    if (lastState) render(lastState, true);
   };
   const render = (state: any, force = false) => {
     if (!force && lastState && ["geo", "ticketGeo", "routeGeo", "visibleKinds", "showCables", "showTickets", "highlighted"].every(key => lastState[key] === state[key])) return;

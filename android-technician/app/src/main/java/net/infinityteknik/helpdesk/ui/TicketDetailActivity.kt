@@ -856,7 +856,7 @@ class TicketDetailActivity : AppCompatActivity() {
     }
 
     private fun updateWorkflowUi(status: String) {
-        val finished = status in setOf("resolved", "closed", "cancelled")
+        val finished = session.userRole != "agent" || status in setOf("resolved", "closed", "cancelled")
         btnSubmitReport.isEnabled = !finished && !reportSubmitting && !reportCompleted
         findViewById<View>(R.id.btnCameraBefore).isEnabled = !finished
         findViewById<View>(R.id.btnCameraAfter).isEnabled = !finished
@@ -881,6 +881,7 @@ class TicketDetailActivity : AppCompatActivity() {
             else "Mulai penanganan saat siap. Navigasi dan chat tim tetap tersedia."
     }
     private fun handlePrimaryWorkflowStep() {
+        if (session.userRole != "agent") return
         if (LocationPolicy.isFinished(ticketStatus)) return
         if (ticketStatus == "in_progress") switchTab(2)
         else if (ticketStatus in setOf("open", "assigned", "reopened")) updateStatusTo("accepted", "Teknisi menerima penugasan")

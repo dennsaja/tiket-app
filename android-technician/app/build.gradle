@@ -10,8 +10,8 @@ android {
         applicationId "net.infinityteknik.helpdesk"
         minSdkVersion 23
         targetSdkVersion 34
-        versionCode 15
-        versionName "3.5.0"
+        versionCode 16
+        versionName "3.6.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -55,6 +55,8 @@ dependencies {
 
 dependencies {
     testImplementation "junit:junit:4.13.2"
+    androidTestImplementation 'androidx.test:runner:1.5.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     testImplementation "org.robolectric:robolectric:4.12.2"
     testImplementation "com.squareup.okhttp3:mockwebserver:4.12.0"
 }
