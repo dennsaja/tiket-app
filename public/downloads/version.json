@@ -3,9 +3,9 @@
   "versionName": "3.6.0",
   "minSupportedVersion": 1,
   "downloadUrl": "/downloads/helpdesk-teknisi.apk",
-  "updatedAt": "2026-10-25T14:35:24.395Z",
-  "sha256": "050c06703d22aa5fe3e4ef64f1bc38125ef32b85b1bac558efd53d95119e3d6a",
-  "fileSizeBytes": 5646183,
-  "androidSourceSha256": "736f2802e3cd84b4209a5be241b6a2b11e8dd3c0e3b9fda42a922d73af03d81a",
+  "updatedAt": "2026-10-25T14:43:16.535Z",
+  "sha256": "12f0cc45fd6e7c967810a923596cad735a5106aa8307cf07c77d1af0e1f432d0",
+  "fileSizeBytes": 5646245,
+  "androidSourceSha256": "bfb763393e930d0782387ac07158fc69ca5deb8b9d13e2c16668cfa7cc8a2d2a",
   "releaseNotes": "v3.6.0: Pembaruan APK dari console dengan progres unduhan nyata, pemeriksaan integritas dan sertifikat, serta hasil pemasangan Android. Beranda owner/admin sesuai peran, statistik kinerja dan live tracking tim. Jalur jaringan tetap tampil saat beralih Peta/Satelit. Pasang versi ini sekali untuk mengaktifkan updater di dalam aplikasi."
 }

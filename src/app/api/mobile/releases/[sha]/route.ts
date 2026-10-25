@@ -12,5 +12,5 @@ export async function GET(req: NextRequest, context: { params: Promise<{ sha: st
   if (!/^[a-f0-9]{64}$/.test(sha)) return new NextResponse(null, { status: 404 });
   const bytes = await fs.readFile(path.join(releaseDirectory, sha + ".apk")).catch(() => null);
   if (!bytes) return NextResponse.json({ error: "APK belum tersedia. Minta pengelola memublikasikan ulang." }, { status: 404 });
-  return new NextResponse(bytes, { headers: { "Content-Type": "application/vnd.android.package-archive", "Content-Length": String(bytes.length), "Cache-Control": "private, no-store", "Content-Disposition": 'attachment; filename="helpdesk-teknisi.apk"' } });
+  return new NextResponse(bytes, { headers: { "Content-Type": "application/vnd.android.package-archive", "Content-Length": String(bytes.length), "Cache-Control": "private, no-store, no-transform", "Content-Disposition": 'attachment; filename="helpdesk-teknisi.apk"' } });
 }

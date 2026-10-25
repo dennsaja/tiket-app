@@ -32,6 +32,7 @@ class AppUpdateActivity : AppCompatActivity() {
     private var call: Call? = null
     private var file: File? = null
     private var committed = false
+    private var failureShown = false
     private val installPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (Build.VERSION.SDK_INT < 26 || packageManager.canRequestPackageInstalls()) download()
         else fail("Izin memasang pembaruan belum diberikan. Aktifkan izin di pengaturan Android lalu coba lagi.")
@@ -75,6 +76,8 @@ class AppUpdateActivity : AppCompatActivity() {
         lifecycleScope.launch { UpdateReporter.send(this@AppUpdateActivity, release, phase, message) }
     }
     private fun fail(message: String) {
+        if (failureShown || isFinishing) return
+        failureShown = true
         progress.isIndeterminate = false
         text.text = "Pembaruan gagal.\n\n$message\n\nVersi lama dan data akun tetap tersimpan."
         status("failed", message.take(300))
@@ -99,7 +102,7 @@ class AppUpdateActivity : AppCompatActivity() {
                     call!!.execute().use { response ->
                         check(response.isSuccessful) { "Server menolak unduhan (HTTP ${response.code}). Periksa koneksi atau masuk kembali." }
                         val body = response.body ?: error("Berkas APK kosong")
-                        check(body.contentLength() == expected) { "Ukuran APK dari server berubah. Minta pengelola memublikasikan ulang." }
+                        check(body.contentLength() < 0 || body.contentLength() == expected) { "Ukuran APK dari server berubah. Minta pengelola memublikasikan ulang." }
                         val digest = MessageDigest.getInstance("SHA-256")
                         body.byteStream().use { input -> output.outputStream().use { destination ->
                             val buffer = ByteArray(32768); var total = 0L; var displayed = -1
