@@ -15,8 +15,8 @@ class SafetyPolicyTest {
         assertFalse(LocationPolicy.canTrack(true, "agent", 1, true, false))
     }
     @Test fun staleOrFutureFixesCannotBePresentedAsLiveGps() {
-        assertTrue(LocationPolicy.isFresh(1_000_000, 1_120_000))
-        assertFalse(LocationPolicy.isFresh(1_000_000, 1_120_001))
+        assertTrue(LocationPolicy.isFresh(1_000_000, 1_000_000 + LocationPolicy.MAX_FIX_AGE_MS))
+        assertFalse(LocationPolicy.isFresh(1_000_000, 1_000_001 + LocationPolicy.MAX_FIX_AGE_MS))
         assertFalse(LocationPolicy.isFresh(1_000_001, 1_000_000))
         assertFalse(LocationPolicy.isFresh(0, 1_000_000))
     }

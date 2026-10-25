@@ -10,8 +10,8 @@ android {
         applicationId "net.infinityteknik.helpdesk"
         minSdkVersion 23
         targetSdkVersion 34
-        versionCode 16
-        versionName "3.6.0"
+        versionCode 17
+        versionName "3.6.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

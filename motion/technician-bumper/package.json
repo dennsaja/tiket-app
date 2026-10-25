@@ -1,0 +1,16 @@
+{
+  "name": "technician-bumper",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "studio": "remotion studio src/index.tsx",
+    "render": "remotion render src/index.tsx TechnicianBumper out/technician-bumper.mp4 --codec=h264 --crf=16 --pixel-format=yuv420p",
+    "poster": "remotion still src/index.tsx TechnicianBumper out/poster.png --frame=114"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.538",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.538"
+  }
+}

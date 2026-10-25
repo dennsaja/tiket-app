@@ -61,6 +61,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ticketEmpty: TextView
     private lateinit var searchInput: EditText
     private lateinit var homeRecent: LinearLayout
+    private lateinit var activeTaskCard: ActiveTaskCard
+    private var dashboardResumed = false
     private lateinit var gpsTitle: TextView
     private lateinit var gpsSummary: TextView
     private lateinit var accountGps: TextView
@@ -210,6 +212,11 @@ class MainActivity : AppCompatActivity() {
         gap(root, 10)
         root.addView(label(SimpleDateFormat("EEEE, dd MMMM", Locale("id", "ID")).apply { timeZone = TimeZone.getTimeZone("Asia/Jakarta") }.format(Date()), 11f, Color.rgb(156,174,255)))
         gap(root, 24)
+        activeTaskCard = ActiveTaskCard(this).apply {
+            onOpenTicket = { openTicket(it, if (it.status == "in_progress") 2 else 0) }
+            onViewWorkingTickets = { ticketFilter = "working"; selectTab(1); renderTickets() }
+        }
+        root.addView(activeTaskCard, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(20) })
         announcement = panel(18)
         announcement.background = HelpdeskTheme.shape(this, Color.rgb(23, 30, 56), 22, Color.rgb(49, 67, 113))
         announcementTitle = label("Informasi tim", 15f, Color.rgb(172, 189, 255), true)
@@ -471,6 +478,7 @@ class MainActivity : AppCompatActivity() {
         }
         heading.text = listOf("HelpDesk", "Daftar tiket", "Chat tim", "Peta lapangan", "Profil")[activeTab]
         swipe.isEnabled = activeTab != 3
+        if (::activeTaskCard.isInitialized) activeTaskCard.setHostActive(dashboardResumed && activeTab == 0)
         if (activeTab == 1) renderTickets()
         if (activeTab == 2) { renderRooms(); refreshRooms() }
         if (activeTab == 3) renderMap()
@@ -480,6 +488,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun render() {
+        activeTaskCard.bind(allTickets, session.userRole.orEmpty())
+        activeTaskCard.setHostActive(dashboardResumed && activeTab == 0)
         val active = allTickets.count { !LocationPolicy.isFinished(it.status) }
         ticketBadge.text = if (active > 99) "99+" else active.toString()
         ticketBadge.visibility = if (active > 0) View.VISIBLE else View.GONE
@@ -913,6 +923,8 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (!::swipe.isInitialized || !session.isLoggedIn) return
+        dashboardResumed = true
+        activeTaskCard.setHostActive(activeTab == 0)
         ContextCompat.registerReceiver(this, updates, IntentFilter().apply {
             addAction(LocationTrackingService.ACTION_LOCATION_UPDATED)
             addAction(OfflineSyncManager.ACTION_SYNC_STATE_CHANGED)
@@ -974,6 +986,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
     override fun onPause() {
+        dashboardResumed = false
+        if (::activeTaskCard.isInitialized) activeTaskCard.setHostActive(false)
         staffMap?.onPause()
         configurationRefreshPending = false
         configurationDialog?.dismiss(); configurationDialog = null

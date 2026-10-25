@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="activeTaskCard" type="id" />
+    <item name="activeTaskStatus" type="id" />
+    <item name="activeTaskTitle" type="id" />
+    <item name="activeTaskBumper" type="id" />
+    <item name="activeTaskContinue" type="id" />
+</resources>

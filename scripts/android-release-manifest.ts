@@ -12,7 +12,7 @@ async function main() {
     downloadUrl: "/downloads/helpdesk-teknisi.apk", updatedAt: new Date().toISOString(),
     sha256: createHash("sha256").update(apk).digest("hex"), fileSizeBytes: apk.length,
     androidSourceSha256: await androidSourceFingerprint(),
-    releaseNotes: "v3.6.0: Pembaruan APK dari console dengan progres unduhan nyata, pemeriksaan integritas dan sertifikat, serta hasil pemasangan Android. Beranda owner/admin sesuai peran, statistik kinerja dan live tracking tim. Jalur jaringan tetap tampil saat beralih Peta/Satelit. Pasang versi ini sekali untuk mengaktifkan updater di dalam aplikasi.",
+    releaseNotes: "v3.6.1: Kartu tugas berjalan di beranda teknisi dengan animasi perbaikan kabel 5 detik, judul tiket, dan tombol Lanjutkan tugas. Tampil saat teknisi berada di lokasi atau sedang mengerjakan tiket. Animasi tersedia offline, berhenti saat meninggalkan dasbor, dan memakai gambar diam saat hemat daya atau animasi sistem dinonaktifkan.",
   };
   await fs.writeFile("public/downloads/version.json", JSON.stringify(release, null, 2) + "\n");
   console.log(JSON.stringify(release));
