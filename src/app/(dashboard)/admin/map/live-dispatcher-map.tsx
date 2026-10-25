@@ -87,11 +87,13 @@ export function LiveDispatcherMap() {
   const styleRef = React.useRef(style); styleRef.current = style;
   React.useEffect(() => {
     let disposed = false; let instance: any; let resize: ResizeObserver | undefined;
-    setReady(false); setMapError("");
+    setReady(false); setMapError(""); firstFit.current = false;
     async function start() {
       try {
-        if (!(window as any).createHelpdeskSatelliteLayer) await new Promise<void>((resolve, reject) => {
-          const script = document.createElement("script"); script.src = "/map/satellite.js"; script.onload = () => resolve(); script.onerror = () => reject(new Error("Lapisan satelit belum dapat dimuat")); document.head.appendChild(script);
+        if (!(window as any).createHelpdeskSatelliteLayer) await new Promise<void>(resolve => {
+          const timer = window.setTimeout(resolve, 5000);
+          const complete = () => { clearTimeout(timer); resolve(); };
+          const script = document.createElement("script"); script.src = "/map/satellite.js"; script.onload = complete; script.onerror = complete; document.head.appendChild(script);
         });
         const { createRasterMap } = await import("@/lib/map/raster-engine");
         if (disposed || !container.current) return;

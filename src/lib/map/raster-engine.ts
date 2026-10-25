@@ -18,7 +18,7 @@ export async function createRasterMap(container: HTMLElement, style: TrackingSty
     raw.setMaxZoom(preset === "satellite" ? 19 : 22);
     clearTimeout(deadline); tileCount = 0;
     base = preset === "satellite" && (window as any).createHelpdeskSatelliteLayer ? (window as any).createHelpdeskSatelliteLayer(L) : L.tileLayer(preset === "satellite"
-      ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+      ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?blankTile=false"
       : "https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       minZoom: 3, maxZoom: 22, maxNativeZoom: preset === "satellite" ? SATELLITE_NATIVE_ZOOM : 19,
       attribution: preset === "satellite" ? "Imagery © Esri, Maxar, Earthstar Geographics" : '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
