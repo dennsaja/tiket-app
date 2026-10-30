@@ -3,7 +3,9 @@ set -euo pipefail
 mkdir -p qa-results
 trap 'adb logcat -d > qa-results/logcat.txt' EXIT
 test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 30
-adb install android-technician/app/build/outputs/apk/debug/app-debug.apk
+# Offline workspace fixtures need location permission so the system dialog does
+# not cover the active-task card or prevent subsequent activities from resuming.
+adb install -g android-technician/app/build/outputs/apk/debug/app-debug.apk
 adb install android-technician/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell appops set net.infinityteknik.helpdesk REQUEST_INSTALL_PACKAGES allow
 adb shell svc wifi disable
