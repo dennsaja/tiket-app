@@ -33,10 +33,13 @@ class SessionManager(context: Context) {
         private const val KEY_LOCAL_NOTIFS_JSON = "local_notifs_json_v1"
         private const val KEY_WELCOME_NOTIF_V14 = "welcome_notif_v14"
 
-        const val DEFAULT_SERVER_URL = "https://helpdesk.infinityteknik.net"
+        const val DEFAULT_SERVER_URL = "https://kds-serviceapp.infinityteknik.net"
+        const val DEFAULT_WEB_URL = "https://helpdesk.infinityteknik.net"
+        const val DEFAULT_CDN_URL = "https://cdn0.infinityteknik.net"
     }
 
     val serverUrl: String get() = DEFAULT_SERVER_URL
+    val webUrl: String get() = DEFAULT_WEB_URL
 
     var token: String?
         get() = prefs.getString(KEY_TOKEN, null)

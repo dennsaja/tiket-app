@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,7 @@ export default function AdminDepartmentsPage() {
   const fetchDepartments = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/departments");
+      const res = await apiFetch("/api/departments");
       if (!res.ok) throw new Error("Gagal memuat daftar departemen");
       const data = await res.json();
       setDepartments(data || []);
@@ -52,7 +53,7 @@ export default function AdminDepartmentsPage() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const res = await fetch("/api/departments", {
+      const res = await apiFetch("/api/departments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -89,7 +90,7 @@ export default function AdminDepartmentsPage() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const res = await fetch(`/api/departments/${editFormData.id}`, {
+      const res = await apiFetch(`/api/departments/${editFormData.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

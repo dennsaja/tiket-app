@@ -1,10 +1,47 @@
-name: Android 11 workspace and APK check
+name: Split services and Android 11 check
 on:
   push:
-    branches: [codex/android36-check]
+    branches: [codex/android37-check]
 permissions:
   contents: read
 jobs:
+  split-services:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APP_SERVICE: frontend
+      DATABASE_URL: ''
+      AUTH_SECRET: ''
+      NEXTAUTH_SECRET: ''
+      AUTH_COOKIE_DOMAIN: .infinityteknik.net
+      AUTH_URL: https://helpdesk.infinityteknik.net
+      NEXTAUTH_URL: https://helpdesk.infinityteknik.net
+      NEXT_PUBLIC_FRONTEND_ORIGIN: https://helpdesk.infinityteknik.net
+      NEXT_PUBLIC_API_ORIGIN: https://kds-serviceapp.infinityteknik.net
+      NEXT_PUBLIC_CDN_ORIGIN: https://cdn0.infinityteknik.net
+      BACKEND_INTERNAL_ORIGIN: http://127.0.0.1:3101
+      LEGACY_MOBILE_API_BRIDGE: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Verify domain boundaries and build without a frontend database
+        run: |
+          npx vitest run src/__tests__/split-network.test.ts --maxWorkers=1 --minWorkers=1
+          npm run build
+      - name: Verify separate frontend, backend and CDN origins
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y nginx
+          bash .github/scripts/split-services-check.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: split-service-results
+          path: split-results/
   android11:
     runs-on: ubuntu-latest
     timeout-minutes: 35

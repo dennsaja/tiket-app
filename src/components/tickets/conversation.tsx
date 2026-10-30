@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/network/origins";
 
 import * as React from "react";
 import { Avatar } from "@/components/ui/avatar";
@@ -93,7 +94,7 @@ export function Conversation({ ticket, messages }: ConversationProps) {
               {ticket.attachments.map((att) => (
                 <a
                   key={att.id}
-                  href={`/api/attachments/${att.id}`}
+                  href={apiUrl(`/api/attachments/${att.id}`)}
                   download={att.originalName}
                   className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50/60 px-2.5 py-1.5 text-xs text-zinc-700 hover:bg-zinc-100 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800 transition-colors"
                 >
@@ -177,7 +178,7 @@ export function Conversation({ ticket, messages }: ConversationProps) {
                   {msg.attachments.map((att) => (
                     <a
                       key={att.id}
-                      href={`/api/attachments/${att.id}`}
+                      href={apiUrl(`/api/attachments/${att.id}`)}
                       download={att.originalName}
                       className="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50/50 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                     >

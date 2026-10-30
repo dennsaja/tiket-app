@@ -1,0 +1,18 @@
+[Unit]
+Description=HelpDesk backend API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=helpdesk
+Group=helpdesk-public
+WorkingDirectory=/opt/helpdesk/app
+EnvironmentFile=/etc/helpdesk/backend.env
+ExecStart=/usr/bin/node /opt/helpdesk/app/scripts/start-backend.mjs
+Restart=always
+RestartSec=5
+NoNewPrivileges=false
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

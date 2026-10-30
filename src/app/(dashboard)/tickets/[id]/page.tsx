@@ -1,4 +1,6 @@
 "use client";
+import { resourceUrl } from "@/lib/network/origins";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -59,7 +61,7 @@ export default function TicketDetailPage() {
 
   const fetchTicket = React.useCallback(async () => {
     try {
-      const res = await fetch(`/api/tickets/${ticketId}`);
+      const res = await apiFetch(`/api/tickets/${ticketId}`);
       if (!res.ok) {
         if (res.status === 404) throw new Error("Tiket tidak ditemukan");
         if (res.status === 403) throw new Error("Anda tidak memiliki izin untuk melihat tiket ini");
@@ -118,7 +120,7 @@ export default function TicketDetailPage() {
 
   const fetchAgents = React.useCallback(async () => {
     try {
-      const res = await fetch("/api/users?role=agent&perPage=50");
+      const res = await apiFetch("/api/users?role=agent&perPage=50");
       if (res.ok) {
         const data = await res.json();
         setAgents(data.data || []);
@@ -365,7 +367,7 @@ export default function TicketDetailPage() {
                             className="relative rounded-lg overflow-hidden border border-emerald-200 dark:border-emerald-800 aspect-video bg-zinc-900 cursor-pointer hover:opacity-90 transition-opacity shadow-xs"
                           >
                             <img
-                              src={url}
+                              src={resourceUrl(url)}
                               alt={`Before ${idx}`}
                               className="w-full h-full object-cover"
                             />

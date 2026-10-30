@@ -1,5 +1,6 @@
 "use client";
 
+import { apiUrl } from "@/lib/network/origins";
 import * as React from "react";
 
 export type SSEEvent = {
@@ -34,7 +35,7 @@ function setConnected(ch: Channel, value: boolean) {
 
 function openChannel(url: string, ch: Channel) {
   if (ch.es) return;
-  const es = new EventSource(url);
+  const es = new EventSource(apiUrl(url), { withCredentials: true });
   ch.es = es;
 
   es.onopen = () => {

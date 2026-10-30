@@ -13,6 +13,9 @@ export interface ApkRelease {
   revision: string; versionCode: number; versionName: string; sha256: string;
   fileSizeBytes: number; releaseNotes: string; publishedAt: string; downloadPath: string;
   androidSourceSha256: string;
+  apiOrigin?: string;
+  frontendOrigin?: string;
+  cdnOrigin?: string;
 }
 export async function publishedApk(): Promise<ApkRelease | null> {
   const row = await db.query.systemSettings.findFirst({ where: eq(systemSettings.key, key) });
@@ -25,6 +28,19 @@ export async function availableApk() {
 }
 export async function pushApk() {
   const manifest = await availableApk();
+  if (manifest.apiOrigin) {
+    if (process.env.APP_SERVICE !== "backend" || process.env.NEXT_PUBLIC_API_ORIGIN !== manifest.apiOrigin) throw new Error("Aktifkan layanan backend pada domain baru sebelum mengirim APK ini ke tim.");
+    try {
+      const response = await fetch(manifest.apiOrigin + "/healthz", { cache: "no-store", redirect: "error", signal: AbortSignal.timeout(8000) });
+      const health = await response.json();
+      if (!response.ok || health.service !== "backend" || !health.ready) throw new Error("Backend not ready");
+      if (manifest.cdnOrigin) {
+        const cdnResponse = await fetch(manifest.cdnOrigin + "/downloads/version.json", { cache: "no-store", redirect: "error", signal: AbortSignal.timeout(8000) });
+        const cdn = await cdnResponse.json();
+        if (!cdnResponse.ok || cdn.sha256 !== manifest.sha256) throw new Error("CDN release differs");
+      }
+    } catch { throw new Error("Domain API/CDN belum aktif atau rilis CDN belum sama. Selesaikan aktivasi domain sebelum Push update APK."); }
+  }
   if (!manifest.androidSourceSha256 || manifest.androidSourceSha256 !== await androidSourceFingerprint()) throw new Error("Kode Android di repository belum sesuai APK. Build APK terbaru dan sertakan dalam rilis sebelum menekan Push update.");
   const bytes = await fs.readFile(path.join(process.cwd(), "public/downloads/helpdesk-teknisi.apk"));
   if (bytes.length !== manifest.fileSizeBytes || createHash("sha256").update(bytes).digest("hex") !== manifest.sha256) throw new Error("APK tidak cocok dengan metadata rilis. Perbarui web dan APK dari repository yang sama.");

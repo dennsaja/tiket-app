@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -35,7 +36,7 @@ function MobileAuthBridgeContent() {
     setAppUrl(null);
     async function connectApp() {
       try {
-        const response = await fetch("/api/mobile/auth/bridge", { method: "POST", signal: controller.signal });
+        const response = await apiFetch("/api/mobile/auth/bridge", { method: "POST", signal: controller.signal });
         const data = await response.json();
         if (!response.ok || !data.success || !data.token || !data.user?.id) {
           throw new Error(data.error || "Sesi belum dapat dihubungkan. Silakan coba lagi.");

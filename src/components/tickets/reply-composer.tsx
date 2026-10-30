@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,7 @@ export function ReplyComposer({
     setIsSubmitting(true);
     try {
       // 1. Post message
-      const res = await fetch(`/api/tickets/${ticketId}/messages`, {
+      const res = await apiFetch(`/api/tickets/${ticketId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -73,7 +74,7 @@ export function ReplyComposer({
           formData.append("file", file);
           if (newMsg?.id) formData.append("messageId", newMsg.id);
 
-          await fetch(`/api/tickets/${ticketId}/attachments`, {
+          await apiFetch(`/api/tickets/${ticketId}/attachments`, {
             method: "POST",
             body: formData,
           });

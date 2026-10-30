@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,7 @@ export default function AdminSlaPage() {
   const fetchPolicies = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/sla-policies");
+      const res = await apiFetch("/api/sla-policies");
       if (!res.ok) throw new Error("Gagal memuat kebijakan SLA");
       const data = await res.json();
       setPolicies(data || []);
@@ -63,7 +64,7 @@ export default function AdminSlaPage() {
 
   React.useEffect(() => {
     fetchPolicies();
-    fetch("/api/departments")
+    apiFetch("/api/departments")
       .then((r) => r.json())
       .then(setDepartments)
       .catch(() => {});
@@ -85,7 +86,7 @@ export default function AdminSlaPage() {
         payload.departmentId = formData.departmentId;
       }
 
-      const res = await fetch("/api/sla-policies", {
+      const res = await apiFetch("/api/sla-policies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -150,7 +151,7 @@ export default function AdminSlaPage() {
         payload.departmentId = null;
       }
 
-      const res = await fetch(`/api/sla-policies/${selectedPolicy.id}`, {
+      const res = await apiFetch(`/api/sla-policies/${selectedPolicy.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -175,7 +176,7 @@ export default function AdminSlaPage() {
     if (!deleteTargetPolicy) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/sla-policies/${deleteTargetPolicy.id}`, {
+      const res = await apiFetch(`/api/sla-policies/${deleteTargetPolicy.id}`, {
         method: "DELETE",
       });
       if (!res.ok) {

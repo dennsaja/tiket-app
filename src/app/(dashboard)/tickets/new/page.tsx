@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -172,8 +173,8 @@ export default function NewTicketPage() {
     async function loadMeta() {
       try {
         const [catRes, techRes] = await Promise.all([
-          fetch("/api/categories"),
-          fetch("/api/users?role=agent&isActive=true&perPage=100"),
+          apiFetch("/api/categories"),
+          apiFetch("/api/users?role=agent&isActive=true&perPage=100"),
         ]);
         if (catRes.ok) setCategories(await catRes.json());
         if (techRes.ok) {
@@ -306,7 +307,7 @@ export default function NewTicketPage() {
       }
 
       // 1. Create ticket
-      const res = await fetch("/api/tickets", {
+      const res = await apiFetch("/api/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -324,7 +325,7 @@ export default function NewTicketPage() {
         for (const file of files) {
           const formData = new FormData();
           formData.append("file", file);
-          await fetch(`/api/tickets/${newTicket.id}/attachments`, {
+          await apiFetch(`/api/tickets/${newTicket.id}/attachments`, {
             method: "POST",
             body: formData,
           });

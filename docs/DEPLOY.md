@@ -1,5 +1,7 @@
 # HelpDesk Deployment Guide — Ubuntu 24.04 LXC/CT
 
+Untuk pemisahan frontend, API, dan CDN pada server yang sudah berjalan, ikuti [panduan tiga domain](DEPLOY-SPLIT-DOMAINS.md).
+
 ## System Requirements
 
 | Component | Minimum | Recommended |

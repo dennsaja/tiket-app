@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -83,7 +84,7 @@ export default function AdminUpdatesPage() {
   const checkUpdates = React.useCallback(async (silent = false) => {
     setIsChecking(true);
     try {
-      const res = await fetch("/api/admin/system/update");
+      const res = await apiFetch("/api/admin/system/update");
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Gagal memeriksa pembaruan");
@@ -111,7 +112,7 @@ export default function AdminUpdatesPage() {
   const checkMigration = React.useCallback(async () => {
     setIsMigrateChecking(true);
     try {
-      const res = await fetch("/api/admin/system/migrate");
+      const res = await apiFetch("/api/admin/system/migrate");
       const data = await res.json();
       setMigrateStatus(data);
     } catch (err: any) {
@@ -129,7 +130,7 @@ export default function AdminUpdatesPage() {
     setIsMigrateRunning(true);
     setMigrateResult(null);
     try {
-      const res = await fetch("/api/admin/system/migrate", { method: "POST" });
+      const res = await apiFetch("/api/admin/system/migrate", { method: "POST" });
       const data = await res.json();
       setMigrateResult(data);
       if (data.success) {
@@ -156,7 +157,7 @@ export default function AdminUpdatesPage() {
     setCurrentStatus("Menghubungi server...");
 
     try {
-      const res = await fetch("/api/admin/system/update", {
+      const res = await apiFetch("/api/admin/system/update", {
         method: "POST",
       });
 

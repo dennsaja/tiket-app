@@ -1,0 +1,20 @@
+[Unit]
+Description=HelpDesk frontend (no database access)
+After=network.target helpdesk-backend.service
+
+[Service]
+Type=simple
+User=helpdesk-frontend
+Group=helpdesk-public
+WorkingDirectory=/var/lib/helpdesk/frontend/current
+EnvironmentFile=/etc/helpdesk/frontend.env
+ExecStart=/usr/bin/node /var/lib/helpdesk/frontend/current/server.js
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

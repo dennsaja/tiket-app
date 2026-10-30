@@ -1,11 +1,14 @@
 {
-  "versionCode": 17,
-  "versionName": "3.6.1",
+  "versionCode": 18,
+  "versionName": "3.7.0",
   "minSupportedVersion": 1,
   "downloadUrl": "/downloads/helpdesk-teknisi.apk",
-  "updatedAt": "2026-10-25T17:34:01.718Z",
-  "sha256": "66d4cfc1ca4a6202df330f4aa1e994353a07e080d632a9d3a9604fb2631436b2",
-  "fileSizeBytes": 6170039,
-  "androidSourceSha256": "c72283a2d3b31852422df2162385fc47b6afb54ec9cc4fe489c2a7d1f033bfd4",
-  "releaseNotes": "v3.6.1: Kartu tugas berjalan di beranda teknisi dengan animasi perbaikan kabel 5 detik, judul tiket, dan tombol Lanjutkan tugas. Tampil saat teknisi berada di lokasi atau sedang mengerjakan tiket. Animasi tersedia offline, berhenti saat meninggalkan dasbor, dan memakai gambar diam saat hemat daya atau animasi sistem dinonaktifkan."
+  "updatedAt": "2026-10-30T17:27:00.982Z",
+  "sha256": "9c780e19a8dc38a1cf688f3188e58eac53157110bc58d225796fe58cc48e8133",
+  "fileSizeBytes": 6170697,
+  "androidSourceSha256": "8dc2dc2fefb3d95189c4d1788c4db58e720bc0bf1468ff24b7974abacebb821e",
+  "apiOrigin": "https://kds-serviceapp.infinityteknik.net",
+  "frontendOrigin": "https://helpdesk.infinityteknik.net",
+  "cdnOrigin": "https://cdn0.infinityteknik.net",
+  "releaseNotes": "v3.7.0: Frontend, API, dan CDN pada domain terpisah. API aplikasi memakai kds-serviceapp.infinityteknik.net, login browser tetap melalui helpdesk.infinityteknik.net. Aktifkan layanan dan domain baru di server sebelum memasang atau mengirim rilis ini ke tim. Animasi tugas, profil, chat, GPS, dan updater tetap tersedia."
 }

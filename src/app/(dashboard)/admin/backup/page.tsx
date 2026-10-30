@@ -1,4 +1,6 @@
 "use client";
+import { apiUrl } from "@/lib/network/origins";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import {
@@ -92,7 +94,7 @@ export default function AdminBackupPage() {
   const loadBackupsAndStats = React.useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const res = await fetch("/api/admin/backup");
+      const res = await apiFetch("/api/admin/backup");
       if (!res.ok) throw new Error("Gagal mengambil data backup");
       const data = await res.json();
       setBackups(data.backups || []);
@@ -122,7 +124,7 @@ export default function AdminBackupPage() {
     e.preventDefault();
     setIsCreating(true);
     try {
-      const res = await fetch("/api/admin/backup", {
+      const res = await apiFetch("/api/admin/backup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -143,7 +145,7 @@ export default function AdminBackupPage() {
 
       // Auto download if requested
       if (autoDownload && data.backup?.downloadUrl) {
-        window.location.href = data.backup.downloadUrl;
+        window.location.href = apiUrl(data.backup.downloadUrl);
       }
 
       loadBackupsAndStats(true);
@@ -162,7 +164,7 @@ export default function AdminBackupPage() {
 
     setDeletingFilename(filename);
     try {
-      const res = await fetch(`/api/admin/backup/${filename}`, {
+      const res = await apiFetch(`/api/admin/backup/${filename}`, {
         method: "DELETE",
       });
 
@@ -214,12 +216,12 @@ export default function AdminBackupPage() {
         formData.append("file", uploadFile);
         formData.append("mode", restoreMode);
 
-        res = await fetch("/api/admin/backup/restore", {
+        res = await apiFetch("/api/admin/backup/restore", {
           method: "POST",
           body: formData,
         });
       } else {
-        res = await fetch("/api/admin/backup/restore", {
+        res = await apiFetch("/api/admin/backup/restore", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -468,7 +470,7 @@ export default function AdminBackupPage() {
                       <td className="py-3 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           <a
-                            href={`/api/admin/backup/${item.filename}`}
+                            href={apiUrl(`/api/admin/backup/${item.filename}`)}
                             className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-1 text-xs font-semibold text-zinc-800 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors shadow-2xs"
                             title="Unduh berkas cadangan ke komputer"
                           >

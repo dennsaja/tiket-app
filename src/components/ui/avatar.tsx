@@ -1,5 +1,6 @@
 "use client";
 
+import { resourceUrl } from "@/lib/network/origins";
 import * as React from "react";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 import { cn } from "@/lib/utils";
@@ -64,7 +65,7 @@ function Avatar({ name, src, size = "md", className }: AvatarProps) {
       )}
     >
       <AvatarPrimitive.Image
-        src={src ?? undefined}
+        src={resourceUrl(src)}
         alt={name}
         className="h-full w-full object-cover"
       />

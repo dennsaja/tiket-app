@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
@@ -26,7 +27,7 @@ export default function AdminAuditPage() {
       });
       if (search) params.set("actorEmail", search);
 
-      const res = await fetch(`/api/admin/audit-logs?${params.toString()}`);
+      const res = await apiFetch(`/api/admin/audit-logs?${params.toString()}`);
       if (!res.ok) throw new Error("Gagal memuat log audit");
       const data = await res.json();
       setLogs(data.data || []);

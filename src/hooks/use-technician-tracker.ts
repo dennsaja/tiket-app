@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { useSession } from "next-auth/react";
@@ -145,7 +146,7 @@ export function useTechnicianTracker(): UseTechnicianTrackerReturn {
           battery: currentBattery,
         };
 
-        const res = await fetch("/api/technicians/location", {
+        const res = await apiFetch("/api/technicians/location", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -322,7 +323,7 @@ export function useTechnicianTracker(): UseTechnicianTrackerReturn {
       if (!next) {
         // Notify server that technician stopped tracking
         try {
-          await fetch("/api/technicians/location", { method: "DELETE" });
+          await apiFetch("/api/technicians/location", { method: "DELETE" });
         } catch {}
       } else {
         // If turning on, trigger permission/update

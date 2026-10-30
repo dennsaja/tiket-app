@@ -1,3 +1,4 @@
+import { assetUrl, API_ORIGIN } from "@/lib/network/origins";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, Download, MapPin, Smartphone, MessageSquare, ShieldCheck, Camera } from "lucide-react";
 import { BrandMark } from "@/components/ui/brand-mark";
@@ -17,6 +18,8 @@ const features = [
   { icon: ShieldCheck, title: "Update dari dalam aplikasi", text: "Terima rilis dari console, lihat progres unduhan nyata, lalu setujui pemasangan melalui Android. APK diperiksa sebelum dipasang dan draf tetap tersimpan." },
 ];
 export default function DownloadPage() {
+  const targetApi = (release as typeof release & { apiOrigin?: string }).apiOrigin;
+  const ready = !targetApi || targetApi === API_ORIGIN;
   return <main className="auth-page min-h-screen px-5 py-10 sm:py-16">
     <div className="mx-auto max-w-4xl">
       <Link href="/dashboard" className="mb-10 inline-flex items-center gap-2 text-xs text-[var(--text-muted)]"><ArrowLeft className="h-4 w-4" />Kembali ke helpdesk</Link>
@@ -29,7 +32,8 @@ export default function DownloadPage() {
           <span className="metric-badge tone-success">Versi {release.versionName}</span>
           <h2 className="mt-4 text-xl font-medium">HelpDesk Teknisi</h2>
           <p className="mb-6 mt-2 text-xs text-[var(--text-muted)]">Android 6.0 atau lebih baru · Build {release.versionCode}</p>
-          <a href={"/downloads/helpdesk-teknisi.apk?v=" + release.versionCode} download={"helpdesk-teknisi-" + release.versionName + ".apk"} className="primary-action w-full"><Download className="h-4 w-4" />Unduh APK<ArrowUpRight className="h-4 w-4" /></a>
+          {!ready && <p className="mb-4 text-sm text-amber-500">Rilis ini memakai domain API baru. Aktifkan layanan API dan CDN terlebih dahulu sebelum memperbarui aplikasi.</p>}
+          <a aria-disabled={!ready} href={ready ? assetUrl("/downloads/helpdesk-teknisi.apk?v=" + release.versionCode) : undefined} download={"helpdesk-teknisi-" + release.versionName + ".apk"} className={"primary-action w-full " + (!ready ? "pointer-events-none opacity-50" : "")}><Download className="h-4 w-4" />Unduh APK<ArrowUpRight className="h-4 w-4" /></a>
           <p className="mt-4 text-xs leading-5 text-[var(--text-muted)]">Sudah punya versi lama? Pasang pembaruan ini tanpa menghapus aplikasi agar draf tetap tersimpan.</p>
         </div>
       </div>

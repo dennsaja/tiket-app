@@ -589,6 +589,11 @@ export async function POST(req: NextRequest) {
         }
 
         log("BUILD", "Kompilasi Next.js berhasil 100%!");
+        if (process.env.SPLIT_DEPLOY_ENABLED === "true") {
+          log("DEPLOY", "Memublikasikan frontend dan aset CDN...");
+          const deploy = await spawnStreamingCmd("bash scripts/publish-split.sh", cwd, line => log("DEPLOY", line), 180000);
+          if (deploy.exitCode !== 0) throw new Error("Publikasi frontend/CDN gagal. Periksa log deployment sebelum mengulang pembaruan.");
+        }
         send({ type: "status", message: "Pembaruan berhasil diterapkan!", progress: 100 });
 
         const durationSec = Math.round((Date.now() - startTime) / 1000);
@@ -619,7 +624,7 @@ export async function POST(req: NextRequest) {
 
         // Trigger detached background restart for systemd / PM2
         try {
-          if (process.platform === "linux") {
+          if (process.platform === "linux" && process.env.SPLIT_DEPLOY_ENABLED !== "true") {
             const restartCmd = "sleep 3 && (systemctl restart helpdesk 2>/dev/null || pm2 restart helpdesk 2>/dev/null || pm2 reload all 2>/dev/null || kill -SIGUSR2 1 2>/dev/null || true)";
             const restartProc = spawn("sh", ["-c", restartCmd], {
               detached: true,

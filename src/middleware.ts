@@ -1,6 +1,10 @@
 import NextAuth from "next-auth";
+import type { Session } from "next-auth";
 import { authConfig } from "@/lib/auth/auth.config";
 import { NextResponse } from "next/server";
+import type { NextRequest, NextFetchEvent, NextMiddleware } from "next/server";
+import { serviceBoundary, corsHeaders } from "@/lib/network/boundary";
+import { FRONTEND_ORIGIN, API_ORIGIN } from "@/lib/network/origins";
 
 const { auth } = NextAuth(authConfig);
 
@@ -8,6 +12,7 @@ const { auth } = NextAuth(authConfig);
  * Construct public redirect URLs respecting Cloudflare Tunnel / Reverse Proxy headers (x-forwarded-host, x-forwarded-proto)
  */
 function getPublicUrl(targetPath: string, req: any): URL {
+  if (FRONTEND_ORIGIN) return new URL(targetPath, FRONTEND_ORIGIN);
   const forwardedHost = req.headers.get("x-forwarded-host") || req.headers.get("host");
   const forwardedProto = req.headers.get("x-forwarded-proto") || (req.url.startsWith("https") ? "https" : "http");
 
@@ -21,7 +26,7 @@ function getPublicUrl(targetPath: string, req: any): URL {
   return url;
 }
 
-export default auth((req) => {
+const enforceAccess = (req: NextRequest & { auth: Session | null }) => {
   const { pathname } = req.nextUrl;
   const session = req.auth;
 
@@ -104,7 +109,33 @@ export default auth((req) => {
   }
 
   return NextResponse.next();
-});
+};
+const authenticate = auth(enforceAccess);
+
+export default async function middleware(req: NextRequest, event: NextFetchEvent) {
+  const boundary = serviceBoundary(req);
+  let response: Response;
+  if (boundary) response = boundary;
+  else if (process.env.APP_SERVICE === "frontend") {
+    let session: Session | null = null;
+    if (!req.nextUrl.pathname.startsWith("/api/auth/") && /authjs\.session-token/.test(req.headers.get("cookie") || "")) {
+      try {
+        const target = process.env.BACKEND_INTERNAL_ORIGIN || API_ORIGIN;
+        const result = await fetch(target + "/api/auth/session", { headers: { cookie: req.headers.get("cookie") || "" }, cache: "no-store", signal: AbortSignal.timeout(10000) });
+        if (!result.ok) throw new Error("Backend unavailable");
+        const identity = await result.json(); session = identity?.user?.id ? identity : null;
+      } catch { return NextResponse.json({ error: "Backend belum dapat dihubungi." }, { status: 503 }); }
+    }
+    response = enforceAccess(Object.assign(req, { auth: session }));
+  } else response = await (authenticate as unknown as NextMiddleware)(req, event) || NextResponse.next();
+  if (req.nextUrl.pathname.startsWith("/api/")) {
+    for (const [key, value] of Object.entries(corsHeaders(req))) {
+      if (key === "Vary") { if (!response.headers.get("Vary")?.includes("Origin")) response.headers.append(key, value); }
+      else response.headers.set(key, value);
+    }
+  }
+  return response;
+}
 
 export const config = {
   matcher: [

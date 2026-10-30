@@ -1,6 +1,4 @@
-import { db } from "@/lib/db";
-import { kbArticles, categories } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { getWebPageData } from "@/lib/web-data/client";
 import { BookOpen, FileText, ChevronRight, Eye, ThumbsUp } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -10,27 +8,7 @@ export const metadata = {
 };
 
 export default async function KnowledgeBasePage() {
-  let articles: any[] = [];
-  let categoriesList: any[] = [];
-
-  try {
-    [articles, categoriesList] = await Promise.all([
-      db.query.kbArticles.findMany({
-        where: eq(kbArticles.status, "published"),
-        with: {
-          category: { columns: { id: true, name: true } },
-          author: { columns: { id: true, name: true } },
-        },
-        orderBy: [desc(kbArticles.views)],
-        limit: 20,
-      }),
-      db.query.categories.findMany({
-        where: eq(categories.isActive, true),
-      }),
-    ]);
-  } catch {
-    // Graceful fallback during build or when database is empty
-  }
+  const { articles, categoriesList } = await getWebPageData("knowledge");
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

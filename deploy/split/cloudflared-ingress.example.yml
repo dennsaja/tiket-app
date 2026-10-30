@@ -1,0 +1,16 @@
+# Merge these entries into the existing tunnel config before its final catch-all.
+# Do not replace tunnel IDs or credentials already in use.
+ingress:
+  - hostname: helpdesk.infinityteknik.net
+    service: http://127.0.0.1:8080
+    originRequest:
+      httpHostHeader: helpdesk.infinityteknik.net
+  - hostname: kds-serviceapp.infinityteknik.net
+    service: http://127.0.0.1:8080
+    originRequest:
+      httpHostHeader: kds-serviceapp.infinityteknik.net
+  - hostname: cdn0.infinityteknik.net
+    service: http://127.0.0.1:8080
+    originRequest:
+      httpHostHeader: cdn0.infinityteknik.net
+  - service: http_status:404

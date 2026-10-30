@@ -57,7 +57,7 @@ class LoginActivity : AppCompatActivity() {
         webLogin.setOnClickListener {
             if (busy) return@setOnClickListener
             val state = session.beginWebLogin()
-            val uri = Uri.parse(session.serverUrl + "/mobile-auth").buildUpon().appendQueryParameter("state", state).build()
+            val uri = Uri.parse(session.webUrl + "/mobile-auth").buildUpon().appendQueryParameter("state", state).build()
             try {
                 startActivity(Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE))
             } catch (_: ActivityNotFoundException) {

@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { useSession } from "next-auth/react";
@@ -82,7 +83,7 @@ export default function DepartmentChatPage() {
   const fetchRooms = React.useCallback(async (silent = false) => {
     if (!silent) setIsLoadingRooms(true);
     try {
-      const res = await fetch("/api/chat/rooms");
+      const res = await apiFetch("/api/chat/rooms");
       if (!res.ok) throw new Error("Gagal memuat daftar obrolan department");
       const data = await res.json();
       setRooms(data || []);
@@ -102,7 +103,7 @@ export default function DepartmentChatPage() {
     async (ticketId: string, silent = false) => {
       if (!silent) setIsLoadingMessages(true);
       try {
-        const res = await fetch(`/api/chat/rooms/${ticketId}`);
+        const res = await apiFetch(`/api/chat/rooms/${ticketId}`);
         if (!res.ok) throw new Error("Gagal memuat pesan obrolan");
         const data = await res.json();
         const incoming: ChatMessage[] = Array.isArray(data.messages) ? data.messages : [];
@@ -178,7 +179,7 @@ export default function DepartmentChatPage() {
     setIsSending(true);
 
     try {
-      const res = await fetch(`/api/chat/rooms/${selectedRoomId}`, {
+      const res = await apiFetch(`/api/chat/rooms/${selectedRoomId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: trimmed }),

@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, Send, AlertCircle } from "lucide-react";
@@ -7,14 +8,14 @@ const phases: Record<string, string> = { offered: "Update tersedia", downloading
 export function ApkPublisher() {
   const [data, setData] = useState<any>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const load = useCallback(async () => {
-    try { const res = await fetch("/api/admin/mobile-console/apk", { cache: "no-store" }); if (!res.ok) throw new Error("Status APK belum dapat dimuat"); setData(await res.json()); setError(""); }
+    try { const res = await apiFetch("/api/admin/mobile-console/apk", { cache: "no-store" }); if (!res.ok) throw new Error("Status APK belum dapat dimuat"); setData(await res.json()); setError(""); }
     catch (e) { setError((e as Error).message); }
   }, []);
   useEffect(() => { load(); const timer = setInterval(load, 15000); return () => clearInterval(timer); }, [load]);
   async function publish() {
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/mobile-console/apk", { method: "POST" }); const release = await res.json();
+      const res = await apiFetch("/api/admin/mobile-console/apk", { method: "POST" }); const release = await res.json();
       if (!res.ok) throw new Error(release.error || "Update belum dapat dikirim");
       toast.success("APK " + release.versionName + " dipublikasikan. Aplikasi yang online akan menerima pemberitahuan."); await load();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }

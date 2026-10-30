@@ -1,4 +1,6 @@
 "use client";
+import { assetUrl } from "@/lib/network/origins";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { Search, Layers, LocateFixed, RefreshCw, X, Upload, MapPin, Navigation, ChevronRight, ExternalLink, Loader2, Cable, Users } from "lucide-react";
@@ -46,7 +48,7 @@ export function LiveDispatcherMap() {
   const loadLocations = React.useCallback(async () => {
     request.current?.abort(); const controller = new AbortController(); request.current = controller;
     try {
-      const response = await fetch("/api/technicians/location", { signal: controller.signal, cache: "no-store" });
+      const response = await apiFetch("/api/technicians/location", { signal: controller.signal, cache: "no-store" });
       if (!response.ok) throw new Error(response.status === 403 ? "Peta tracking khusus NOC, admin, dan owner." : "Lokasi tim belum dapat diperbarui.");
       const payload = await response.json(); setTechnicians(payload.technicians || []); setTickets(payload.tickets || []); setDataError("");
     } catch (error: any) { if (error.name !== "AbortError") setDataError(error.message); }
@@ -55,7 +57,7 @@ export function LiveDispatcherMap() {
   const loadTopology = React.useCallback(async () => {
     topologyRequest.current?.abort(); const controller = new AbortController(); topologyRequest.current = controller;
     try {
-      const response = await fetch("/api/admin/map/topology", { signal: controller.signal, cache: "no-store" });
+      const response = await apiFetch("/api/admin/map/topology", { signal: controller.signal, cache: "no-store" });
       if (!response.ok) throw new Error("Topologi belum dapat dimuat. Periksa koneksi atau akses akun.");
       setTopology(await response.json());
     } catch (error: any) { if (error.name !== "AbortError") toast.error(error.message); }
@@ -93,7 +95,7 @@ export function LiveDispatcherMap() {
         if (!(window as any).createHelpdeskSatelliteLayer) await new Promise<void>(resolve => {
           const timer = window.setTimeout(resolve, 5000);
           const complete = () => { clearTimeout(timer); resolve(); };
-          const script = document.createElement("script"); script.src = "/map/satellite.js"; script.onload = complete; script.onerror = complete; document.head.appendChild(script);
+          const script = document.createElement("script"); script.src = assetUrl("/map/satellite.js"); script.onload = complete; script.onerror = complete; document.head.appendChild(script);
         });
         const { createRasterMap } = await import("@/lib/map/raster-engine");
         if (disposed || !container.current) return;
@@ -162,7 +164,7 @@ export function LiveDispatcherMap() {
       try {
         const timeout = window.setTimeout(() => controller.abort(), 10000);
         try {
-          const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${start.join(",")};${target.join(",")}?overview=full&geometries=geojson`, { signal: controller.signal });
+          const response = await apiFetch(`https://router.project-osrm.org/route/v1/driving/${start.join(",")};${target.join(",")}?overview=full&geometries=geojson`, { signal: controller.signal });
           if (!response.ok) return;
           const result = (await response.json()).routes?.[0];
           if (!result || !Array.isArray(result.geometry?.coordinates) || result.geometry.coordinates.length < 2 || !result.geometry.coordinates.every(validPosition) || !Number.isFinite(result.distance) || !Number.isFinite(result.duration) || controller.signal.aborted) return;
@@ -179,7 +181,7 @@ export function LiveDispatcherMap() {
     setImporting(true);
     try {
       const form = new FormData(); form.append("file", file);
-      const response = await fetch("/api/admin/map/topology", { method: "POST", body: form });
+      const response = await apiFetch("/api/admin/map/topology", { method: "POST", body: form });
       const payload = await response.json(); if (!response.ok) throw new Error(payload.error || "Impor topologi gagal.");
       setTopology(payload); setSelection(null); setTab("network"); setSidebarOpen(true); firstFit.current = false;
       toast.success(`${payload.nodes.length} titik dan ${payload.links.length} jalur dimuat.`);

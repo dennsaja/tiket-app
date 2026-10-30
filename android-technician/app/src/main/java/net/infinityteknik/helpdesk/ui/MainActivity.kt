@@ -425,7 +425,7 @@ class MainActivity : AppCompatActivity() {
         updatesPanel.addView(configurationStatus); gap(updatesPanel, 12)
         button(updatesPanel, "Periksa pembaruan tampilan") { refreshMobileConfiguration(true) }
         root.addView(updatesPanel); gap(root, 16)
-        button(root, "Buka helpdesk di browser") { safeOpen(Intent(Intent.ACTION_VIEW, Uri.parse(session.serverUrl))) }; gap(root, 24)
+        button(root, "Buka helpdesk di browser") { safeOpen(Intent(Intent.ACTION_VIEW, Uri.parse(session.webUrl))) }; gap(root, 24)
         button(root, "Keluar dari akun") { confirmLogout() }; gap(root, 24)
         root.addView(label("Draf dan antrean offline disimpan per akun. GPS hanya aktif saat ada pekerjaan yang belum selesai.", 11f, HelpdeskTheme.muted))
         addScreen(scroll(root))

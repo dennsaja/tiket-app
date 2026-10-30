@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -54,7 +55,7 @@ export default function AdminUsersPage() {
       if (search) params.set("search", search);
       if (roleFilter !== "all") params.set("role", roleFilter);
 
-      const res = await fetch(`/api/users?${params.toString()}`);
+      const res = await apiFetch(`/api/users?${params.toString()}`);
       if (!res.ok) throw new Error("Gagal memuat daftar pengguna");
       const data = await res.json();
       setUsers(data.data || []);
@@ -68,7 +69,7 @@ export default function AdminUsersPage() {
 
   React.useEffect(() => {
     fetchUsers();
-    fetch("/api/departments")
+    apiFetch("/api/departments")
       .then((r) => r.json())
       .then(setDepartments)
       .catch(() => {});
@@ -89,7 +90,7 @@ export default function AdminUsersPage() {
         payload.departmentId = formData.departmentId;
       }
 
-      const res = await fetch("/api/users", {
+      const res = await apiFetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -104,7 +105,7 @@ export default function AdminUsersPage() {
       if (profilePhoto) {
         const photo = new FormData(); photo.append("file", profilePhoto); photo.append("userId", created.id);
         try {
-          const upload = await fetch("/api/users/avatar", { method: "POST", body: photo });
+          const upload = await apiFetch("/api/users/avatar", { method: "POST", body: photo });
           if (!upload.ok) throw new Error("Upload failed");
         } catch { toast.error("Akun berhasil dibuat, tetapi foto gagal diunggah. Unggah ulang melalui Edit Pengguna."); }
       }
@@ -152,7 +153,7 @@ export default function AdminUsersPage() {
         payload.departmentId = null;
       }
 
-      const res = await fetch(`/api/users/${selectedUser.id}`, {
+      const res = await apiFetch(`/api/users/${selectedUser.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -175,7 +176,7 @@ export default function AdminUsersPage() {
 
   const handleToggleActive = async (userId: string, currentActive: boolean) => {
     try {
-      const res = await fetch(`/api/users/${userId}`, {
+      const res = await apiFetch(`/api/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !currentActive }),
@@ -481,7 +482,7 @@ export default function AdminUsersPage() {
                   formData.append("file", file);
                   formData.append("userId", selectedUser.id);
                   try {
-                    const res = await fetch("/api/users/avatar", {
+                    const res = await apiFetch("/api/users/avatar", {
                       method: "POST",
                       body: formData,
                     });
@@ -513,7 +514,7 @@ export default function AdminUsersPage() {
                   onClick={async () => {
                     if (!selectedUser) return;
                     try {
-                      const res = await fetch(`/api/users/avatar?userId=${selectedUser.id}`, {
+                      const res = await apiFetch(`/api/users/avatar?userId=${selectedUser.id}`, {
                         method: "DELETE",
                       });
                       if (!res.ok) throw new Error("Gagal menghapus foto profil");

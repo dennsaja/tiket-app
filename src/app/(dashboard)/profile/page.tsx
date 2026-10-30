@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { useSession } from "next-auth/react";
@@ -70,7 +71,7 @@ export default function ProfilePage() {
   // Load user data
   React.useEffect(() => {
     if (userId) {
-      fetch(`/api/users/${userId}`)
+      apiFetch(`/api/users/${userId}`)
         .then((r) => r.json())
         .then((data) => {
           resetProfile({
@@ -106,7 +107,7 @@ export default function ProfilePage() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("/api/users/avatar", {
+      const res = await apiFetch("/api/users/avatar", {
         method: "POST",
         body: formData,
       });
@@ -131,7 +132,7 @@ export default function ProfilePage() {
   const handleRemoveAvatar = async () => {
     setIsUploadingAvatar(true);
     try {
-      const res = await fetch("/api/users/avatar", {
+      const res = await apiFetch("/api/users/avatar", {
         method: "DELETE",
       });
 
@@ -154,7 +155,7 @@ export default function ProfilePage() {
     if (!userId) return;
     setIsUpdatingProfile(true);
     try {
-      const res = await fetch(`/api/users/${userId}`, {
+      const res = await apiFetch(`/api/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -178,7 +179,7 @@ export default function ProfilePage() {
     if (!userId) return;
     setIsUpdatingPassword(true);
     try {
-      const res = await fetch(`/api/users/${userId}`, {
+      const res = await apiFetch(`/api/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

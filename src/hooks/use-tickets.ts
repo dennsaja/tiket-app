@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { buildApiUrl } from "@/lib/utils";
@@ -95,7 +96,7 @@ export function useTickets(filters: TicketFilters = {}): UseTicketsReturn {
 
     const url = buildApiUrl("/api/tickets", params);
 
-    fetch(url)
+    apiFetch(url)
       .then((res) => {
         if (!res.ok) throw new Error(`Error ${res.status}`);
         return res.json();
@@ -204,7 +205,7 @@ export function useTicket(id: string): UseTicketReturn {
     setLoading(true);
     setError(null);
 
-    fetch(`/api/tickets/${id}`)
+    apiFetch(`/api/tickets/${id}`)
       .then((res) => {
         if (!res.ok) throw new Error(`Error ${res.status}`);
         return res.json();

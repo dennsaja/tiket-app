@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,7 @@ export function TicketActions({
   const handleStatusChange = async (newStatus: string, resolution?: string) => {
     setIsUpdating(true);
     try {
-      const res = await fetch(`/api/tickets/${ticketId}`, {
+      const res = await apiFetch(`/api/tickets/${ticketId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -91,7 +92,7 @@ export function TicketActions({
   const handlePriorityChange = async (newPriority: string) => {
     setIsUpdating(true);
     try {
-      const res = await fetch(`/api/tickets/${ticketId}`, {
+      const res = await apiFetch(`/api/tickets/${ticketId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ priority: newPriority }),
@@ -114,7 +115,7 @@ export function TicketActions({
   const handleAssignChange = async (newAssigneeId: string) => {
     setIsUpdating(true);
     try {
-      const res = await fetch(`/api/tickets/${ticketId}`, {
+      const res = await apiFetch(`/api/tickets/${ticketId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -147,7 +148,7 @@ export function TicketActions({
 
     setIsUpdating(true);
     try {
-      const res = await fetch(`/api/tickets/${ticketId}`, {
+      const res = await apiFetch(`/api/tickets/${ticketId}`, {
         method: "DELETE",
       });
 

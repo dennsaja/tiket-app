@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -97,7 +98,7 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterForm) => {
     setServerError(null);
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await apiFetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -14,7 +14,7 @@ adb shell svc wifi enable
 adb shell svc data enable
 adb uninstall net.infinityteknik.helpdesk.test
 adb uninstall net.infinityteknik.helpdesk
-git show ac0343e:public/downloads/helpdesk-teknisi.apk > "$RUNNER_TEMP/previous.apk"
+git show efdddd7:public/downloads/helpdesk-teknisi.apk > "$RUNNER_TEMP/previous.apk"
 adb install "$RUNNER_TEMP/previous.apk" | tee qa-results/install-previous.txt
 adb install -r public/downloads/helpdesk-teknisi.apk | tee qa-results/upgrade.txt
 expected_version=$(node -p "require('./public/downloads/version.json').versionCode")

@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import toast from "react-hot-toast";
@@ -40,7 +41,7 @@ export function useNotifications(): UseNotificationsReturn {
     const request = ++generation.current;
     setLoading(true);
 
-    fetch("/api/notifications?perPage=20", { cache: "no-store" })
+    apiFetch("/api/notifications?perPage=20", { cache: "no-store" })
       .then((res) => {
         if (!res.ok) throw new Error(`Error ${res.status}`);
         return res.json();
@@ -78,7 +79,7 @@ export function useNotifications(): UseNotificationsReturn {
     if (pending.current) return;
     pending.current = true; setMarking(true); ++generation.current;
     try {
-      const response = await fetch(`/api/notifications/${encodeURIComponent(id)}`, { method: "PATCH" });
+      const response = await apiFetch(`/api/notifications/${encodeURIComponent(id)}`, { method: "PATCH" });
       if (!response.ok) throw new Error("Status dibaca belum tersimpan. Coba lagi.");
       setNotifications(previous => previous.map(item => item.id === id ? { ...item, isRead: true } : item));
     } catch {
@@ -90,7 +91,7 @@ export function useNotifications(): UseNotificationsReturn {
     if (pending.current) return;
     pending.current = true; setMarking(true); ++generation.current;
     try {
-      const response = await fetch("/api/notifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "mark_all_read" }) });
+      const response = await apiFetch("/api/notifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "mark_all_read" }) });
       if (!response.ok) throw new Error("Status dibaca belum tersimpan. Coba lagi.");
       setNotifications(previous => previous.map(item => ({ ...item, isRead: true })));
       setUnreadCount(0);

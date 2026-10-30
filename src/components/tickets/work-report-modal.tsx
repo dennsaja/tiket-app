@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { Modal } from "@/components/ui/modal";
@@ -114,7 +115,7 @@ export function WorkReportModal({
         formData.append(`afterPhoto_${idx}`, p.file);
       });
 
-      const res = await fetch(`/api/tickets/${ticketId}/work-report`, {
+      const res = await apiFetch(`/api/tickets/${ticketId}/work-report`, {
         method: "POST",
         body: formData,
       });

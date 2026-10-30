@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from "@/lib/network/client";
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
@@ -82,8 +83,8 @@ export default function AdminCategoriesPage() {
     setIsLoading(true);
     try {
       const [catRes, deptRes] = await Promise.all([
-        fetch("/api/categories?all=true"),
-        fetch("/api/departments"),
+        apiFetch("/api/categories?all=true"),
+        apiFetch("/api/departments"),
       ]);
       const catData = await catRes.json();
       const deptData = await deptRes.json();
@@ -116,7 +117,7 @@ export default function AdminCategoriesPage() {
       if (catForm.departmentId && catForm.departmentId !== "none") {
         payload.departmentId = catForm.departmentId;
       }
-      const res = await fetch("/api/categories", {
+      const res = await apiFetch("/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -158,7 +159,7 @@ export default function AdminCategoriesPage() {
           ? editCatForm.departmentId
           : null,
       };
-      const res = await fetch(`/api/categories/${editCatTarget.id}`, {
+      const res = await apiFetch(`/api/categories/${editCatTarget.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -180,7 +181,7 @@ export default function AdminCategoriesPage() {
     if (!deleteCatTarget) return;
     setIsDeletingCat(true);
     try {
-      const res = await fetch(`/api/categories/${deleteCatTarget.id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/categories/${deleteCatTarget.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error((await res.json()).error || "Gagal menghapus kategori");
       toast.success("Kategori berhasil dinonaktifkan");
       setDeleteCatTarget(null);
@@ -199,7 +200,7 @@ export default function AdminCategoriesPage() {
     if (!addSubTarget) return;
     setIsSavingSub(true);
     try {
-      const res = await fetch(`/api/categories/${addSubTarget.id}`, {
+      const res = await apiFetch(`/api/categories/${addSubTarget.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: subName }),
@@ -228,7 +229,7 @@ export default function AdminCategoriesPage() {
     if (!editSubTarget) return;
     setIsSavingEditSub(true);
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/categories/${editSubTarget.cat.id}/subcategories/${editSubTarget.sub.id}`,
         {
           method: "PATCH",
@@ -253,7 +254,7 @@ export default function AdminCategoriesPage() {
     if (!deleteSubTarget) return;
     setIsDeletingSub(true);
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/categories/${deleteSubTarget.cat.id}/subcategories/${deleteSubTarget.sub.id}`,
         { method: "DELETE" }
       );

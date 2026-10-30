@@ -1,7 +1,4 @@
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { tickets, departments, categories, users } from "@/lib/db/schema";
-import { eq, and, isNull, inArray, ilike, or, count, sql, asc, desc, gte, lt, notInArray } from "drizzle-orm";
+import { getWebPageData } from "@/lib/web-data/client";
 import { TicketFilters } from "@/components/tickets/ticket-filters";
 import { TicketRow } from "@/components/tickets/ticket-row";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
@@ -9,7 +6,6 @@ import { Pagination } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import { Plus, Ticket as TicketIcon } from "lucide-react";
 import Link from "next/link";
-import { dashboardDateRange, getDashboardPeriod } from "@/lib/utils/dashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -36,163 +32,9 @@ interface TicketsPageProps {
 }
 
 export default async function TicketsPage({ searchParams }: TicketsPageProps) {
-  const session = await auth();
-  const user = session?.user;
-  const userRole = (user as any)?.role || "user";
-  const userId = user?.id || "";
-
   const params = await searchParams;
-  const page = Math.max(1, parseInt(params.page || "1", 10));
-  const perPage = Math.min(100, Math.max(1, parseInt(params.perPage || "20", 10)));
-  const offset = (page - 1) * perPage;
-
-  // Build filters
-  const conditions: any[] = [isNull(tickets.deletedAt)];
-
-  // Role filtering
-  if (userRole === "user") {
-    conditions.push(eq(tickets.requesterId, userId));
-  } else if (params.mine === "true") {
-    const { ticketAssignees } = await import("@/lib/db/schema");
-    const myAssignments = await db
-      .select({ ticketId: ticketAssignees.ticketId })
-      .from(ticketAssignees)
-      .where(eq(ticketAssignees.userId, userId));
-    const assignedIds = myAssignments.map((a) => a.ticketId);
-
-    if (assignedIds.length > 0) {
-      conditions.push(
-        or(
-          eq(tickets.assigneeId, userId),
-          inArray(tickets.id, assignedIds)
-        )
-      );
-    } else {
-      conditions.push(eq(tickets.assigneeId, userId));
-    }
-  }
-
-  // Dashboard links keep the selected period and full operational status group.
-  if (params.days) {
-    const range = dashboardDateRange(getDashboardPeriod(params.days));
-    conditions.push(gte(tickets.createdAt, range.start), lt(tickets.createdAt, range.end));
-  }
-  if (params.view === "active") {
-    conditions.push(notInArray(tickets.status, ["resolved", "closed", "cancelled"]));
-  } else if (params.view === "in-progress") {
-    conditions.push(inArray(tickets.status, ["assigned", "accepted", "on_site", "in_progress"]));
-  } else if (params.view === "open") {
-    conditions.push(inArray(tickets.status, ["open", "reopened"]));
-  } else if (params.view === "resolved") {
-    conditions.push(inArray(tickets.status, ["resolved", "closed"]));
-  } else if (params.view === "pending") {
-    conditions.push(inArray(tickets.status, ["pending", "waiting_for_user", "waiting_for_third_party"]));
-  } else if (params.view === "overdue") {
-    conditions.push(lt(tickets.slaResolutionDue, new Date()), notInArray(tickets.status, ["resolved", "closed", "cancelled"]));
-  }
-
-  // Search filter
-  if (params.search) {
-    conditions.push(
-      or(
-        ilike(tickets.title, `%${params.search}%`),
-        ilike(tickets.description, `%${params.search}%`),
-        ilike(tickets.reporterName, `%${params.search}%`),
-        sql`${tickets.ticketNumber}::text ILIKE ${`%${params.search}%`}`
-      )
-    );
-  }
-
-  // Status filter
-  if (params.status && params.status !== "all") {
-    conditions.push(eq(tickets.status, params.status as any));
-  }
-
-  // Priority filter
-  if (params.priority && params.priority !== "all") {
-    conditions.push(eq(tickets.priority, params.priority as any));
-  }
-
-  // Assignee filter
-  if (params.assigneeId && params.assigneeId !== "all") {
-    if (params.assigneeId === "unassigned") {
-      conditions.push(isNull(tickets.assigneeId));
-    } else {
-      conditions.push(eq(tickets.assigneeId, params.assigneeId));
-    }
-  }
-
-  // Department filter
-  if (params.departmentId && params.departmentId !== "all") {
-    conditions.push(eq(tickets.departmentId, params.departmentId));
-  }
-
-  // Category filter
-  if (params.categoryId && params.categoryId !== "all") {
-    conditions.push(eq(tickets.categoryId, params.categoryId));
-  }
-
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
-
-  // Sorting
-  const sortColumn: Record<string, any> = {
-    createdAt: tickets.createdAt,
-    updatedAt: tickets.updatedAt,
-    priority: tickets.priority,
-    status: tickets.status,
-    ticketNumber: tickets.ticketNumber,
-  };
-  const sortField = params.sortBy || "createdAt";
-  const sortDir = params.sortOrder === "asc" ? "asc" : "desc";
-  const orderBy = sortDir === "asc" ? asc(sortColumn[sortField] || tickets.createdAt) : desc(sortColumn[sortField] || tickets.createdAt);
-
-  let ticketList: any[] = [];
-  let totalCount = 0;
-  let deptList: any[] = [];
-  let catList: any[] = [];
-  let agentList: any[] = [];
-
-  try {
-    const [ticketsRes, totalRes, depts, cats, agents] = await Promise.all([
-      db.query.tickets.findMany({
-        where,
-        with: {
-          requester: { columns: { id: true, name: true, email: true, avatarUrl: true } },
-          assignee: { columns: { id: true, name: true, avatarUrl: true } },
-          assignees: {
-            with: {
-              user: { columns: { id: true, name: true, avatarUrl: true, role: true } },
-            },
-          },
-          department: { columns: { id: true, name: true } },
-          category: { columns: { id: true, name: true } },
-        },
-        orderBy: [orderBy],
-        limit: perPage,
-        offset,
-      }),
-      db.select({ total: count() }).from(tickets).where(where),
-      db.query.departments.findMany({ where: eq(departments.isActive, true) }),
-      db.query.categories.findMany({ where: eq(categories.isActive, true) }),
-      userRole !== "user"
-        ? db.query.users.findMany({
-            where: and(eq(users.isActive, true), inArray(users.role, ["admin", "agent"])),
-            columns: { id: true, name: true },
-          })
-        : Promise.resolve([]),
-    ]);
-
-    ticketList = ticketsRes || [];
-    totalCount = Number(totalRes[0]?.total || 0);
-    deptList = depts || [];
-    catList = cats || [];
-    agentList = agents || [];
-  } catch {
-    // Fallback for prerendering without active DB
-  }
-
-  const totalPages = Math.ceil(totalCount / perPage);
-  const canCreate = ["noc", "owner", "admin"].includes(userRole);
+  const data = await getWebPageData("tickets", Object.fromEntries(Object.entries(params).filter((entry): entry is [string, string] => typeof entry[1] === "string")));
+  const { ticketList, totalCount, deptList, catList, agentList, totalPages, page, perPage, canCreate, userRole } = data;
 
   return (
     <div className="space-y-4">

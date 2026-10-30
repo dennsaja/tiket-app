@@ -1,10 +1,11 @@
 import type { NextConfig } from "next";
+import { CDN_ORIGIN, API_ORIGIN, FRONTEND_ORIGIN } from "./src/lib/network/origins";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["sql.js"],
   outputFileTracingIncludes: { "/api/admin/map/topology": ["./node_modules/sql.js/dist/sql-wasm.wasm"] },
-  // Standalone output for production deployment (systemd)
-  // output: "standalone",
+  output: "standalone",
+  assetPrefix: CDN_ORIGIN || undefined,
 
   // Disable powered-by header
   poweredByHeader: false,
@@ -34,13 +35,13 @@ const nextConfig: NextConfig = {
   // Experimental
   experimental: {
     serverActions: {
-      allowedOrigins: ["localhost:3000"],
+      allowedOrigins: ["localhost:3000", ...[FRONTEND_ORIGIN, API_ORIGIN].filter(Boolean).map(value => new URL(value).host)],
     },
   },
 
   // Image configuration
   images: {
-    remotePatterns: [],
+    remotePatterns: CDN_ORIGIN ? [{ protocol: new URL(CDN_ORIGIN).protocol.replace(":", "") as "http" | "https", hostname: new URL(CDN_ORIGIN).hostname, port: new URL(CDN_ORIGIN).port, pathname: "/**" }] : [],
     formats: ["image/avif", "image/webp"],
   },
 };

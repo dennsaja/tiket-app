@@ -1,4 +1,6 @@
 "use client";
+import { assetUrl } from "@/lib/network/origins";
+import { apiFetch } from "@/lib/network/client";
 
 import { useEffect, useState, useRef } from "react";
 import {
@@ -87,7 +89,7 @@ export function MobileConsole({
   async function reload() {
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/mobile-console", { cache: "no-store" });
+      const res = await apiFetch("/api/admin/mobile-console", { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Console gagal dimuat.");
       receive(data);
@@ -101,7 +103,7 @@ export function MobileConsole({
   async function checkGitUpdate(silent = false) {
     setCheckingGit(true);
     try {
-      const res = await fetch("/api/admin/system/update");
+      const res = await apiFetch("/api/admin/system/update");
       if (!res.ok) throw new Error("Gagal memeriksa git update");
       const data = await res.json();
       setGitInfo(data);
@@ -128,7 +130,7 @@ export function MobileConsole({
     setGitStatusMessage("Menghubungi server dan menyiapkan pembaruan...");
 
     try {
-      const res = await fetch("/api/admin/system/update", { method: "POST" });
+      const res = await apiFetch("/api/admin/system/update", { method: "POST" });
       if (!res.ok && !res.body) throw new Error(`HTTP ${res.status}`);
       const reader = res.body?.getReader();
       if (!reader) throw new Error("Streaming respon tidak didukung browser.");
@@ -195,7 +197,7 @@ export function MobileConsole({
   useEffect(() => {
     const timer = setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      void fetch("/api/admin/mobile-console", { cache: "no-store" })
+      void apiFetch("/api/admin/mobile-console", { cache: "no-store" })
         .then(async (res) => {
           if (res.ok) {
             const data: MobileConsoleState = await res.json();
@@ -226,7 +228,7 @@ export function MobileConsole({
   async function submit(action: ConsoleAction) {
     setBusy(true);
     try {
-      const res = await fetch("/api/admin/mobile-console", {
+      const res = await apiFetch("/api/admin/mobile-console", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(action),
@@ -275,7 +277,7 @@ export function MobileConsole({
             {checkingGit ? "Memeriksa Git..." : "Periksa Pembaruan Git"}
           </Button>
           <a
-            href="/downloads/helpdesk-teknisi.apk"
+            href={assetUrl("/downloads/helpdesk-teknisi.apk")}
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
           >
             <Smartphone className="h-4 w-4" />
