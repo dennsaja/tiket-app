@@ -1,5 +1,4 @@
 "use client";
-import { assetUrl } from "@/lib/network/origins";
 
 import * as React from "react";
 import { useSession } from "next-auth/react";
@@ -313,8 +312,7 @@ export function TechnicianGpsBar() {
               </span>
             </div>
             <a
-              href={assetUrl("/downloads/helpdesk-teknisi.apk")}
-              download="helpdesk-teknisi.apk"
+              href="/download"
               className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 font-bold text-xs shadow-xs transition-colors"
             >
               <Smartphone className="h-3.5 w-3.5" />

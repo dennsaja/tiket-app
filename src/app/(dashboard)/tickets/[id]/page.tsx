@@ -395,7 +395,7 @@ export default function TicketDetailPage() {
                             className="relative rounded-lg overflow-hidden border border-emerald-200 dark:border-emerald-800 aspect-video bg-zinc-900 cursor-pointer hover:opacity-90 transition-opacity shadow-xs"
                           >
                             <img
-                              src={url}
+                              src={resourceUrl(url)}
                               alt={`After ${idx}`}
                               className="w-full h-full object-cover"
                             />
@@ -660,7 +660,7 @@ export default function TicketDetailPage() {
         >
           <div className="relative rounded-xl overflow-hidden bg-black flex items-center justify-center max-h-[80vh]">
             <img
-              src={previewImage}
+              src={resourceUrl(previewImage)}
               alt="Preview Full"
               className="max-h-[75vh] w-auto object-contain"
             />

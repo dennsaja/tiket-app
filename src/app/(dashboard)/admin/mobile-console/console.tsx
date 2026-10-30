@@ -1,5 +1,4 @@
 "use client";
-import { assetUrl } from "@/lib/network/origins";
 import { apiFetch } from "@/lib/network/client";
 
 import { useEffect, useState, useRef } from "react";
@@ -277,7 +276,7 @@ export function MobileConsole({
             {checkingGit ? "Memeriksa Git..." : "Periksa Pembaruan Git"}
           </Button>
           <a
-            href={assetUrl("/downloads/helpdesk-teknisi.apk")}
+            href="/download"
             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
           >
             <Smartphone className="h-4 w-4" />
