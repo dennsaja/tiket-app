@@ -17,6 +17,7 @@ curl -fsS --retry 40 --retry-connrefused --retry-delay 1 http://127.0.0.1:3101/h
 curl -fsS -H 'Host: helpdesk.infinityteknik.net' http://127.0.0.1:8080/login > split-results/login.html
 grep -q 'https://cdn0.infinityteknik.net/_next/static/' split-results/login.html
 test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: helpdesk.infinityteknik.net' http://127.0.0.1:8080/api/tickets)" = 404
+test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: helpdesk.infinityteknik.net' http://127.0.0.1:8080/api/users/avatar/fixture.jpg)" = 404
 test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: kds-serviceapp.infinityteknik.net' http://127.0.0.1:8080/dashboard)" = 404
 curl -fsS -H 'Host: helpdesk.infinityteknik.net' http://127.0.0.1:8080/api/auth/csrf -D split-results/csrf.headers > split-results/csrf.json
 grep -qi 'domain=.infinityteknik.net' split-results/csrf.headers
