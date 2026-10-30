@@ -4,6 +4,11 @@ import { CDN_ORIGIN, API_ORIGIN, FRONTEND_ORIGIN } from "./src/lib/network/origi
 const nextConfig: NextConfig = {
   serverExternalPackages: ["sql.js"],
   outputFileTracingIncludes: { "/api/admin/map/topology": ["./node_modules/sql.js/dist/sql-wasm.wasm"] },
+  // Backend backup handlers inspect the checkout; keep local devices, private data,
+  // and unrelated projects out of the frontend deployment artifact.
+  outputFileTracingExcludes: {
+    "/*": ["./android-technician/**/*", "./motion/**/*", "./uploads/**/*", "./.git/**/*", "./.env*", "./.next/cache/**/*", "./.next/standalone/**/*"],
+  },
   output: "standalone",
   assetPrefix: CDN_ORIGIN || undefined,
 
