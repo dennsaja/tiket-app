@@ -1,3 +1,4 @@
+import { applicationRoot } from "@/lib/runtime/paths";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -5,13 +6,13 @@ import initSqlJs from "sql.js";
 import { emptyTopology, topologyFromRows, type TopologyRow, type TopologySnapshot } from "./topology";
 
 export const MAX_TOPOLOGY_BYTES = 10 * 1024 * 1024;
-const destination = () => process.env.TOPOLOGY_DATA_FILE || path.join(process.cwd(), "uploads", "topology", "network.json");
+const destination = () => process.env.TOPOLOGY_DATA_FILE || path.join(applicationRoot(), "uploads", "topology", "network.json");
 let engine: ReturnType<typeof initSqlJs> | undefined;
 
 export async function readSqliteTopology(bytes: Uint8Array): Promise<TopologySnapshot> {
   if (bytes.byteLength > MAX_TOPOLOGY_BYTES) throw new Error("Ukuran topologi maksimal 10 MB.");
   if (Buffer.from(bytes.subarray(0, 16)).toString("binary") !== "SQLite format 3\u0000") throw new Error("Pilih database topologi SQLite yang valid (.db).");
-  engine ??= initSqlJs({ wasmBinary: new Uint8Array(await fs.readFile(path.join(process.cwd(), "node_modules/sql.js/dist/sql-wasm.wasm"))).buffer });
+  engine ??= initSqlJs({ wasmBinary: new Uint8Array(await fs.readFile(path.join(applicationRoot(), "node_modules/sql.js/dist/sql-wasm.wasm"))).buffer });
   const SQL = await engine;
   const database = new SQL.Database(bytes);
   try {

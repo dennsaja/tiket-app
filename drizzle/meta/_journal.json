@@ -15,6 +15,20 @@
       "when": 1790414494926,
       "tag": "0001_left_phantom_reporter",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794121855679,
+      "tag": "0002_ticket_types_and_work_reports",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794121855680,
+      "tag": "0003_single_app_compatibility",
+      "breakpoints": true
     }
   ]
 }

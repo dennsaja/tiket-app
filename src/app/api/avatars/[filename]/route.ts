@@ -1,3 +1,4 @@
+import { applicationRoot } from "@/lib/runtime/paths";
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs/promises";
@@ -18,7 +19,7 @@ export async function GET(
     return new NextResponse("Invalid filename", { status: 400 });
   }
 
-  const uploadDirResolved = path.resolve(process.cwd(), AVATAR_UPLOAD_DIR);
+  const uploadDirResolved = path.resolve(applicationRoot(), AVATAR_UPLOAD_DIR);
   const filePath = path.join(uploadDirResolved, safeFilename);
 
   try {

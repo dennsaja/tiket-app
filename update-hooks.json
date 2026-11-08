@@ -1,11 +1,6 @@
 {
-  "version": "1.0",
-  "name": "HelpDesk Custom Update Hook",
-  "description": "Persiapan produksi: arsip dan reset tiket/pengguna sekali, username, dan kategori pekerjaan.",
-  "commands": [
-    "npx tsx scripts/production-cleanup.ts --apply",
-    "npx tsx scripts/prepare-workspace.ts",
-    "npx tsx scripts/prepare-production-v4.ts",
-    "npx tsx scripts/seed-accounts.ts"
-  ]
+  "version": "1.1",
+  "name": "HelpDesk Update",
+  "description": "Pembaruan satu aplikasi. Migrasi skema dijalankan updater; tidak ada reset tiket, pengguna, atau akun otomatis.",
+  "commands": []
 }

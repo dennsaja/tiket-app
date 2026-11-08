@@ -1,3 +1,4 @@
+import { applicationRoot } from "@/lib/runtime/paths";
 import fs from "fs/promises";
 import path from "path";
 import { ZipEntry } from "./zip";
@@ -45,7 +46,7 @@ export async function collectAllUploadFiles(): Promise<{
   totalFiles: number;
   totalBytes: number;
 }> {
-  const uploadResolved = path.resolve(process.cwd(), UPLOAD_DIR);
+  const uploadResolved = path.resolve(applicationRoot(), UPLOAD_DIR);
   const entries = await scanDirectoryRecursive(uploadResolved);
 
   let totalBytes = 0;
@@ -68,7 +69,7 @@ export async function restoreUploadFiles(
 ): Promise<{ restoredCount: number; restoredBytes: number }> {
   let restoredCount = 0;
   let restoredBytes = 0;
-  const uploadResolved = path.resolve(process.cwd(), UPLOAD_DIR);
+  const uploadResolved = path.resolve(applicationRoot(), UPLOAD_DIR);
 
   for (const entry of entries) {
     // Match any entry that begins with uploads/ or files/

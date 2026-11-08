@@ -1,386 +1,65 @@
-# HelpDesk Deployment Guide — Ubuntu 24.04 LXC/CT
+# HelpDesk: satu aplikasi, satu layanan
 
-Untuk pemisahan frontend, API, dan CDN pada server yang sudah berjalan, ikuti [panduan tiga domain](DEPLOY-SPLIT-DOMAINS.md).
+Halaman web, login, API, database, SSE/chat, lampiran, aset publik, unduhan APK, dan menu update berada di aplikasi yang sama. Domain utama: https://helpdesk.infinityteknik.net, port aplikasi 3000. PostgreSQL tetap merupakan layanan database seperti sebelumnya; tidak ada proses frontend/backend/CDN terpisah.
 
-## System Requirements
+## Server yang sudah berjalan seperti semula
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| RAM | 1 GB | 2–4 GB |
-| CPU | 1 vCPU | 2–4 vCPUs |
-| Disk | 20 GB | 40 GB |
-| OS | Ubuntu 24.04 LTS | Ubuntu 24.04 LTS |
+Tidak perlu mengganti Tunnel, DNS, database, atau unit layanan Anda karena pemisahan belum pernah diaktifkan. Kirim seluruh perubahan ke branch GitHub yang digunakan server, lalu buka **Pembaruan Sistem → Periksa pembaruan → Jalankan pembaruan**. Nama tombol mengikuti UI halaman.
 
----
+Updater mengambil commit GitHub, menjalankan npm ci, migrasi skema yang tersedia, build aplikasi, dan restart satu layanan helpdesk. Tidak menjalankan publisher frontend/CDN. Konfigurasi split lama diabaikan oleh aplikasi. Penggabungan ini tidak membuat ulang pengguna, mereset tiket, menghapus upload, atau mengganti AUTH_SECRET/DATABASE_URL. Hook reset data lama telah dinonaktifkan.
 
-## 1. Proxmox LXC Setup
+Login ulang sekali mungkin diperlukan karena cookie sesi sekarang host-only dengan nama helpdesk.*; akun dan kata sandi tetap sama.
 
-Create an unprivileged LXC container:
+Jika layanan saat ini menjalankan .next/standalone/server.js, itu tetap didukung: build menyalin public dan static ke standalone. Updater mencari checkout Git di atas folder standalone. Upload, avatar, backup, topologi, metadata APK, dan pemeriksaan sumber Android memakai folder sumber/data, bukan folder build yang diganti. Jika source checkout berada di tempat lain, set APP_ROOT ke folder yang memiliki .git dan package.json.
 
-```bash
-# On Proxmox host — create CT with Ubuntu 24.04 template
-pct create 200 local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst \
-  --hostname helpdesk \
-  --memory 2048 \
-  --swap 512 \
-  --cores 2 \
-  --storage local-lvm \
-  --rootfs local-lvm:20 \
-  --net0 name=eth0,bridge=vmbr0,ip=dhcp \
-  --unprivileged 1 \
-  --features nesting=1
+## Instalasi baru pada Ubuntu
 
-pct start 200
-pct enter 200
-```
+Prasyarat: Git, Node.js minimal 20.9 (tersedia pada /usr/bin/node untuk contoh systemd), npm, PostgreSQL, dan akun Linux helpdesk. Gunakan Node yang memenuhi versi minimum dalam package Next terpasang.
 
----
+1. Clone repository sebagai akun pemilik aplikasi ke /opt/helpdesk/app.
+2. Buat database PostgreSQL milik akun database aplikasi.
+3. Salin .env.example ke .env.local. Isi DATABASE_URL, AUTH_SECRET (nilai acak minimal 32 karakter), NEXTAUTH_URL dan APP_URL sesuai domain HTTPS utama. Sesuaikan UPLOAD_DIR ke lokasi upload yang dapat ditulis akun layanan. Untuk instalasi lama, selalu pertahankan secret dan koneksi yang sudah ada.
+4. Instal dependensi, jalankan migrasi yang sudah ada, lalu build:
 
-## 2. Initial System Setup
-
-```bash
-# Update system
-apt update && apt upgrade -y
-
-# Install required packages
-apt install -y curl wget git nginx certbot python3-certbot-nginx \
-  build-essential software-properties-common
-
-# Set timezone
-timedatectl set-timezone Asia/Jakarta
-```
-
----
-
-## 3. Install Node.js (via nvm or NodeSource)
-
-```bash
-# Install nvm
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-source ~/.bashrc
-
-# Install Node.js LTS
-nvm install --lts
-nvm use --lts
-nvm alias default node
-
-# Verify
-node --version  # Should be 20.x or 22.x
-npm --version
-```
-
----
-
-## 4. Install PostgreSQL
-
-```bash
-# Install PostgreSQL 16
-apt install -y postgresql postgresql-client postgresql-contrib
-
-# Start and enable PostgreSQL
-systemctl start postgresql
-systemctl enable postgresql
-
-# Create database and user
-sudo -u postgres psql <<EOF
-CREATE USER helpdesk WITH PASSWORD 'CHANGE_THIS_STRONG_PASSWORD';
-CREATE DATABASE helpdesk OWNER helpdesk;
-GRANT ALL PRIVILEGES ON DATABASE helpdesk TO helpdesk;
-EOF
-
-# Configure PostgreSQL for local connections
-# Edit /etc/postgresql/16/main/postgresql.conf:
-# listen_addresses = 'localhost'
-```
-
----
-
-## 5. Deploy Application
-
-```bash
-# Create application user
-useradd -r -m -s /bin/bash helpdesk
-usermod -aG www-data helpdesk
-
-# Create directory structure
-mkdir -p /opt/helpdesk
-mkdir -p /var/helpdesk/uploads
-mkdir -p /var/helpdesk/backups
-mkdir -p /var/log/helpdesk
-
-# Set permissions
-chown -R helpdesk:helpdesk /opt/helpdesk
-chown -R helpdesk:helpdesk /var/helpdesk
-chown -R helpdesk:helpdesk /var/log/helpdesk
-
-# Clone/copy application
-# Option A: Git
-# su - helpdesk
-# git clone https://github.com/yourusername/tiket-app.git /opt/helpdesk/app
-
-# Option B: Copy from your development machine
-# rsync -avz ./tiket-app/ helpdesk@server:/opt/helpdesk/app/
-
-# Switch to app directory
-su - helpdesk
+~~~bash
 cd /opt/helpdesk/app
-```
-
----
-
-## 6. Configure Environment Variables
-
-```bash
-# Create .env.local with production settings
-cat > /opt/helpdesk/app/.env.local <<EOF
-# Database
-DATABASE_URL="postgresql://helpdesk:CHANGE_THIS_STRONG_PASSWORD@localhost:5432/helpdesk"
-
-# Auth
-NEXTAUTH_URL="https://ticket.example.com"
-AUTH_SECRET="$(openssl rand -base64 32)"
-
-# File Storage
-UPLOAD_DIR="/var/helpdesk/uploads"
-MAX_FILE_SIZE_MB="10"
-ALLOWED_EXTENSIONS="jpg,jpeg,png,gif,webp,pdf,doc,docx,xls,xlsx,txt,zip,csv"
-
-# Application
-APP_URL="https://ticket.example.com"
-APP_NAME="HelpDesk"
-NODE_ENV="production"
-
-# Email (optional)
-SMTP_HOST=""
-SMTP_PORT="587"
-SMTP_USER=""
-SMTP_PASS=""
-SMTP_FROM="noreply@example.com"
-EOF
-
-chmod 600 /opt/helpdesk/app/.env.local
-```
-
----
-
-## 7. Install Dependencies and Build
-
-```bash
-cd /opt/helpdesk/app
-
-# Install production dependencies
-npm ci --omit=dev
-
-# Run database migrations
-npm run db:generate  # Generate migration files (if not already done)
-npm run db:migrate   # Apply migrations to PostgreSQL
-
-# First-time only: configure a unique owner in .env.local before seeding.
-# BOOTSTRAP_OWNER_EMAIL, BOOTSTRAP_OWNER_PASSWORD (12+ characters), BOOTSTRAP_OWNER_NAME.
-# No demo accounts or tickets are installed by default.
-npx tsx scripts/seed.ts
-
-# Build Next.js
+npm ci --include=dev --no-audit --no-fund
+npm run db:migrate
 npm run build
-```
+~~~
 
-Existing installations: the system update hook runs `npx tsx scripts/production-cleanup.ts --apply`. It archives exact legacy demo tickets and their related rows in `production_cleanup_archive` before deleting them in the same transaction. It preserves real tickets, users, and ticket numbering. Run without `--apply` to inspect matches. Keep `SEED_DEMO_DATA` unset in production; demo seeding is opt-in and disabled when `NODE_ENV=production`. Mobile authentication requires a private `AUTH_SECRET` or `NEXTAUTH_SECRET` of at least 32 characters.
+Untuk database baru saja, isi BOOTSTRAP_OWNER_EMAIL, BOOTSTRAP_OWNER_PASSWORD (minimal 12 karakter), dan BOOTSTRAP_OWNER_NAME sebelum menjalankan npm run db:seed. Jangan mengaktifkan SEED_DEMO_DATA di produksi.
 
----
+5. Pasang deploy/helpdesk.service sebagai /etc/systemd/system/helpdesk.service, sesuaikan path dan akun, lalu:
 
-## 8. Systemd Service
+~~~bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now helpdesk
+sudo systemctl status helpdesk
+~~~
 
-```bash
-# Create systemd service
-cat > /etc/systemd/system/helpdesk.service <<EOF
-[Unit]
-Description=HelpDesk Ticketing Application
-After=network.target postgresql.service
-Requires=postgresql.service
+Akun layanan harus bisa menulis checkout, node_modules, .next, serta direktori upload/backup agar update web dapat bekerja. Jangan menjalankan app sebagai root. Restart=always diperlukan agar aplikasi kembali hidup setelah updater keluar dengan sukses.
 
-[Service]
-Type=simple
-User=helpdesk
-Group=helpdesk
-WorkingDirectory=/opt/helpdesk/app
-ExecStart=/usr/bin/node /opt/helpdesk/app/.next/standalone/server.js
-Restart=always
-RestartSec=5
-StandardOutput=append:/var/log/helpdesk/app.log
-StandardError=append:/var/log/helpdesk/error.log
-Environment=PORT=3000
-Environment=HOSTNAME=127.0.0.1
-EnvironmentFile=/opt/helpdesk/app/.env.local
+6. Gunakan reverse proxy/Tunnel yang mengarahkan domain utama ke 127.0.0.1:3000. Jika Tunnel lama sudah menuju Nginx, pertahankan Nginx dan arahkan proxy aplikasi ke port tersebut. Teruskan Host, X-Forwarded-Host, dan X-Forwarded-Proto dengan benar. Nonaktifkan buffering untuk SSE/chat dan log update. Tidak perlu hostname API/CDN tambahan.
 
-# Security
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=/var/helpdesk /var/log/helpdesk
+## Memeriksa pemasangan
 
-[Install]
-WantedBy=multi-user.target
-EOF
+~~~bash
+curl -fsS http://127.0.0.1:3000/healthz
+curl -fsS http://127.0.0.1:3000/api/health
+sudo journalctl -u helpdesk -n 100 --no-pager
+~~~
 
-systemctl daemon-reload
-systemctl enable helpdesk
-systemctl start helpdesk
-systemctl status helpdesk
-```
+/healthz melaporkan service monolith. /api/health juga menguji database. Uji login, dashboard, tiket, chat realtime, foto/lampiran, peta, unduhan APK, dan menu update lewat domain utama.
 
-> **Note:** For Next.js standalone output, add `output: 'standalone'` to `next.config.ts`
+## Android dan printer
 
----
+APK 3.7.1 (kode 19) kembali menggunakan domain utama untuk API, login, aset, dan update. Sertifikat penandatanganan harus sama agar bisa dipasang menimpa versi sebelumnya tanpa menghapus data/draf. APK 3.7.0 lama mengarah ke domain terpisah; gunakan APK baru ini. Perubahan source Android harus dibuild ulang sebelum menjalankan scripts/android-release-manifest.ts; jangan mengubah metadata/hash seolah APK sudah dibuild.
 
-## 9. Nginx Configuration
+Printer USB tersambung ke komputer pengguna yang membuka Chrome/Edge melalui HTTPS/localhost, bukan ke server hosting. Lihat NIIMBOT-USB.md.
 
-```bash
-# Create Nginx site configuration
-cat > /etc/nginx/sites-available/helpdesk <<'EOF'
-upstream helpdesk_app {
-    server 127.0.0.1:3000;
-    keepalive 64;
-}
+## Batas validasi
 
-server {
-    listen 80;
-    server_name ticket.example.com;
-    
-    # Redirect HTTP to HTTPS
-    return 301 https://$host$request_uri;
-}
+Validasi lokal pada 8 November 2026: seluruh 123 pengujian lulus, build produksi berhasil, dan satu proses aplikasi berhasil melayani halaman login, autentikasi, aset, peta, serta APK 3.7.1. Pemeriksaan HTTP juga memastikan API terlindungi dan update tanpa login ditolak. APK dibuild ulang dan sertifikatnya cocok dengan rilis sebelumnya.
 
-server {
-    listen 443 ssl http2;
-    server_name ticket.example.com;
-
-    # SSL (managed by Certbot)
-    ssl_certificate /etc/letsencrypt/live/ticket.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/ticket.example.com/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
-    # Security headers
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Frame-Options DENY always;
-    add_header X-Content-Type-Options nosniff always;
-    add_header Referrer-Policy strict-origin-when-cross-origin always;
-
-    # File upload limit
-    client_max_body_size 15M;
-
-    # SSE support (disable buffering)
-    location /api/sse {
-        proxy_pass http://helpdesk_app;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection '';
-        proxy_cache off;
-        proxy_buffering off;
-        proxy_read_timeout 86400s;
-        proxy_send_timeout 86400s;
-        chunked_transfer_encoding on;
-    }
-
-    # Static assets (long cache)
-    location /_next/static/ {
-        proxy_pass http://helpdesk_app;
-        expires 365d;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # API routes
-    location /api/ {
-        proxy_pass http://helpdesk_app;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Main application
-    location / {
-        proxy_pass http://helpdesk_app;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-EOF
-
-# Enable site
-ln -s /etc/nginx/sites-available/helpdesk /etc/nginx/sites-enabled/
-nginx -t
-systemctl reload nginx
-```
-
----
-
-## 10. HTTPS with Let's Encrypt
-
-```bash
-certbot --nginx -d ticket.example.com --email admin@example.com --agree-tos --no-eff-email
-```
-
----
-
-## 11. Log Rotation
-
-```bash
-cat > /etc/logrotate.d/helpdesk <<EOF
-/var/log/helpdesk/*.log {
-    daily
-    missingok
-    rotate 14
-    compress
-    delaycompress
-    notifempty
-    create 640 helpdesk helpdesk
-    postrotate
-        systemctl reload helpdesk 2>/dev/null || true
-    endscript
-}
-EOF
-```
-
----
-
-## 12. Verify Deployment
-
-```bash
-# Check service status
-systemctl status helpdesk
-
-# Check health endpoint
-curl http://localhost:3000/api/health
-
-# Check Nginx
-nginx -t
-systemctl status nginx
-
-# Check logs
-journalctl -u helpdesk -f
-tail -f /var/log/helpdesk/app.log
-tail -f /var/log/helpdesk/error.log
-```
-
----
-
-## Default Login Credentials
-
-After seeding, use these accounts:
-
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@helpdesk.local | Admin@123456 |
-| Agent | agent@helpdesk.local | Agent@123456 |
-| User | user@helpdesk.local | User@123456 |
-
-**⚠️ Change all passwords immediately after first login!**
+Tes updater memakai simulasi Git, instalasi, migrasi dan restart. Tidak ada pull/reset, perubahan database, restart atau deploy pada server produksi selama pengujian lokal. Build dan smoke test lokal dilaporkan terpisah dari verifikasi server fisik.

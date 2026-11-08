@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSSE } from "@/hooks/use-sse";
+import { PrintTicketButton } from "@/components/printing/printer-provider";
 
 export default function TicketDetailPage() {
   const params = useParams();
@@ -202,6 +203,7 @@ export default function TicketDetailPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <PrintTicketButton ticket={ticket} />
           {isStaff && (
             <Link href="/chat">
               <Button

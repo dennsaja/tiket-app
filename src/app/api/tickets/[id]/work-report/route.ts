@@ -1,3 +1,4 @@
+import { applicationRoot } from "@/lib/runtime/paths";
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { getAuthUser } from "@/lib/auth/get-user";
@@ -101,7 +102,7 @@ export async function POST(
   let beforePhotoUrls: string[] = [];
   let afterPhotoUrls: string[] = [];
 
-  const uploadDirResolved = path.resolve(process.cwd(), UPLOAD_DIR);
+  const uploadDirResolved = path.resolve(applicationRoot(), UPLOAD_DIR);
   await fs.mkdir(uploadDirResolved, { recursive: true });
 
   if (contentType.includes("multipart/form-data")) {

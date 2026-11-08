@@ -46,12 +46,12 @@ describe("Authentication", () => {
     expect(result.success).toBe(false);
   });
 
-  it("should reject login with invalid email", () => {
+  it("should accept a username as the existing login identifier", () => {
     const result = loginSchema.safeParse({
-      email: "not-an-email",
+      email: "teknisi-01",
       password: "password123",
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it("should accept valid login credentials format", () => {

@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { AutoPrintToggle, usePrinter } from "@/components/printing/printer-provider";
 
 type TicketType = "psb" | "perbaikan_infrastruktur" | "pemasangan_cctv" | "perbaikan_cctv" | "maintenance";
 
@@ -86,6 +87,7 @@ const TICKET_TYPE_OPTIONS = [
 
 export default function NewTicketPage() {
   const router = useRouter();
+  const printer = usePrinter();
   const { data: session, status: authStatus } = useSession();
   const userRole = (session?.user as any)?.role;
 
@@ -333,6 +335,7 @@ export default function NewTicketPage() {
       }
 
       toast.success("Tiket dan penugasan teknisi berhasil dibuat!");
+      printer.afterSaved(newTicket);
       router.push(`/tickets/${newTicket.id}`);
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan");
@@ -396,6 +399,7 @@ export default function NewTicketPage() {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <AutoPrintToggle />
         {/* Step 1: Visual Ticket Type Selector */}
         <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-black space-y-3">
           <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2.5">

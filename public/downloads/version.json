@@ -1,14 +1,14 @@
 {
-  "versionCode": 18,
-  "versionName": "3.7.0",
+  "versionCode": 19,
+  "versionName": "3.7.1",
   "minSupportedVersion": 1,
   "downloadUrl": "/downloads/helpdesk-teknisi.apk",
-  "updatedAt": "2026-10-30T17:27:00.982Z",
-  "sha256": "9c780e19a8dc38a1cf688f3188e58eac53157110bc58d225796fe58cc48e8133",
-  "fileSizeBytes": 6170697,
-  "androidSourceSha256": "8dc2dc2fefb3d95189c4d1788c4db58e720bc0bf1468ff24b7974abacebb821e",
-  "apiOrigin": "https://kds-serviceapp.infinityteknik.net",
+  "updatedAt": "2026-11-08T06:53:12.303Z",
+  "sha256": "3bf321c0338da1121e810f48dc42fe232ddb6da00b749967d30a658b1f63d598",
+  "fileSizeBytes": 6170631,
+  "androidSourceSha256": "64cf1cfa53a8e2735d4743581c11bc9c0953dfa43c3b013f2ccbc0ceabb82100",
+  "apiOrigin": "https://helpdesk.infinityteknik.net",
   "frontendOrigin": "https://helpdesk.infinityteknik.net",
-  "cdnOrigin": "https://cdn0.infinityteknik.net",
-  "releaseNotes": "v3.7.0: Frontend, API, dan CDN pada domain terpisah. API aplikasi memakai kds-serviceapp.infinityteknik.net, login browser tetap melalui helpdesk.infinityteknik.net. Aktifkan layanan dan domain baru di server sebelum memasang atau mengirim rilis ini ke tim. Animasi tugas, profil, chat, GPS, dan updater tetap tersedia."
+  "cdnOrigin": "https://helpdesk.infinityteknik.net",
+  "releaseNotes": "v3.7.1: Aplikasi kembali memakai satu domain helpdesk.infinityteknik.net untuk web, API, login, aset, dan pembaruan. Tiket, chat, GPS, profil, draf, dan pembaruan dari console tetap tersedia."
 }

@@ -8,6 +8,7 @@ import { spawn, exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import fs from "fs";
+import { updateProjectDirectory } from "@/lib/updates/project";
 
 const execAsync = promisify(exec);
 
@@ -127,7 +128,7 @@ export async function GET(req: NextRequest) {
   }
 
   const git = getGitCommand();
-  const cwd = process.cwd();
+  const cwd = updateProjectDirectory();
   let localCommit = "unknown";
   let localCommitShort = "unknown";
   let localBranch = GITHUB_BRANCH;
@@ -226,7 +227,7 @@ export async function POST(req: NextRequest) {
 
   const clientIp = getClientIp(req);
   const git = getGitCommand();
-  const cwd = process.cwd();
+  const cwd = updateProjectDirectory();
   const startTime = Date.now();
 
   // Create real-time ReadableStream response
@@ -313,10 +314,7 @@ export async function POST(req: NextRequest) {
           throw new Error(`Git reset gagal dengan exit code ${resetRes.exitCode}`);
         }
 
-        // Clean untracked files
-        try {
-          await runCmd(`${git} clean -fd`, cwd, 15000);
-        } catch {}
+        // Keep operator files and local configuration during updates.
 
         // Step 5: Read active commit
         let newCommit = "unknown";
@@ -326,33 +324,15 @@ export async function POST(req: NextRequest) {
           log("GIT", `Commit aktif saat ini: #${newCommit}`);
         } catch {}
 
-        // Step 5b: Install Node.js Dependencies (npm install)
-        log("NPM", "Memeriksa dan memperbarui dependensi Node.js (npm install)...");
-        send({ type: "status", message: "Menginstal paket dependensi (npm install)...", progress: 40 });
-        const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
-        try {
-          const installRes = await spawnStreamingCmd(
-            `${npmCmd} install --include=dev --prefer-offline --no-audit --legacy-peer-deps`,
-            cwd,
-            (line) => log("NPM_INSTALL", line),
-            300000,
-            { NODE_ENV: "development" }
-          );
-          if (installRes.exitCode !== 0) {
-            log("NPM_WARN", `npm install tahap 1 exit code ${installRes.exitCode}, mencoba fallback...`);
-            await spawnStreamingCmd(
-              `${npmCmd} install --legacy-peer-deps`,
-              cwd,
-              (line) => log("NPM_FALLBACK", line),
-              300000,
-              { NODE_ENV: "development" }
-            );
-          } else {
-            log("NPM", "Dependensi Node.js berhasil diverifikasi dan terinstal.");
-          }
-        } catch (npmErr: any) {
-          log("NPM_ERR", `npm install error: ${npmErr.message}`);
-        }
+        // Install exactly the versions committed to GitHub, including build tools.
+        log('NPM', 'Menginstal dependensi dari package-lock.json (npm ci)...');
+        send({ type: 'status', message: 'Menginstal dependensi aplikasi...', progress: 40 });
+        const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+        const installRes = await spawnStreamingCmd(
+          npmCmd + ' ci --include=dev --no-audit --no-fund', cwd,
+          line => log('NPM_INSTALL', line), 300000, { NODE_ENV: 'development' }
+        );
+        if (installRes.exitCode !== 0) throw new Error('Instalasi dependensi gagal. Pembaruan dihentikan sebelum build/restart.');
 
         // Step 6: Database Schema & Enum Sync
         log("DB", "Sinkronisasi tipe enum dan skema database PostgreSQL...");
@@ -488,7 +468,7 @@ export async function POST(req: NextRequest) {
             log("DB", "Migrasi database Drizzle selesai.");
           }
         } catch (migErr: any) {
-          log("DB_WARN", `Pemberitahuan migrasi: ${migErr.message}`);
+          throw new Error(`Migrasi database gagal. Pembaruan dihentikan: ${migErr.message}`);
         }
 
         // Step 7: Dynamic Update Hooks & Custom Commands Support
@@ -580,7 +560,7 @@ export async function POST(req: NextRequest) {
           "npm run build",
           cwd,
           (line) => log("BUILD", line),
-          300000 // 5 minutes max
+          1200000 // Allow production builds up to 20 minutes
         );
 
         if (buildRes.exitCode !== 0) {
@@ -589,11 +569,7 @@ export async function POST(req: NextRequest) {
         }
 
         log("BUILD", "Kompilasi Next.js berhasil 100%!");
-        if (process.env.SPLIT_DEPLOY_ENABLED === "true") {
-          log("DEPLOY", "Memublikasikan frontend dan aset CDN...");
-          const deploy = await spawnStreamingCmd("bash scripts/publish-split.sh", cwd, line => log("DEPLOY", line), 180000);
-          if (deploy.exitCode !== 0) throw new Error("Publikasi frontend/CDN gagal. Periksa log deployment sebelum mengulang pembaruan.");
-        }
+
         send({ type: "status", message: "Pembaruan berhasil diterapkan!", progress: 100 });
 
         const durationSec = Math.round((Date.now() - startTime) / 1000);
@@ -624,8 +600,8 @@ export async function POST(req: NextRequest) {
 
         // Trigger detached background restart for systemd / PM2
         try {
-          if (process.platform === "linux" && process.env.SPLIT_DEPLOY_ENABLED !== "true") {
-            const restartCmd = "sleep 3 && (systemctl restart helpdesk 2>/dev/null || pm2 restart helpdesk 2>/dev/null || pm2 reload all 2>/dev/null || kill -SIGUSR2 1 2>/dev/null || true)";
+          if (process.platform === "linux") {
+            const restartCmd = "sleep 3 && (systemctl restart helpdesk 2>/dev/null || pm2 restart helpdesk 2>/dev/null || true)";
             const restartProc = spawn("sh", ["-c", restartCmd], {
               detached: true,
               stdio: "ignore",

@@ -1,8 +1,9 @@
+import { applicationRoot } from "@/lib/runtime/paths";
 import { promises as fs } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 /** Normalize Windows line endings so a signed Windows build matches its Linux Git checkout. */
-export async function androidSourceFingerprint(root = process.cwd()) {
+export async function androidSourceFingerprint(root = applicationRoot()) {
   const files: string[] = [];
   async function walk(relative: string) {
     const entries = await fs.readdir(path.join(root, relative), { withFileTypes: true });

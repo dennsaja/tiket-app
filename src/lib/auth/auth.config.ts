@@ -2,12 +2,11 @@ import type { NextAuthConfig } from "next-auth";
 
 export const authConfig: NextAuthConfig = {
   trustHost: true,
-  ...(process.env.AUTH_COOKIE_DOMAIN ? {
-    cookies: Object.fromEntries(["sessionToken", "csrfToken", "callbackUrl"].map((key) => [key, {
-      name: (process.env.NODE_ENV === "production" ? "__Secure-" : "") + "authjs." + ({ sessionToken: "session-token", csrfToken: "csrf-token", callbackUrl: "callback-url" } as Record<string, string>)[key],
-      options: { domain: process.env.AUTH_COOKIE_DOMAIN, path: "/", httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const },
-    }])),
-  } : {}),
+  // Host-only names avoid collisions with cookies from an older split deployment.
+  cookies: Object.fromEntries(['sessionToken', 'csrfToken', 'callbackUrl'].map(key => [key, {
+    name: (process.env.NODE_ENV === 'production' ? '__Secure-' : '') + 'helpdesk.' + ({ sessionToken: 'session-token', csrfToken: 'csrf-token', callbackUrl: 'callback-url' } as Record<string, string>)[key],
+    options: { path: '/', httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const },
+  }])),
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -57,6 +56,8 @@ export const authConfig: NextAuthConfig = {
         "/api/technicians/location",
         "/mobile-auth",
         "/download",
+        "/map/",
+        "/sw.js",
       ];
       if (publicPaths.some((p) => pathname.startsWith(p))) {
         return true;

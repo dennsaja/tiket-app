@@ -16,7 +16,7 @@ async function main() {
     apiOrigin: sessionSource.match(/DEFAULT_SERVER_URL = "([^"]+)"/)?.[1],
     frontendOrigin: sessionSource.match(/DEFAULT_WEB_URL = "([^"]+)"/)?.[1],
     cdnOrigin: sessionSource.match(/DEFAULT_CDN_URL = "([^"]+)"/)?.[1],
-    releaseNotes: "v3.7.0: Frontend, API, dan CDN pada domain terpisah. API aplikasi memakai kds-serviceapp.infinityteknik.net, login browser tetap melalui helpdesk.infinityteknik.net. Aktifkan layanan dan domain baru di server sebelum memasang atau mengirim rilis ini ke tim. Animasi tugas, profil, chat, GPS, dan updater tetap tersedia.",
+    releaseNotes: "v3.7.1: Aplikasi kembali memakai satu domain helpdesk.infinityteknik.net untuk web, API, login, aset, dan pembaruan. Tiket, chat, GPS, profil, draf, dan pembaruan dari console tetap tersedia.",
   };
   await fs.writeFile("public/downloads/version.json", JSON.stringify(release, null, 2) + "\n");
   console.log(JSON.stringify(release));

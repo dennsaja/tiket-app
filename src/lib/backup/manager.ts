@@ -1,3 +1,4 @@
+import { applicationRoot } from "@/lib/runtime/paths";
 import fs from "fs/promises";
 import path from "path";
 import { createZipArchive, parseZipArchive, ZipEntry } from "./zip";
@@ -41,7 +42,7 @@ export interface BackupFileInfo {
  * Ensures the backup storage directory exists.
  */
 async function ensureBackupDirectory(): Promise<string> {
-  const dir = path.resolve(process.cwd(), BACKUP_DIR);
+  const dir = path.resolve(applicationRoot(), BACKUP_DIR);
   await fs.mkdir(dir, { recursive: true });
   return dir;
 }

@@ -1,3 +1,4 @@
+import { applicationRoot } from "@/lib/runtime/paths";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getAuthUser } from "@/lib/auth/get-user";
@@ -91,7 +92,7 @@ export async function POST(
 
   // Generate secure filename
   const storedName = `${nanoid()}.${ext}`;
-  const uploadDirResolved = path.resolve(process.cwd(), UPLOAD_DIR);
+  const uploadDirResolved = path.resolve(applicationRoot(), UPLOAD_DIR);
   const storagePath = path.join(uploadDirResolved, storedName);
 
   // Ensure upload directory exists

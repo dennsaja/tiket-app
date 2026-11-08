@@ -1,3 +1,4 @@
+import { applicationRoot } from "@/lib/runtime/paths";
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth/get-user";
 import { db } from "@/lib/db";
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
 
   // Generate unique file name
   const storedName = `avatar_${nanoid(24)}.jpg`;
-  const uploadDirResolved = path.resolve(process.cwd(), AVATAR_UPLOAD_DIR);
+  const uploadDirResolved = path.resolve(applicationRoot(), AVATAR_UPLOAD_DIR);
   const storagePath = path.join(uploadDirResolved, storedName);
 
   // Ensure directory exists

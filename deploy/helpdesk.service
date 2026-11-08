@@ -1,0 +1,23 @@
+[Unit]
+Description=HelpDesk web application
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=helpdesk
+Group=helpdesk
+WorkingDirectory=/opt/helpdesk/app
+EnvironmentFile=/opt/helpdesk/app/.env.local
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3000
+Environment=APP_ROOT=/opt/helpdesk/app
+ExecStart=/usr/bin/node /opt/helpdesk/app/scripts/start-app.mjs
+Restart=always
+RestartSec=5
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
