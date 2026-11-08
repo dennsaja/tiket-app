@@ -20,3 +20,21 @@ Lihat [instalasi satu aplikasi](DEPLOY.md) dan [printer USB](NIIMBOT-USB.md).
 File publish-split.sh dipertahankan sebagai pesan kompatibilitas untuk proses updater versi lama yang sedang berjalan ketika kode baru ditarik. File ini tidak memublikasikan aset atau mengelola layanan; updater baru tidak memanggilnya.
 
 Penambahan kolom username dan klasifikasi kategori sekarang memakai migrasi skema idempoten, terpisah dari script reset akun/data lama. Migrasi tipe tiket/laporan yang sudah tersedia juga didaftarkan dalam journal. Penggabungan layanan tidak menghapus atau membuat ulang isi tabel.
+
+## Pemulihan login 500 setelah pembaruan satu layanan
+
+Pada commit 43bccdb, standalone tidak membaca .env.local di checkout: halaman login dan /healthz dapat terbuka, tetapi /api/auth/csrf, /api/auth/providers, dan /api/health gagal dengan 500. Peluncur sekarang membaca konfigurasi checkout sebelum kode login/database dimuat. Build juga memasang pemuat konfigurasi pada server.js untuk layanan systemd lama yang menjalankan berkas tersebut langsung. Berkas .env tetap berada di checkout; nilainya tidak disalin ke paket build.
+
+Jika tidak bisa masuk untuk memakai updater web, lakukan pemulihan satu kali dari terminal server. Contoh ini memakai lokasi dan nama layanan pada panduan pemasangan; sesuaikan bila berbeda. Jalankan Git dan penyiapan build sebagai akun pemilik aplikasi. Perintah ini memakai build yang sudah ada dan tidak memerlukan migrasi atau build ulang:
+
+~~~bash
+set -e
+cd /opt/helpdesk/app
+git pull --ff-only origin main
+node scripts/prepare-standalone.mjs
+sudo systemctl restart helpdesk
+curl -fsS http://127.0.0.1:3000/api/auth/csrf
+curl -fsS http://127.0.0.1:3000/api/health
+~~~
+
+Jika memakai PM2, gunakan pm2 restart helpdesk sebagai pengganti perintah restart systemd. Jika git pull berhenti karena ada perubahan lokal atau branch berbeda, jangan reset paksa; periksa pesan Git terlebih dahulu. Setelah login pulih, pembaruan berikutnya tetap melalui web seperti biasa.

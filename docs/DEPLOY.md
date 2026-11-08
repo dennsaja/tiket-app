@@ -12,6 +12,8 @@ Login ulang sekali mungkin diperlukan karena cookie sesi sekarang host-only deng
 
 Jika layanan saat ini menjalankan .next/standalone/server.js, itu tetap didukung: build menyalin public dan static ke standalone. Updater mencari checkout Git di atas folder standalone. Upload, avatar, backup, topologi, metadata APK, dan pemeriksaan sumber Android memakai folder sumber/data, bukan folder build yang diganti. Jika source checkout berada di tempat lain, set APP_ROOT ke folder yang memiliki .git dan package.json.
 
+Peluncur npm start dan entry standalone langsung membaca .env.production.local, .env.local, .env.production, serta .env dari checkout menggunakan aturan Next.js. Variabel yang sudah disediakan systemd/PM2 tetap diprioritaskan. Konfigurasi harus dimuat sebelum proses berpindah ke folder standalone; berkas .env tidak dimasukkan ke build. Jika login terkena error 500 pada pembaruan awal, lihat [langkah pemulihan](UPDATE.md#pemulihan-login-500-setelah-pembaruan-satu-layanan).
+
 ## Instalasi baru pada Ubuntu
 
 Prasyarat: Git, Node.js minimal 20.9 (tersedia pada /usr/bin/node untuk contoh systemd), npm, PostgreSQL, dan akun Linux helpdesk. Gunakan Node yang memenuhi versi minimum dalam package Next terpasang.

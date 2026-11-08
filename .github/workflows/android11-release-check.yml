@@ -26,10 +26,12 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - name: Test application boundaries and GitHub updater
-        run: npx vitest run src/__tests__/monolith-network.test.ts src/__tests__/system-update.test.ts --maxWorkers=1
+        run: npx vitest run src/__tests__/monolith-network.test.ts src/__tests__/system-update.test.ts src/__tests__/startup-env.test.ts --maxWorkers=1
       - run: npm run build
       - name: Check web, login, API and assets in one process
         run: bash .github/scripts/monolith-check.sh
+      - name: Check authentication with configuration from env files
+        run: node scripts/smoke-env-file.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
