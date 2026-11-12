@@ -5,6 +5,7 @@ import { planLabel, mmToPixels, ticketLines } from "@/lib/printing/layout";
 import { paperReading } from "@/lib/printing/paper";
 import { resolveProfile, ROLL_CATALOG, saveProfile } from "@/lib/printing/profiles";
 import { PrintQueue } from "@/lib/printing/queue";
+import { PrinterPresence } from "@/lib/printing/presence";
 import { DEFAULT_LAYOUT } from "@/lib/printing/types";
 import type { LabelProfile, PaperReading, PrinterIdentity, PrintableTicket, StorageLike } from "@/lib/printing/types";
 
@@ -20,6 +21,15 @@ const reading = (patch: Partial<PaperReading> = {}): PaperReading => ({ checkedA
 afterEach(() => vi.useRealTimers());
 
 describe("label layout", () => {
+  it("fits both folded panels within a single strip and keeps mandatory fields in automatic mode", () => {
+    const input = { ...ticket, title: "laporan panjang ".repeat(100), transactionCode: "TRX-10" };
+    const plan = planLabel(input, { ...profile, folded: true }, printer, DEFAULT_LAYOUT, measure);
+    expect(plan.error).toBeUndefined();
+    expect(plan.width).toBe(240);
+    expect(plan.compact).toBe(true);
+    expect(plan.lines.map(line => line.text).join("")).toContain("TRX-10");
+    for (const line of plan.lines) expect(line.x + measure(line.text, line.size).width).toBeLessThan(plan.width / 2);
+  });
   it("converts mm at sourced DPI and caps physical 15mm paper to 96 printable dots", () => {
     expect(mmToPixels(25.4, 203)).toBe(203);
     const plan = planLabel(ticket, profile, printer, DEFAULT_LAYOUT, measure);
@@ -44,7 +54,7 @@ describe("label layout", () => {
   });
   it("blocks an overfull full template and allows the user's explicit compact choice", () => {
     const long = { ...ticket, title: "Alamat dan laporan panjang ".repeat(30) };
-    expect(planLabel(long, profile, printer, DEFAULT_LAYOUT, measure).error).toBeTruthy();
+    expect(planLabel(long, profile, printer, { ...DEFAULT_LAYOUT, template: "full" }, measure).error).toBeTruthy();
     expect(planLabel(long, profile, printer, { ...DEFAULT_LAYOUT, template: "compact" }, measure).error).toBeUndefined();
   });
   it("keeps actual glyph metrics inside area under calibration and portrait rotation", () => {
@@ -72,6 +82,28 @@ describe("label layout", () => {
 });
 
 describe("paper read responses and manual fallback", () => {
+  it("converts missing millimetre fields from printer dots, normalizes feed direction and falls back to the RFID type", () => {
+    const tag = { tagPresent: true, uuid: "r", barCode: "sku", serialNumber: "", allPaper: 10, usedPaper: 0, consumablesType: 1 };
+    const reading = paperReading(tag, { valid: true, paperWidthPixel: 320, paperHeightPixel: 96, paperType: 0 });
+    expect(reading).toMatchObject({ inserted: true, dimensions: { widthMm: 12, lengthMm: 40 }, labelType: 1 });
+    expect(resolveProfile(paperReading(tag, undefined, [], { paperInserted: false }), memory())).toBeUndefined();
+    expect(paperReading(undefined, undefined, [], { paperInserted: true }).inserted).toBe(true);
+  });
+  it("recalls folded calibration on another roll of the same product and accepts new measured dimensions", () => {
+    const storage = memory();
+    saveProfile({ ...profile, rollId: "old", productCode: "sku", folded: true }, storage);
+    expect(resolveProfile(reading({ rollId: "new", productCode: "sku" }), storage)).toMatchObject({ confirmed: true, folded: true });
+    expect(resolveProfile(reading({ productCode: "sku", dimensions: { widthMm: 12, lengthMm: 65 } }), storage))
+      .toMatchObject({ confirmed: true, folded: true, widthMm: 12, lengthMm: 65, labelType: 1 });
+  });
+  it("retains a measured correction until the device reports a different size", () => {
+    const storage = memory(), dimensions = { widthMm: 12, lengthMm: 30 };
+    saveProfile({ ...profile, rollId: "same", measuredAtConfirmation: dimensions }, storage);
+    expect(resolveProfile(reading({ rollId: "same", dimensions }), storage))
+      .toMatchObject({ widthMm: 15, source: "manual", confirmed: true });
+    expect(resolveProfile(reading({ rollId: "same", dimensions: { widthMm: 12, lengthMm: 60 } }), storage))
+      .toMatchObject({ widthMm: 12, lengthMm: 60, source: "printer" });
+  });
   it("does not infer dimensions from RFID identity or a size-looking barcode", () => {
     const paper = paperReading({ tagPresent: true, uuid: "roll-1", barCode: "15x30", serialNumber: "serial", allPaper: 100, usedPaper: 1, consumablesType: 1 }, { valid: false });
     expect(paper.rollId).toBe("roll-1"); expect(paper.dimensions).toBeUndefined();
@@ -153,6 +185,21 @@ describe("model safety and bounded completion", () => {
     port.dispatchEvent(new Event("disconnect"));
     await vi.waitFor(() => expect(disconnected).toHaveBeenCalled());
     expect(cancel).toHaveBeenCalledTimes(1); expect(close).toHaveBeenCalledTimes(1); expect(client.isConnected()).toBe(false);
+  });
+});
+
+describe("shared USB presence", () => {
+  it("keeps independent hosts visible, protects ownership, and expires a silent host", () => {
+    const registry = new PrinterPresence();
+    registry.update("a", "admin-1", "admin", true, 1000);
+    registry.update("b", "noc-1", "noc", true, 2000);
+    expect(registry.roles(3000)).toEqual(["admin", "noc"]);
+    expect(registry.update("a", "noc-1", "noc", false, 4000)).toBe(false);
+    registry.update("b", "noc-1", "noc", false, 5000);
+    expect(registry.roles(5000)).toEqual(["admin"]);
+    registry.update("a", "admin-1", "admin", true, 60000);
+    expect(registry.roles(91000)).toEqual(["admin"]);
+    expect(registry.roles(150000)).toEqual([]);
   });
 });
 

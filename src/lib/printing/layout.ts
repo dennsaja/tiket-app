@@ -7,6 +7,7 @@ export type MeasureText = (text: string, size: number) => { width: number; ascen
 interface Line { text: string; x: number; baseline: number; size: number }
 export interface LayoutPlan {
   width: number; height: number; lines: Line[];
+  compact?: boolean;
   qr?: { x: number; y: number; moduleSize: number; size: number; data: Uint8Array };
   error?: string;
 }
@@ -49,8 +50,9 @@ export function planLabel(ticket: PrintableTicket, profile: LabelProfile, printe
   if (!validSize(profile) || ![203].includes(printer.dpi) || printer.headPixels !== 96) return fail("Ukuran/geometri printer tidak valid.");
   if (!Object.values(settings).every(value => typeof value !== "number" || Number.isFinite(value))
     || settings.marginMm < 0.25 || settings.minFontPx < 8 || settings.minFontPx > 24) return fail("Margin minimum 0,25 mm; font minimum 8–24 piksel.");
-  const logicalWidth = settings.orientation === "portrait" ? height : width;
-  const logicalHeight = settings.orientation === "portrait" ? width : height;
+  const panelWidth = profile.folded ? Math.floor(width / 2) : width;
+  const logicalWidth = settings.orientation === "portrait" ? height : panelWidth;
+  const logicalHeight = settings.orientation === "portrait" ? panelWidth : height;
   const margin = Math.ceil(settings.marginMm * printer.dpi / 25.4);
   const ox = mmToPixels(settings.offsetXmm, printer.dpi), oy = mmToPixels(settings.offsetYmm, printer.dpi);
   const left = margin + Math.abs(ox) + ox, top = margin + Math.abs(oy) + oy;
@@ -83,8 +85,9 @@ export function planLabel(ticket: PrintableTicket, profile: LabelProfile, printe
       }
       if (!fits) break;
     }
-    if (fits) return { ...plan, lines };
+    if (fits) return { ...plan, lines, compact: settings.template === "compact" };
   }
+  if (settings.template === "auto") return planLabel(ticket, profile, printer, { ...settings, template: "compact" }, measure);
   return fail("Isi tiket tidak muat pada batas font minimum. Pilih template ringkas (nomor tiket dan kode transaksi), atau ukuran label lain. Cetak diblokir.");
 }
 export interface RenderedLabel { canvas: HTMLCanvasElement; previewUrl: string; plan: LayoutPlan; signature: string }
@@ -119,6 +122,14 @@ export async function renderLabel(ticket: PrintableTicket, profile: LabelProfile
     }
   }
   context.restore();
+  if (profile.folded) {
+    const panelWidth = Math.floor(canvas.width / 2);
+    context.save();
+    context.translate(canvas.width, canvas.height);
+    context.rotate(Math.PI);
+    context.drawImage(canvas, 0, 0, panelWidth, canvas.height, 0, 0, panelWidth, canvas.height);
+    context.restore();
+  }
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
   for (let index = 0; index < pixels.data.length; index += 4) {
     const color = pixels.data[index] < 160 ? 0 : 255;

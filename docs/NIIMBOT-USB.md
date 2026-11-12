@@ -2,6 +2,10 @@
 
 Implementasi ada pada alur tiket Next.js yang sudah tersedia. Pengaturan **Printer USB** tersedia pada dashboard, **Cetak Tiket** pada detail tiket, dan opsi cetak otomatis pada formulir tiket baru. Koneksi tetap hidup selama berpindah halaman dashboard; memuat ulang halaman memerlukan klik **Hubungkan USB** lagi.
 
+Admin, NOC, dan owner melihat status USB bersama. Komputer yang tersambung memperbarui status setiap 15 detik. Komputer lain memeriksanya setiap 8 detik. Mencabut USB atau menutup tab melepas status. Jika browser berhenti mendadak, status kedaluwarsa setelah 90 detik. Antrean dan tombol kirim cetak menggunakan USB lokal.
+
+Untuk **Label lipat dua panel**, gunakan panjang seluruh strip sebelum dilipat, centang pilihan tersebut dan simpan. Kedua panel menggunakan setengah panjang strip dengan margin masing-masing. Panel kedua diputar 180 derajat. Pilih **Otomatis sesuai ukuran** agar aplikasi memakai format ringkas jika detail lengkap tidak muat. Periksa preview sebelum mengirim.
+
 ## Menjalankan
 
 ```powershell
@@ -43,7 +47,7 @@ Referensi teknis: [koneksi serial USB](https://printers.niim.blue/interfacing/co
 1. Nyalakan printer dan pasang label. Hubungkan memakai **kabel USB data**. Tutup aplikasi NIIMBOT atau aplikasi lain yang memegang port printer.
 2. Buka **Printer USB → Hubungkan USB**. Pilih port printer melalui pemilih perangkat browser. Aplikasi menolak port yang tidak menyediakan VID/PID USB, termasuk port serial yang tidak dapat dibuktikan sebagai USB.
 3. Periksa identitas, firmware bila tersedia, dan versi protokol pada panel. **Siap** berarti negosiasi USB dan identitas didukung; belum berarti kertas sudah diketahui atau hasil cetak telah diuji.
-4. Aplikasi membaca kertas saat tersambung. Jika ukuran belum diketahui, isi **Lebar melintang** dan **Panjang searah feed** dalam mm, pilih jenis label, lalu **Konfirmasikan ukuran manual**. Batas profil yang diaktifkan aplikasi: lebar 5–15 mm, panjang 10–200 mm; kesesuaian roll nyata tetap harus diperiksa.
+4. Aplikasi membaca kertas saat tersambung. Jika ukuran belum diketahui, isi **Lebar melintang** dan **Panjang searah feed** dalam mm, pilih jenis label, lalu **Simpan ukuran dan bentuk label**. Batas profil yang diaktifkan aplikasi: lebar 5–15 mm, panjang 10–200 mm; kesesuaian roll nyata tetap harus diperiksa.
 5. Tekan **Cetak Uji** untuk memilih contoh uji, periksa preview, lalu **Kirim cetak uji**. Ini sengaja dua langkah agar preview dapat diperiksa sebelum memakai kertas.
 6. Pada detail tiket, tekan **Cetak Tiket**, periksa template/preview, lalu kirim. Template lengkap memuat nomor, judul, jenis tiket, PIC, telepon, prioritas yang tersedia, serta kode transaksi jika tersedia. Template ringkas hanya memuat nomor dan kode transaksi. Aplikasi ini sebelumnya tidak memiliki barcode; QR identitas tiket tersedia sebagai opsi.
 7. Aktifkan cetak otomatis hanya jika diinginkan. Pemicu berada sesudah API pembuatan tiket berhasil dan proses lampiran selesai. Tidak ada pemicu cetak dari SSE, refresh detail tiket, atau pembaruan status. Jika USB belum siap, tiket tetap tersimpan dan panel menjelaskan bahwa cetak dilewati.
@@ -69,9 +73,9 @@ Pembacaan hanya memakai `rfidInfo()` dan `getPaperInfo()` melalui port USB. Tida
 
 | Sumber ukuran pada UI | Arti |
 | --- | --- |
-| **Terdeteksi dari printer** | Respons PaperInfo valid menyediakan lebar dan panjang eksplisit yang lolos batas profil. Parser upstream membedakan respons 18 byte yang diketahui dengan respons pendek yang dimensinya belum dipahami. Dimensi dalam mm mengikuti parser library, termasuk perlakuan gap sesuai model. |
-| **Pemetaan kode roll** | Kode produk cocok dengan `ROLL_CATALOG` di `src/lib/printing/profiles.ts`. Setiap entri harus mencantumkan URL spesifikasi produsen atau rujukan pengukuran yang dapat diperiksa. Katalog awal sengaja kosong karena tidak tersedia bukti kode roll pengguna. |
-| **Diatur manual** | Ukuran dimasukkan/dikonfirmasi pengguna atau dipulihkan dari profil manual dengan identitas roll yang sama. Sumber ini tidak dipromosikan menjadi hasil deteksi printer. |
+| **Terdeteksi dari printer** | Respons PaperInfo valid menyediakan lebar dan panjang eksplisit yang lolos batas profil. Parser upstream membedakan respons 18 byte yang diketahui dengan respons pendek yang dimensinya belum dipahami. Aplikasi menggunakan ukuran dalam mm atau mengonversi ukuran piksel pada 203 DPI, termasuk perlakuan gap sesuai model. Keberadaan kertas ditampilkan terpisah dari ukurannya. |
+| **Pemetaan kode roll** | Kode produk cocok dengan `ROLL_CATALOG` di `src/lib/printing/profiles.ts`. Setiap entri harus mencantumkan URL spesifikasi produsen atau rujukan pengukuran yang dapat diperiksa. Katalog mencakup SKU label persegi panjang dan transparan yang terdaftar pada halaman D110_M NIIMBOT USA. |
+| **Diatur manual** | Ukuran dimasukkan/dikonfirmasi pengguna atau dipulihkan dari profil manual dengan identitas roll atau kode produk yang sama. Sumber ini tidak dipromosikan menjadi hasil deteksi printer. |
 
 UUID RFID/serial roll dipakai sebagai identitas profil jika benar-benar dilaporkan untuk tag yang hadir. Barcode hanya diperlakukan sebagai kode produk; format seperti `15x30` tidak otomatis diparse menjadi ukuran. Label tanpa identitas menampilkan ukuran terakhir sebagai saran yang perlu dikonfirmasi setelah tersambung atau menekan **Periksa Kertas**. Dalam sesi yang sama, pilihan manual yang sudah dikonfirmasi boleh dipakai untuk pembacaan sebelum cetak selama informasi roll tidak berubah. Jenis label `Invalid`/0 diperlakukan sebagai tidak diketahui, sehingga pilihan jenis manual tetap dapat digunakan; bila hanya dimensi yang diketahui saat tersambung, jenis label harus dikonfirmasi.
 
@@ -132,7 +136,7 @@ npm run build
 
 Pengujian otomatis memakai metrik font simulasi untuk batas layout, penyimpanan memori, respons status mock, serta stream/port USB simulasi. Cakupan: beberapa ukuran label dan teks panjang, nomor/kode transaksi wajib, font minimum/orientasi/offset, QR, ukuran tidak diketahui, profil manual per roll, pemisahan sumber ukuran, varian tidak didukung, port tanpa VID/PID, pencabutan port dengan read tertunda, timeout dengan penghitung 0 dari 1, antrean berurutan, klik/event berulang, reload saat dispatch, kegagalan penyimpanan, dan cetak ulang eksplisit.
 
-**Belum diuji pada printer fisik:** negosiasi USB unit pengguna, dukungan RFID/PaperInfo pada firmware unit tersebut, makna dimensi/gap/arah roll pada respons nyata, kalibrasi feed/offset, kepekatan, keterbacaan teks/QR, dan konfirmasi penyelesaian printer. Metrik font canvas produksi memakai font browser nyata, tetapi pengujian layout otomatis belum membuktikan hasil visual pada browser atau label nyata. Pemeriksaan browser dalam sesi implementasi terhambat koneksi webview; jangan memperlakukan itu sebagai uji UI lulus.
+**Belum diuji pada printer fisik:** negosiasi USB unit pengguna, dukungan RFID/PaperInfo pada firmware unit tersebut, makna dimensi/gap/arah roll pada respons nyata, kalibrasi feed/offset, kepekatan, keterbacaan teks/QR, dan konfirmasi penyelesaian printer. Pemeriksaan bitmap di Chrome membandingkan setiap piksel kedua panel pada orientasi mendatar dan tegak. Pengujian ini belum mencakup hasil cetak fisik.
 
 ### Checklist uji fisik sebelum operasional
 

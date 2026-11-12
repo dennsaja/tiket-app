@@ -19,6 +19,7 @@ export interface PrinterIdentity {
 export interface LabelSize { widthMm: number; lengthMm: number }
 export interface PaperReading {
   checkedAt: string;
+  inserted?: boolean;
   rollId?: string;
   productCode?: string;
   labelType?: number;
@@ -28,6 +29,9 @@ export interface PaperReading {
 }
 export interface LabelProfile extends LabelSize {
   source: SizeSource;
+  productCode?: string;
+  folded?: boolean;
+  measuredAtConfirmation?: LabelSize;
   rollId?: string;
   labelType: number;
   confirmed: boolean;
@@ -39,12 +43,12 @@ export interface LayoutSettings {
   offsetYmm: number;
   minFontPx: number;
   orientation: "landscape" | "portrait";
-  template: "full" | "compact";
+  template: "auto" | "full" | "compact";
   qr: boolean;
 }
 export const DEFAULT_LAYOUT: LayoutSettings = {
   marginMm: 0.75, offsetXmm: 0, offsetYmm: 0, minFontPx: 11,
-  orientation: "landscape", template: "full", qr: false,
+  orientation: "landscape", template: "auto", qr: false,
 };
 export interface PrintableTicket {
   id: string;

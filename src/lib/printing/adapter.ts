@@ -54,7 +54,10 @@ export class NiimbotUsbAdapter {
     const notes: string[] = [];
     const rfid = await this.client.protocol.rfidInfo().catch(() => { notes.push("RFID tidak tersedia lewat USB pada unit/firmware ini."); return undefined; });
     const paper = await this.client.protocol.getPaperInfo().catch(() => { notes.push("Dimensi PaperInfo tidak tersedia."); return undefined; });
-    return paperReading(rfid, paper, notes);
+    const sensor = await this.client.protocol.heartbeat().catch(() => undefined);
+    const type = (!paper?.valid || !paper.paperType) && (!rfid?.tagPresent || !rfid.consumablesType)
+      ? await this.client.protocol.getLabelType().catch(() => undefined) : undefined;
+    return paperReading(rfid, paper, notes, sensor, type);
   }
   async preflight(profile: LabelProfile) {
     if (!this.identity || !this.client.isConnected()) throw new Error("USB belum siap.");
