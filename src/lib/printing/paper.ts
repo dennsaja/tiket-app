@@ -18,6 +18,7 @@ export function paperReading(rfid: RfidInfo | undefined, paper: PaperInfo | unde
   return {
     checkedAt: new Date().toISOString(),
     inserted: sensor?.paperInserted ?? (hasTag || dimensions ? true : undefined),
+    lidClosed: sensor?.lidClosed,
     rollId: hasTag ? (rfid.uuid || rfid.serialNumber || undefined) : undefined,
     productCode: hasTag ? rfid.barCode || undefined : undefined,
     // LabelType.Invalid (0) conveys no usable type; it must not defeat an

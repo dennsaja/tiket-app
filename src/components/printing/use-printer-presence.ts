@@ -4,14 +4,16 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { apiFetch } from "@/lib/network/client";
 import { PRINTER_ROLES } from "@/lib/printing/presence";
+import type { PrinterTransport } from "@/lib/printing/types";
 
-export function usePrinterPresence(connected: boolean) {
+export function usePrinterPresence(transport?: PrinterTransport) {
   const { data: session } = useSession();
   const role = (session?.user as { role?: string } | undefined)?.role;
   const [status, setStatus] = useState("");
   useEffect(() => {
     if (!role || !PRINTER_ROLES.includes(role)) { setStatus(""); return; }
-    const endpoint = "/api/printer/presence" + (connected ? "?host=" + crypto.randomUUID() : "");
+    const connected = !!transport;
+    const endpoint = "/api/printer/presence" + (connected ? "?host=" + crypto.randomUUID() + "&transport=" + transport : "");
     let stopped = false, busy = false;
     const release = () => {
       if (connected) void apiFetch(endpoint, { method: "DELETE", keepalive: true }).catch(() => {});
@@ -22,8 +24,9 @@ export function usePrinterPresence(connected: boolean) {
       try {
         const response = await apiFetch(endpoint, { method: connected ? "PUT" : "GET", cache: "no-store", signal: AbortSignal.timeout(6500) });
         if (!response.ok) throw new Error();
-        const { roles }: { roles: string[] } = await response.json();
-        if (!stopped) setStatus(roles.length ? "Terhubung · " + roles.join(", ").toUpperCase() : "");
+        const { roles, bluetoothRoles = [] }: { roles: string[]; bluetoothRoles?: string[] } = await response.json();
+        const hosts = [roles.length && "USB · " + roles.join(", ").toUpperCase(), bluetoothRoles.length && "Bluetooth · " + bluetoothRoles.join(", ").toUpperCase()].filter(Boolean);
+        if (!stopped) setStatus(hosts.length ? "Terhubung · " + hosts.join(" / ") : "");
       } catch {
         if (!stopped) setStatus("Status bersama belum tersedia");
       } finally {
@@ -43,6 +46,6 @@ export function usePrinterPresence(connected: boolean) {
       window.removeEventListener("pagehide", release);
       release();
     };
-  }, [connected, role, session?.user?.id]);
+  }, [transport, role, session?.user?.id]);
   return status;
 }

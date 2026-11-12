@@ -11,11 +11,12 @@ import { renderLabel } from "@/lib/printing/layout";
 import type { RenderedLabel } from "@/lib/printing/layout";
 import { DEFAULT_LAYOUT, JOB_LABELS, SIZE_SOURCES } from "@/lib/printing/types";
 import type { ConnectionState, LabelProfile, LayoutSettings, PaperReading, PrintableTicket, PrintJob, PrinterIdentity } from "@/lib/printing/types";
-import type { NiimbotUsbAdapter } from "@/lib/printing/adapter";
+import type { NiimbotAdapter, PrinterDevice } from "@/lib/printing/adapter";
+import type { PrinterTransport } from "@/lib/printing/types";
 import { usePrinterPresence } from "./use-printer-presence";
 
 const STATE_LABELS: Record<ConnectionState, string> = { disconnected: "Tidak terhubung", connecting: "Menghubungkan", ready: "Siap", printing: "Mencetak", error: "Bermasalah" };
-const SAMPLE: PrintableTicket = { id: "USB-TEST", ticketNumber: "UJI-001", title: "Uji cetak USB", reporterName: "NIIMBOT", priority: "normal" };
+const SAMPLE: PrintableTicket = { id: "USB-TEST", ticketNumber: "UJI-001", title: "Uji cetak D110", reporterName: "NIIMBOT", priority: "normal" };
 interface PrinterContextValue {
   state: ConnectionState; statusLabel: string; autoPrint: boolean;
   setAutoPrint(value: boolean): void;
@@ -34,8 +35,9 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
   const [visible, setVisible] = React.useState(false);
   const [ticket, setTicket] = React.useState<PrintableTicket>(SAMPLE);
   const [identity, setIdentity] = React.useState<PrinterIdentity>();
-  const sharedStatus = usePrinterPresence(!!identity);
-  const statusLabel = identity ? "Terhubung · komputer ini" : sharedStatus || STATE_LABELS[state];
+  const [transport, setTransport] = React.useState<PrinterTransport>();
+  const sharedStatus = usePrinterPresence(identity ? transport : undefined);
+  const statusLabel = identity ? `Terhubung · ${transport} komputer ini` : sharedStatus || STATE_LABELS[state];
   const [paper, setPaper] = React.useState<PaperReading>();
   const [profile, setProfile] = React.useState<LabelProfile>();
   const [settings, setSettings] = React.useState<LayoutSettings>(DEFAULT_LAYOUT);
@@ -48,10 +50,11 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
   const [jobs, setJobs] = React.useState<PrintJob[]>([]);
   const [reprintOf, setReprintOf] = React.useState<string>();
   const [manual, setManual] = React.useState({ widthMm: "", lengthMm: "", labelType: "1", folded: false });
-  const adapter = React.useRef<NiimbotUsbAdapter | null>(null);
+  const adapter = React.useRef<NiimbotAdapter | null>(null);
   const queue = React.useRef<PrintQueue | null>(null);
   const releaseLock = React.useRef<(() => void) | null>(null);
   const connecting = React.useRef(false);
+  const testing = React.useRef(false);
   const operation = React.useRef(false);
   const reprintIntent = React.useRef<string>("");
   const config = React.useRef({ state, profile, paper, identity, settings, autoPrint });
@@ -106,17 +109,28 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
     } catch (err) { setProfile(undefined); report(err); setState("error"); }
     finally { operation.current = false; setChecking(false); }
   }
-  async function connect() {
+  async function connect(method: PrinterTransport) {
     if (connecting.current || adapter.current) return;
     connecting.current = true; setError(""); setState("connecting");
     try {
-      if (!window.isSecureContext || !navigator.serial?.requestPort) throw new Error("Web Serial tidak tersedia. Gunakan Chrome/Edge desktop melalui HTTPS atau localhost. USB yang hanya mengisi daya tidak dapat dipakai mencetak.");
+      if (!window.isSecureContext) throw new Error("Buka HelpDesk melalui HTTPS atau localhost untuk menghubungkan printer.");
       if (!navigator.locks) throw new Error("Browser tidak mendukung penguncian printer antar-tab. Gunakan Chrome/Edge desktop terbaru.");
       // Must run in the click handler before lazy loading or other awaits.
-      const port = await navigator.serial.requestPort();
-      const portInfo = port.getInfo();
-      setDiagnostics(JSON.stringify({ transport: "USB serial", port: portInfo, secureContext: window.isSecureContext, browser: navigator.userAgent }, null, 2));
-      if (portInfo.usbVendorId === undefined || portInfo.usbProductId === undefined) throw new Error("Port terpilih tidak memiliki VID/PID USB. Hanya perangkat USB serial yang diizinkan.");
+      let selected: PrinterDevice;
+      if (method === "USB") {
+        if (!navigator.serial?.requestPort) throw new Error("Web Serial tidak tersedia. Gunakan Chrome/Edge desktop atau pilih Bluetooth.");
+        const port = await navigator.serial.requestPort();
+        const portInfo = port.getInfo();
+        setDiagnostics(JSON.stringify({ transport: method, port: portInfo }, null, 2));
+        if (portInfo.usbVendorId === undefined || portInfo.usbProductId === undefined) throw new Error("Pilih port USB printer, atau gunakan tombol Bluetooth.");
+        selected = { transport: method, port };
+      } else {
+        if (!navigator.bluetooth?.requestDevice) throw new Error("Web Bluetooth tidak tersedia. Buka HelpDesk di Chrome atau Edge dengan Bluetooth aktif.");
+        const service = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
+        const device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: "D110" }, { services: [service] }], optionalServices: [service] });
+        selected = { transport: method, device };
+        setDiagnostics(JSON.stringify({ transport: method, name: device.name }, null, 2));
+      }
       await new Promise<void>((resolve, reject) => {
         void navigator.locks.request("tiket-niimbot-usb-printer", { ifAvailable: true }, async lock => {
           if (!lock) { reject(new Error("Printer sedang dikendalikan tab lain. Putuskan di tab tersebut terlebih dahulu.")); return; }
@@ -128,21 +142,23 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
         if (queue.current?.storageError) setError(queue.current.storageError);
       });
       setJobs([...queue.current.jobs]);
-      const { NiimbotUsbAdapter } = await import("@/lib/printing/adapter");
-      const device = new NiimbotUsbAdapter(port);
+      const { NiimbotAdapter } = await import("@/lib/printing/adapter");
+      const device = new NiimbotAdapter(selected);
       adapter.current = device;
       device.client.on("disconnect", () => {
+        if (adapter.current !== device) return;
         setState("disconnected"); setProfile(undefined); setIdentity(undefined); setPaper(undefined);
         adapter.current = null;
         releaseLock.current?.(); releaseLock.current = null;
       });
       const result = await device.connect();
-      setIdentity(result.identity); setState("ready");
+      setTransport(method); setIdentity(result.identity); setState("ready");
       setDiagnostics(previous => `${previous}\n${JSON.stringify(result, null, 2)}`);
       await checkPaper();
     } catch (err) {
       const { usbError } = await import("@/lib/printing/usb-connection");
-      const message = usbError(err); setError(message); setState("error");
+      const message = method === "USB" ? usbError(err) : `Bluetooth: ${err instanceof Error ? err.message : String(err)}. Periksa Bluetooth dan tutup aplikasi lain yang sedang memakai printer.`;
+      setError(message); setState("error");
       setDiagnostics(previous => `${previous}\n${new Date().toISOString()} ${message}`);
       await adapter.current?.disconnect(); adapter.current = null;
       releaseLock.current?.(); releaseLock.current = null;
@@ -176,7 +192,7 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
       if (rendered) throw new Error(`Tiket ini sudah memiliki pekerjaan: ${JOB_LABELS[existing.state]}. Gunakan Cetak ulang pada riwayat jika diperlukan.`);
       return;
     }
-    if (current.state !== "ready" && current.state !== "printing") throw new Error("USB belum siap. Hubungkan melalui tombol Hubungkan USB.");
+    if (current.state !== "ready" && current.state !== "printing") throw new Error("Printer belum siap. Pilih Hubungkan USB atau Hubungkan Bluetooth.");
     if (!device || !currentQueue || !current.identity || !current.profile?.confirmed || !current.paper) throw new Error("Periksa kertas dan konfirmasikan ukuran sebelum mencetak.");
     if (operation.current) throw new Error("Pemeriksaan kertas masih berjalan.");
     const selectedProfile = current.profile, selectedPaper = current.paper;
@@ -185,7 +201,7 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
     if (previousJob) currentQueue.allowReprint(previousJob);
     currentQueue.enqueue(nextTicket, {
       prepare: async () => {
-        if (!device.client.isConnected()) throw new Error("USB terputus sebelum pengiriman.");
+        if (!device.client.isConnected()) throw new Error("Printer terputus sebelum pengiriman.");
         const reading = await device.readPaper();
         // A manual choice is valid for this session only while identity and dimensions agree.
         const observedSizeChanged = reading.dimensions?.widthMm !== selectedPaper.dimensions?.widthMm ||
@@ -195,7 +211,7 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
           if (adapter.current === device) displayPaper(reading);
           throw new Error("Informasi roll/ukuran berubah. Periksa Kertas, konfirmasikan ukuran, lalu tinjau preview baru.");
         }
-        await device.preflight(selectedProfile);
+        device.preflight(selectedProfile, reading);
       },
       print: async waiting => {
         setState("printing");
@@ -206,11 +222,28 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
   }
   function afterSaved(next: PrintableTicket) {
     if (!config.current.autoPrint) return;
-    if (config.current.state !== "ready") { setError("Tiket tersimpan. Cetak otomatis dilewati karena USB belum siap."); open(next); return; }
+    if (config.current.state !== "ready") { setError("Tiket tersimpan. Cetak otomatis dilewati karena printer belum siap."); open(next); return; }
     void submit(next).catch(err => { report(err); open(next); });
+  }
+  async function printTest() {
+    if (testing.current || queue.current?.busy) return;
+    testing.current = true;
+    setError("");
+    try {
+      const sample = { ...SAMPLE, id: `USB-TEST-${crypto.randomUUID()}` };
+      setTicket(sample); setReprintOf(undefined);
+      await submit(sample);
+    } catch (error) { report(error); }
+    finally { testing.current = false; }
   }
   async function chooseReprint(job: PrintJob) {
     try {
+      if (state === "error" && adapter.current?.client.isConnected()) await checkPaper();
+      if (job.ticketId.startsWith("USB-TEST")) {
+        setTicket({ ...SAMPLE, id: job.ticketId });
+        reprintIntent.current = crypto.randomUUID(); setReprintOf(job.id);
+        return;
+      }
       const response = await apiFetch(`/api/tickets/${encodeURIComponent(job.ticketId)}`);
       if (!response.ok) throw new Error("Tiket untuk cetak ulang tidak dapat dimuat atau izin akses ditolak.");
       reprintIntent.current = crypto.randomUUID();
@@ -231,19 +264,22 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
   const busy = checking || state === "connecting" || !!queue.current?.busy;
   const canPrint = (state === "ready" || state === "printing") && !!profile?.confirmed && !!preview && !checking;
   const displayedJobs = [...jobs].reverse().filter((job, index) => index < 30 || ["unknown", "queued", "sending", "awaiting_confirmation"].includes(job.state));
+  const selectedJob = displayedJobs.find(job => job.ticketId === ticket.id);
   return <PrinterContext.Provider value={{ state, statusLabel, autoPrint, setAutoPrint, open, afterSaved }}>
     {children}
-    <Modal open={visible} onOpenChange={setVisible} title="Printer label USB · NIIMBOT D110" description="Koneksi dan antrean cetak pada browser ini" size="xl">
+    <Modal open={visible} onOpenChange={setVisible} title="Printer label · NIIMBOT D110" description="Koneksi dan antrean cetak pada browser ini" size="xl">
       <div className="space-y-5 text-sm">
         <div role="status" aria-live="polite" className="flex flex-wrap items-center gap-2">
           <strong>{statusLabel}</strong>
           {identity && <span>{STATE_LABELS[state]}</span>}
-          <Button size="sm" onClick={() => void connect()} disabled={state === "connecting" || !!adapter.current}>Hubungkan USB</Button>
+          <Button size="sm" onClick={() => void connect("USB")} disabled={state === "connecting" || !!adapter.current}>Hubungkan USB</Button>
+          <Button size="sm" variant="outline" onClick={() => void connect("Bluetooth")} disabled={state === "connecting" || !!adapter.current}>Hubungkan Bluetooth</Button>
           <Button size="sm" variant="outline" onClick={() => void disconnect()} disabled={!adapter.current}>Putuskan</Button>
           <Button size="sm" variant="outline" onClick={() => void checkPaper()} disabled={busy || !adapter.current}>Periksa Kertas</Button>
-          <Button size="sm" variant="outline" onClick={() => { setTicket({ ...SAMPLE, id: `USB-TEST-${crypto.randomUUID()}` }); setReprintOf(undefined); }} disabled={busy}>Cetak Uji</Button>
+          <Button size="sm" variant="outline" onClick={() => void printTest()} disabled={busy || state !== "ready" || !profile?.confirmed}>Cetak label uji</Button>
         </div>
-        <p className="text-xs text-zinc-500">Admin dan NOC dapat melihat status USB dari komputer lain. Jalankan pencetakan di komputer yang memegang koneksi USB melalui Chrome atau Edge.</p>
+        {selectedJob && <p role="status" className="rounded-lg border p-3">Tiket #{selectedJob.ticketNumber} · {JOB_LABELS[selectedJob.state]}{selectedJob.message && <span className="block text-xs">{selectedJob.message}</span>}</p>}
+        <p className="text-xs text-zinc-500">Gunakan USB jika printer muncul sebagai port serial. Untuk Bluetooth, nyalakan printer dan pilih D110 di pemilih perangkat. Cetak dari komputer yang terhubung.</p>
         {identity && <div className="rounded-lg border p-3 text-xs space-y-1"><p>{identity.model} · ID {identity.modelId} · firmware {identity.firmware || "tidak dilaporkan"} · protokol {identity.protocol} · SN {identity.serial || "tidak dilaporkan"}</p><p>{identity.dpi} DPI · kepala cetak {identity.headPixels}px (≈{(identity.headPixels * 25.4 / identity.dpi).toFixed(2)} mm)</p><p className="text-zinc-500">{identity.geometrySource}</p></div>}
         {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-800 dark:bg-red-950 dark:text-red-200">{error}</p>}
         {identity && <><section className="space-y-3 rounded-lg border p-3">
@@ -271,21 +307,21 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
           <p className="text-xs">Preview tiket #{ticket.ticketNumber}. Lebar fisik roll dapat melebihi area kepala cetak. Preview menampilkan bitmap area cetak yang sama persis dengan data yang dikirim; tanpa peregangan bitmap.</p>
           {layoutError && <p role="alert" className="text-amber-700 dark:text-amber-300">{layoutError}</p>}
           {preview && <div className="overflow-auto rounded-lg bg-zinc-200 p-4"><img src={preview.previewUrl} width={preview.canvas.width} height={preview.canvas.height} style={{ imageRendering: "pixelated", maxWidth: "none" }} alt={`Preview label tiket ${ticket.ticketNumber}`} /><p className="mt-2 text-xs text-zinc-700">{preview.canvas.width} × {preview.canvas.height} piksel · {preview.plan.compact ? "Ringkas: judul, PIC, telepon, jenis, dan prioritas tidak dicantumkan." : "Lengkap"}</p></div>}
-          <Button size="sm" disabled={!canPrint} onClick={() => {
+          {(!ticket.id.startsWith("USB-TEST") || reprintOf) && <Button size="sm" disabled={!canPrint} onClick={() => {
             if (reprintOf && !window.confirm("Cetak ulang dapat menghasilkan label ganda. Sudah memeriksa kertas dan ingin mencetak ulang?")) return;
             void submit(ticket, preview, reprintOf).then(() => setReprintOf(undefined)).catch(report);
-          }}>{reprintOf ? "Konfirmasi Cetak ulang" : ticket.id.startsWith("USB-TEST") ? "Kirim cetak uji" : "Cetak Tiket"}</Button>
+          }}>{reprintOf ? "Konfirmasi Cetak ulang" : "Cetak Tiket"}</Button>}
           <AutoPrintToggle />
         </section></>}
         <section className="space-y-2"><strong>Antrean dan riwayat browser ini</strong>{jobs.length === 0 && <p className="text-xs">Belum ada pekerjaan pada browser ini.</p>}{displayedJobs.map(job => <div key={job.id} className="rounded border p-2 text-xs space-y-1"><p>#{job.ticketNumber} · {JOB_LABELS[job.state]}{job.confirmation === "user" ? " (ditandai pengguna)" : ""}</p><p className="font-mono break-all">Job {job.id}</p>{job.message && <p>{job.message}</p>}{job.state === "unknown" && <Button size="sm" variant="outline" disabled={busy} onClick={() => { if (window.confirm("Anda sudah memeriksa dan memastikan label ini tercetak?")) void acknowledgeJob(job.id); }}>Tandai sudah tercetak</Button>}{["unknown", "confirmed", "failed"].includes(job.state) && <Button size="sm" variant="outline" disabled={!adapter.current || busy} onClick={() => void chooseReprint(job)}>Cetak ulang</Button>}</div>)}</section>
-        <details><summary>Diagnostik USB</summary><pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-all text-xs">{diagnostics || "Belum ada port yang dipilih. Batal/tidak muncul di pemilih port belum cukup untuk menyimpulkan USB unit hanya untuk pengisian daya."}</pre>{paper && <pre className="mt-2 max-h-60 overflow-auto text-xs">{JSON.stringify(paper.raw, null, 2)}</pre>}</details>
+        <details><summary>Diagnostik printer</summary><pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-all text-xs">{diagnostics || "Pilih USB atau Bluetooth untuk melihat hasil koneksi."}</pre>{paper && <pre className="mt-2 max-h-60 overflow-auto text-xs">{JSON.stringify(paper.raw, null, 2)}</pre>}</details>
       </div>
     </Modal>
   </PrinterContext.Provider>;
 }
 export function PrinterSettingsButton() {
   const printer = usePrinter();
-  return <Button variant="ghost" size="sm" onClick={() => printer.open()} leftIcon={<Usb className="h-4 w-4" />}>Printer USB · {printer.statusLabel}</Button>;
+  return <Button variant="ghost" size="sm" onClick={() => printer.open()} leftIcon={<Usb className="h-4 w-4" />}>Printer · {printer.statusLabel}</Button>;
 }
 export function PrintTicketButton({ ticket }: { ticket: PrintableTicket }) {
   const printer = usePrinter();
@@ -293,5 +329,5 @@ export function PrintTicketButton({ ticket }: { ticket: PrintableTicket }) {
 }
 export function AutoPrintToggle() {
   const printer = usePrinter();
-  return <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={printer.autoPrint} onChange={event => printer.setAutoPrint(event.target.checked)} />Cetak otomatis setelah tiket tersimpan (hanya saat USB siap)</label>;
+  return <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={printer.autoPrint} onChange={event => printer.setAutoPrint(event.target.checked)} />Cetak otomatis setelah tiket tersimpan (hanya saat printer siap)</label>;
 }

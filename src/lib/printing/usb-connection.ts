@@ -1,5 +1,6 @@
 import { NiimbotAbstractClient, ConnectEvent, DisconnectEvent, RawPacketSentEvent, ConnectResult } from "@mmote/niimbluelib";
-import type { ConnectionInfo, NiimbotClientType } from "@mmote/niimbluelib";
+import type { ConnectionInfo, NiimbotClientType, NiimbotPacket } from "@mmote/niimbluelib";
+import { sendWithReply } from "./reply";
 
 export function usbError(error: unknown): string {
   const name = error instanceof Error ? error.name : "";
@@ -97,6 +98,10 @@ export class UsbSerialConnection extends NiimbotAbstractClient {
   }
   override isConnected() { return !!this.port && !!this.writer && !!this.reader && !this.closing; }
   override getType(): NiimbotClientType { return "serial"; }
+  override sendPacketWaitResponse(packet: NiimbotPacket, timeoutMs = 1000): Promise<NiimbotPacket> {
+    if (packet.oneWay) return super.sendPacketWaitResponse(packet, timeoutMs);
+    return this.mutex.runExclusive(() => sendWithReply(this, packet, timeoutMs));
+  }
   override async sendRaw(data: Uint8Array, force?: boolean) {
     const send = async () => {
       await new Promise(resolve => setTimeout(resolve, this.packetIntervalMs));

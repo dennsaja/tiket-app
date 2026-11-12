@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { identifyPrinter, waitForCompletion } from "@/lib/printing/adapter";
+import { identifyPrinter, NiimbotAdapter, waitForCompletion } from "@/lib/printing/adapter";
+import { NiimbotPacket, PacketReceivedEvent } from "@mmote/niimbluelib";
 import { UsbSerialConnection } from "@/lib/printing/usb-connection";
 import { planLabel, mmToPixels, ticketLines } from "@/lib/printing/layout";
 import { paperReading } from "@/lib/printing/paper";
@@ -142,8 +143,54 @@ describe("paper read responses and manual fallback", () => {
 });
 
 describe("model safety and bounded completion", () => {
+  it.each(["USB", "Bluetooth"] as const)("sends one D110 page over %s even when replies arrive during a write", async transport => {
+    const adapter = new NiimbotAdapter(transport === "USB" ? { transport, port: {} as SerialPort } : { transport, device: {} as BluetoothDevice });
+    const client = adapter.client;
+    Object.assign(client.getPrinterInfo(), { modelId: 2304, protocolVersion: 0 });
+    adapter.identity = identifyPrinter(client.getPrinterInfo());
+    vi.spyOn(client, "isConnected").mockReturnValue(true);
+    const commands: NiimbotPacket[] = [];
+    vi.spyOn(client, "sendPacket").mockImplementation(async packet => {
+      commands.push(packet);
+      if (!packet.oneWay) {
+        const data = packet.command === 0xa3 ? [0, 1, 100, 100] : [1];
+        client.emit("packetreceived", new PacketReceivedEvent(new NiimbotPacket(packet.validResponseIds[0], data)));
+      }
+    });
+    const pixels = { width: 240, height: 96, data: new Uint8ClampedArray(240 * 96 * 4).fill(255) };
+    pixels.data.fill(0, 0, 4);
+    const canvas = { width: 240, height: 96, getContext: () => ({ getImageData: () => pixels }) } as unknown as HTMLCanvasElement;
+    const waiting = vi.fn();
+    await adapter.print(canvas, profile, waiting);
+    expect(commands.map(packet => packet.command)).toEqual([0x21, 0x23, 0x01, 0x03, 0x13, 0x85, 0x84, 0x84, 0xe3, 0xa3, 0xf3]);
+    expect(commands[2].data.length).toBe(7);
+    expect(Array.from(commands[4].data)).toEqual([0, 240, 0, 96, 0, 1]);
+    expect(waiting).toHaveBeenCalledOnce();
+  });
+  it("subscribes to GATT notifications on the selected D110 and releases the connection", async () => {
+    const channel = Object.assign(new EventTarget(), {
+      uuid: "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f", properties: { notify: true, writeWithoutResponse: true },
+      startNotifications: vi.fn().mockResolvedValue(undefined),
+    });
+    const device = new EventTarget();
+    const gatt = {
+      connected: true, connect: vi.fn(), disconnect: vi.fn(() => { gatt.connected = false; device.dispatchEvent(new Event("gattserverdisconnected")); }),
+      getPrimaryServices: vi.fn(async () => [{ uuid: "e7810a71-73ae-499d-8c15-faa9aef0c3f2", getCharacteristics: async () => [channel] }]),
+    };
+    gatt.connect.mockResolvedValue(gatt);
+    const adapter = new NiimbotAdapter({ transport: "Bluetooth", device: Object.assign(device, { name: "D110-test", gatt }) as unknown as BluetoothDevice });
+    const info = Object.assign(adapter.client.getPrinterInfo(), { modelId: 2304, protocolVersion: 0, connectResult: 1 });
+    vi.spyOn(adapter.client.protocol, "connectNegotiate").mockResolvedValue({ connectResult: 1, protocolVersion: 0, supportColor: false });
+    vi.spyOn(adapter.client, "fetchPrinterInfo").mockResolvedValue(info);
+    vi.spyOn(adapter.client, "fetchRfidInfo").mockResolvedValue({});
+    expect((await adapter.connect()).identity.task).toBe("B1");
+    expect(channel.startNotifications).toHaveBeenCalledOnce();
+    await adapter.disconnect();
+    expect(gatt.disconnect).toHaveBeenCalledOnce();
+    expect(adapter.client.isConnected()).toBe(false);
+  });
   it("distinguishes D110 from D110_M and selects version-specific tasks", () => {
-    expect(identifyPrinter({ settings: { powerSound: false, connectionSound: false, autoShutdownTime: 1 }, modelId: 2304, protocolVersion: 3 }).task).toBe("D110");
+    expect(identifyPrinter({ settings: { powerSound: false, connectionSound: false, autoShutdownTime: 1 }, modelId: 2304, protocolVersion: 3 }).task).toBe("B1");
     expect(identifyPrinter({ settings: { powerSound: false, connectionSound: false, autoShutdownTime: 1 }, modelId: 2320, protocolVersion: 3 }).task).toBe("B1");
     expect(identifyPrinter({ settings: { powerSound: false, connectionSound: false, autoShutdownTime: 1 }, modelId: 2320, protocolVersion: 4 }).task).toBe("D110M_V4");
   });
@@ -163,7 +210,7 @@ describe("model safety and bounded completion", () => {
     expect(status).toHaveBeenCalledTimes(2);
   });
   it("handles unplugging and printer error responses", async () => {
-    await expect(waitForCompletion(vi.fn(), () => false)).rejects.toThrow("USB terputus");
+    await expect(waitForCompletion(vi.fn(), () => false)).rejects.toThrow("Printer terputus");
     await expect(waitForCompletion(async () => ({ page: 0, pagePrintProgress: 0, pageFeedProgress: 0, error: 2 }), () => true)).rejects.toThrow("kesalahan 2");
   });
   it("rejects a serial port without USB VID/PID before opening it", async () => {

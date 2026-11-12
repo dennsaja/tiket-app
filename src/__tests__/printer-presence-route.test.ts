@@ -23,3 +23,10 @@ it("restricts shared status to signed-in operators", async () => {
   auth.mockResolvedValue({ user: { id: "reporter", role: "user" } });
   expect((await GET()).status).toBe(403);
 });
+
+it("reports Bluetooth separately so other workstations do not show a USB connection", async () => {
+  auth.mockResolvedValue({ user: { id: "operator", role: "noc" } });
+  const url = "http://localhost/api/printer/presence?host=12345678-abcd-4321-8765-123456789013&transport=Bluetooth";
+  expect(await (await PUT(new Request(url, { method: "PUT" }))).json()).toEqual({ roles: [], bluetoothRoles: ["noc"] });
+  expect(await (await DELETE(new Request(url, { method: "DELETE" }))).json()).toEqual({ roles: [] });
+});

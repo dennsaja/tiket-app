@@ -1,10 +1,16 @@
-# Pencetakan tiket NIIMBOT D110 melalui USB
+# Pencetakan tiket NIIMBOT D110 melalui USB dan Bluetooth
 
-Implementasi ada pada alur tiket Next.js yang sudah tersedia. Pengaturan **Printer USB** tersedia pada dashboard, **Cetak Tiket** pada detail tiket, dan opsi cetak otomatis pada formulir tiket baru. Koneksi tetap hidup selama berpindah halaman dashboard; memuat ulang halaman memerlukan klik **Hubungkan USB** lagi.
+Implementasi ada pada alur tiket Next.js yang sudah tersedia. Pengaturan **Printer** tersedia pada dashboard, **Cetak Tiket** pada detail tiket, dan opsi cetak otomatis pada formulir tiket baru. Koneksi tetap hidup selama berpindah halaman dashboard; memuat ulang halaman memerlukan klik **Hubungkan USB** lagi.
 
 Admin, NOC, dan owner melihat status USB bersama. Komputer yang tersambung memperbarui status setiap 15 detik. Komputer lain memeriksanya setiap 8 detik. Mencabut USB atau menutup tab melepas status. Jika browser berhenti mendadak, status kedaluwarsa setelah 90 detik. Antrean dan tombol kirim cetak menggunakan USB lokal.
 
 Untuk **Label lipat dua panel**, gunakan panjang seluruh strip sebelum dilipat, centang pilihan tersebut dan simpan. Kedua panel menggunakan setengah panjang strip dengan margin masing-masing. Panel kedua diputar 180 derajat. Pilih **Otomatis sesuai ukuran** agar aplikasi memakai format ringkas jika detail lengkap tidak muat. Periksa preview sebelum mengirim.
+
+## Pilihan koneksi
+
+Utamakan **Hubungkan USB** di komputer yang menyediakan port serial printer. Untuk BLE, buka HelpDesk melalui HTTPS di Chrome atau Edge, tutup aplikasi NIIMBOT yang sedang memegang koneksi, lalu pilih **Hubungkan Bluetooth** dan perangkat D110. Kedua pilihan menggunakan antrean lokal dan konfirmasi hasil yang sama. Setelah koneksi terputus saat mengirim, periksa label sebelum mencetak ulang.
+
+Manual D110 mencantumkan Bluetooth sebagai antarmuka komunikasi. Implementasi BLE yang diuji penulisnya pada unit model 2304 menggunakan satu halaman per pekerjaan, perintah awal tujuh byte, ukuran halaman enam byte, dan pengiriman baris bitmap secara berurutan. [Manual NIIMBOT D110](https://www.niimbot.net/file/upload/instructions/2021-11/618a0e620a5d4.pdf) · [Implementasi dan catatan uji perangkat](https://github.com/iscarelli/niimbot-web-bluetooth/blob/main/src/niimbot.js)
 
 ## Menjalankan
 
@@ -45,20 +51,20 @@ Referensi teknis: [koneksi serial USB](https://printers.niim.blue/interfacing/co
 ## Menghubungkan dan mencetak
 
 1. Nyalakan printer dan pasang label. Hubungkan memakai **kabel USB data**. Tutup aplikasi NIIMBOT atau aplikasi lain yang memegang port printer.
-2. Buka **Printer USB → Hubungkan USB**. Pilih port printer melalui pemilih perangkat browser. Aplikasi menolak port yang tidak menyediakan VID/PID USB, termasuk port serial yang tidak dapat dibuktikan sebagai USB.
+2. Buka **Printer → Hubungkan USB**. Pilih port printer melalui pemilih perangkat browser. Aplikasi menolak port yang tidak menyediakan VID/PID USB, termasuk port serial yang tidak dapat dibuktikan sebagai USB.
 3. Periksa identitas, firmware bila tersedia, dan versi protokol pada panel. **Siap** berarti negosiasi USB dan identitas didukung; belum berarti kertas sudah diketahui atau hasil cetak telah diuji.
 4. Aplikasi membaca kertas saat tersambung. Jika ukuran belum diketahui, isi **Lebar melintang** dan **Panjang searah feed** dalam mm, pilih jenis label, lalu **Simpan ukuran dan bentuk label**. Batas profil yang diaktifkan aplikasi: lebar 5–15 mm, panjang 10–200 mm; kesesuaian roll nyata tetap harus diperiksa.
-5. Tekan **Cetak Uji** untuk memilih contoh uji, periksa preview, lalu **Kirim cetak uji**. Ini sengaja dua langkah agar preview dapat diperiksa sebelum memakai kertas.
+5. Setelah ukuran dikonfirmasi, tekan **Cetak label uji**. Tombol ini langsung mengantrekan satu label contoh. Hasil dan tahap kegagalan pekerjaan muncul di riwayat.
 6. Pada detail tiket, tekan **Cetak Tiket**, periksa template/preview, lalu kirim. Template lengkap memuat nomor, judul, jenis tiket, PIC, telepon, prioritas yang tersedia, serta kode transaksi jika tersedia. Template ringkas hanya memuat nomor dan kode transaksi. Aplikasi ini sebelumnya tidak memiliki barcode; QR identitas tiket tersedia sebagai opsi.
 7. Aktifkan cetak otomatis hanya jika diinginkan. Pemicu berada sesudah API pembuatan tiket berhasil dan proses lampiran selesai. Tidak ada pemicu cetak dari SSE, refresh detail tiket, atau pembaruan status. Jika USB belum siap, tiket tetap tersimpan dan panel menjelaskan bahwa cetak dilewati.
-8. Tekan **Putuskan** untuk menutup port. Setelah kabel dicabut/printer mati, hubungkan lagi secara eksplisit. Tidak ada reconnect otomatis atau koneksi Bluetooth.
+8. Tekan **Putuskan** untuk menutup port. Setelah kabel dicabut/printer mati, hubungkan lagi secara eksplisit. Untuk beralih ke Bluetooth, tekan **Putuskan** lalu **Hubungkan Bluetooth**.
 
 ## Model, geometri, dan layout
 
-- D110 dengan ID `2304`: task `D110`.
+- D110 2304 menggunakan urutan B1 satu halaman untuk versi status kosong atau protokol 3–4. Protokol lama 1–2 menggunakan urutan D110.
 - D110_M dengan ID `2320`: task `B1` untuk protokol 1–3, task `D110M_V4` untuk protokol 4, mengikuti pemetaan library.
-- ID `2305` diblokir: data upstream memetakannya ke D110 sekaligus HI_D110 dengan lebar kepala berbeda. Aplikasi tidak memilih salah satunya secara diam-diam.
-- Model lain, protokol di luar 1–4, DPI yang berbeda, atau respons lebar kepala selain 96 piksel diblokir.
+- ID 2305 menggunakan urutan D110 hanya ketika unit mengonfirmasi kepala cetak 96 titik.
+- Model lain, protokol di luar rentang yang ditangani, DPI yang berbeda, atau respons lebar kepala selain 96 piksel diblokir.
 - Profil 203 DPI dan 96 piksel bersumber dari metadata model upstream. Jika printer juga melaporkan lebar 96 piksel, informasi itu ditampilkan. Jika firmware lama tidak melaporkan geometri, panel menyebut bahwa metadata model digunakan; itu bukan hasil pengukuran unit fisik.
 - Konversi: `piksel = mm × DPI / 25,4`. Kepala 96 piksel pada 203 DPI ≈ 12,01 mm, sehingga roll fisik 15 mm tidak menyediakan 15 mm area cetak. Canvas hanya mencakup pita yang dapat dicetak. Lebar pita dibulatkan ke bawah ke kelipatan 8 agar padding encoder tidak melampaui kepala.
 - Render landscape memiliki sumbu horizontal sepanjang feed, lalu encoder `left` memutar bitmap 90° sesuai D110. Orientasi tegak memutar konten tanpa mengubah sumbu fisik roll/kepala. Kalibrasikan posisi nyata dengan cetak uji.
@@ -101,7 +107,7 @@ Panel **Diagnostik USB** menampilkan secure context, browser, VID/PID port terpi
 - Muncul COM tetapi gagal dibuka: tutup aplikasi/tab yang memakai port lalu hubungkan secara eksplisit lagi.
 - Port terbuka tetapi negosiasi tidak merespons: catat VID/PID dan error yang ditampilkan. Periksa model/firmware serta apakah antarmuka USB unit benar-benar meneruskan protokol cetak.
 - Browser tidak menyediakan Web Serial: gunakan browser desktop sasaran. Agent lokal belum diperlukan pada jalur USB serial ini dan belum diimplementasikan. USB nonserial memerlukan investigasi transport tambahan; tidak diasumsikan dapat diatasi oleh agent.
-- Jika setelah kabel data dan driver benar unit tidak mengekspos antarmuka data/serial, aplikasi menyatakan USB belum tersedia untuk cetak. Tidak ada pengalihan transport. Ketidakmunculan port atau timeout saja belum cukup untuk membuktikan secara pasti bahwa USB unit hanya untuk pengisian daya; bukti hardware/firmware tambahan diperlukan.
+- Jika setelah kabel data dan driver benar unit tidak mengekspos antarmuka data/serial, aplikasi menyatakan USB belum tersedia untuk cetak. Pilih Bluetooth dari panel printer untuk memakai koneksi BLE. Ketidakmunculan port atau timeout saja belum cukup untuk membuktikan secara pasti bahwa USB unit hanya untuk pengisian daya; bukti hardware/firmware tambahan diperlukan.
 
 ## Struktur modul
 

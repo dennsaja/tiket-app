@@ -42,8 +42,8 @@ export function resolveProfile(reading: PaperReading, storage: StorageLike): Lab
     ...reading.dimensions, source: "printer", rollId: reading.rollId, productCode: reading.productCode, folded: calibration?.folded,
     labelType: labelType || 1, confirmed: [1, 5].includes(labelType ?? 0),
     sourceDetail: labelType === undefined
-      ? "Dimensi eksplisit dari PaperInfo USB; jenis label perlu dikonfirmasi manual"
-      : "Dimensi eksplisit dari respons PaperInfo USB",
+      ? "Printer melaporkan ukuran. Konfirmasikan jenis label secara manual."
+      : "Ukuran dilaporkan langsung oleh printer",
   };
   const mapped = reading.productCode && Object.hasOwn(ROLL_CATALOG, reading.productCode) && ROLL_CATALOG[reading.productCode];
   if (mapped) return { ...mapped, source: "mapping", rollId: reading.rollId, productCode: reading.productCode, folded: calibration?.folded, labelType: reading.labelType ?? mapped.labelType, confirmed: [1, 5].includes(reading.labelType ?? mapped.labelType), sourceDetail: mapped.source };

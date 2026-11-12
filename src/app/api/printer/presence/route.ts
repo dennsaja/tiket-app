@@ -12,9 +12,12 @@ async function respond(req?: Request) {
   if (req) {
     const id = new URL(req.url).searchParams.get("host") || "";
     if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)) return new Response(null, { status: 400 });
-    if (!registry.update(id, session.user.id, role, req.method === "PUT")) return new Response(null, { status: 409 });
+    const transport = new URL(req.url).searchParams.get("transport") ?? "USB";
+    if (transport !== "USB" && transport !== "Bluetooth") return new Response(null, { status: 400 });
+    if (!registry.update(id, session.user.id, role, req.method === "PUT", Date.now(), transport)) return new Response(null, { status: 409 });
   }
-  return Response.json({ roles: registry.roles() }, { headers: { "Cache-Control": "private, no-store" } });
+  const bluetoothRoles = registry.roles(Date.now(), "Bluetooth");
+  return Response.json({ roles: registry.roles(), ...(bluetoothRoles.length ? { bluetoothRoles } : {}) }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function GET() { return respond(); }

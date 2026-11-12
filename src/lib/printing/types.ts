@@ -1,6 +1,7 @@
 /// <reference types="w3c-web-serial" />
 
 export type ConnectionState = "disconnected" | "connecting" | "ready" | "printing" | "error";
+export type PrinterTransport = "USB" | "Bluetooth";
 export type SizeSource = "printer" | "mapping" | "manual";
 export const SIZE_SOURCES: Record<SizeSource, string> = {
   printer: "Terdeteksi dari printer", mapping: "Pemetaan kode roll", manual: "Diatur manual",
@@ -20,6 +21,7 @@ export interface LabelSize { widthMm: number; lengthMm: number }
 export interface PaperReading {
   checkedAt: string;
   inserted?: boolean;
+  lidClosed?: boolean;
   rollId?: string;
   productCode?: string;
   labelType?: number;
