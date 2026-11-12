@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack && node scripts/prepare-standalone.mjs",
+    "build": "node --require ./scripts/build-env.cjs ./node_modules/next/dist/bin/next build --webpack && node scripts/prepare-standalone.mjs",
     "start": "node scripts/start-app.mjs",
     "lint": "eslint src --ext .ts,.tsx",
     "type-check": "tsc --noEmit",

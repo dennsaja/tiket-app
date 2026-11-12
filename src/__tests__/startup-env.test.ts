@@ -37,6 +37,22 @@ function execute(script: string, root: string, env: NodeJS.ProcessEnv) {
 }
 
 describe("production startup environment", () => {
+  it("loads checkout build functions when launched by a standalone server", async () => fixture(async (root, env) => {
+    await writeFile(path.join(root, "next.config.js"), "module.exports = { generateBuildId: async () => 'checkout-build' };");
+    const script = `
+      const load = require('next/dist/server/config').default;
+      const { PHASE_PRODUCTION_BUILD } = require('next/constants');
+      load(PHASE_PRODUCTION_BUILD, process.cwd()).then(async config => {
+        console.log(await config.generateBuildId());
+      });
+    `;
+    const output = execFileSync(process.execPath, ["--require", path.join(project, "scripts/build-env.cjs"), "-e", script], {
+      cwd: root, env: { ...env, NODE_ENV: "production", __NEXT_PRIVATE_STANDALONE_CONFIG: '{"output":"standalone"}' },
+      encoding: "utf8", windowsHide: true,
+    });
+    expect(output.trim()).toBe("checkout-build");
+  }), 30000);
+
   it("loads the checkout env before npm start changes the working directory", async () => fixture(async (root, env) => {
     const actual = JSON.parse(execute(path.join(project, "scripts/start-app.mjs"), root, env));
     expect(actual).toMatchObject({ database: "fixture-local", secret: "fixture-secret-from-file", root, mode: "production", service: "monolith" });
