@@ -1,4 +1,13 @@
 import type { NextConfig } from "next";
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+
+function buildRevision(): string {
+  try {
+    if (existsSync(".git")) return execFileSync("git", ["rev-parse", "--verify", "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch { /* Builds from an archive can supply the source revision explicitly. */ }
+  return /^[0-9a-f]{40}$/.test(process.env.SOURCE_COMMIT || "") ? process.env.SOURCE_COMMIT! : "";
+}
 
 const buildTraceExcludes = [
   "**/android-technician/**", "**/motion/**", "**/uploads/**", "**/.git/**",
@@ -6,6 +15,7 @@ const buildTraceExcludes = [
 ];
 
 const nextConfig: NextConfig = {
+  env: { HELPDESK_BUILD_COMMIT: buildRevision() },
   // Keep the existing Turbopack development flow alongside the production hook.
   turbopack: {},
   serverExternalPackages: ["sql.js"],

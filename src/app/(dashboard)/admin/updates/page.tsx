@@ -30,7 +30,7 @@ interface UpdateInfo {
   currentBranch: string;
   latestCommit?: string;
   latestCommitFull?: string;
-  hasUpdate: boolean;
+  hasUpdate: boolean | null;
   commitMessage?: string;
   commitAuthor?: string;
   commitDate?: string;
@@ -43,6 +43,7 @@ interface UpdateInfo {
 export default function AdminUpdatesPage() {
   const [info, setInfo] = React.useState<UpdateInfo | null>(null);
   const [isChecking, setIsChecking] = React.useState(false);
+  const [checkError, setCheckError] = React.useState("");
   const [isUpdating, setIsUpdating] = React.useState(false);
   const [updateModalOpen, setUpdateModalOpen] = React.useState(false);
   const [updateLogs, setUpdateLogs] = React.useState<string[]>([]);
@@ -83,8 +84,9 @@ export default function AdminUpdatesPage() {
 
   const checkUpdates = React.useCallback(async (silent = false) => {
     setIsChecking(true);
+    setCheckError("");
     try {
-      const res = await apiFetch("/api/admin/system/update");
+      const res = await apiFetch("/api/admin/system/update", { cache: "no-store" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Gagal memeriksa pembaruan");
@@ -94,11 +96,15 @@ export default function AdminUpdatesPage() {
       if (!silent) {
         if (data.hasUpdate) {
           toast.success("Pembaruan baru tersedia dari GitHub!");
-        } else {
+        } else if (data.hasUpdate === false) {
           toast.success("Aplikasi Anda sudah dalam versi terbaru.");
+        } else {
+          toast.error(data.note || "Status versi belum terverifikasi.");
         }
       }
     } catch (err: any) {
+      setInfo(null);
+      setCheckError(err.message || "Gagal memeriksa pembaruan");
       if (!silent) toast.error(err.message || "Gagal menghubungi server");
     } finally {
       setIsChecking(false);
@@ -161,8 +167,8 @@ export default function AdminUpdatesPage() {
         method: "POST",
       });
 
-      if (!res.ok && !res.body) {
-        throw new Error(`Gagal memulai pembaruan: HTTP ${res.status}`);
+      if (!res.ok) {
+        throw new Error((await res.json().catch(() => ({}))).error || `Gagal memulai pembaruan: HTTP ${res.status}`);
       }
 
       const reader = res.body?.getReader();
@@ -284,7 +290,7 @@ export default function AdminUpdatesPage() {
             Commit Terpasang
           </p>
           <p className="mt-1 font-mono text-base font-bold text-zinc-900 dark:text-zinc-50">
-            {info?.currentCommit || "Memuat..."}
+            {info?.currentCommit || (isChecking ? "Memuat..." : "Belum terverifikasi")}
           </p>
           <p className="mt-0.5 text-[11px] text-zinc-400">
             Branch: <span className="font-mono text-zinc-600 dark:text-zinc-300">{info?.currentBranch || "main"}</span>
@@ -375,7 +381,7 @@ export default function AdminUpdatesPage() {
             </Button>
           </div>
         </div>
-      ) : (
+      ) : info?.hasUpdate === false ? (
         /* Up to date Card */
         <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-6 text-center dark:border-zinc-800 dark:bg-zinc-950/40 space-y-2">
           <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800">
@@ -385,8 +391,14 @@ export default function AdminUpdatesPage() {
             Aplikasi Anda Sudah Menggunakan Versi Terbaru
           </h2>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto">
-            Tidak ada commit baru yang ditemukan di repositori GitHub ({info?.repository || "dennsaja/tiket-app"}). Seluruh fitur dan skema database sudah mutakhir.
+            Versi yang sedang berjalan cocok dengan commit terbaru di GitHub.
           </p>
+          <Button size="sm" variant="outline" disabled={isUpdating || isChecking} onClick={() => { setUpdateModalOpen(true); void handleStartUpdate(); }}>Tarik Ulang / Update Kode</Button>
+        </div>
+      ) : (
+        <div role="status" className="rounded-xl border p-5 space-y-3">
+          <p>{isChecking ? "Memeriksa versi aktif dan GitHub…" : checkError || info?.note || "Status versi belum terverifikasi."}</p>
+          {!isChecking && <Button size="sm" disabled={isUpdating} onClick={() => { setUpdateModalOpen(true); void handleStartUpdate(); }}>Tarik Ulang / Update Kode</Button>}
         </div>
       )}
 

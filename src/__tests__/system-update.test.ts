@@ -12,11 +12,12 @@ vi.mock("@/lib/db", () => ({ db: {} }));
 vi.mock("@/lib/audit", () => ({ createAuditLog: mocks.audit, getClientIp: () => "127.0.0.1" }));
 vi.mock("pg", () => ({ Pool: class { query = vi.fn().mockResolvedValue({}); end = vi.fn().mockResolvedValue(undefined); } }));
 vi.mock("drizzle-orm/node-postgres/migrator", () => ({ migrate: vi.fn().mockResolvedValue(undefined) }));
-vi.mock("child_process", async () => {
+vi.mock("child_process", async (importOriginal) => {
   const { promisify } = await import("node:util");
-  return { spawn: mocks.spawn, exec: Object.assign(mocks.exec, { [promisify.custom]: async () => ({ stdout: "abcdef123456\n", stderr: "" }) }) };
+  return { ...await importOriginal<typeof import("child_process")>(), spawn: mocks.spawn, exec: Object.assign(mocks.exec, { [promisify.custom]: async () => ({ stdout: "abcdef123456\n", stderr: "" }) }) };
 });
-import { POST } from "@/app/api/admin/system/update/route";
+import { GET, POST } from "@/app/api/admin/system/update/route";
+import * as releases from "@/lib/updates/latest";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 const commands: string[] = [];
 let failure = "";
@@ -34,6 +35,22 @@ beforeEach(() => {
 });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.unstubAllEnvs(); });
 describe("GitHub update through the web", () => {
+  it("compares the running build and never reports an unverified version as current", async () => {
+    const sha = "a".repeat(40);
+    const latest = vi.spyOn(releases, "latestRelease").mockResolvedValue({ sha, commitUrl: "" });
+    const check = async () => (await GET(new NextRequest("https://helpdesk.test/api/admin/system/update"))).json();
+    try {
+      vi.stubEnv("HELPDESK_BUILD_COMMIT", "b".repeat(40));
+      expect((await check()).hasUpdate).toBe(true);
+      vi.stubEnv("HELPDESK_BUILD_COMMIT", sha);
+      expect((await check()).hasUpdate).toBe(false);
+      vi.stubEnv("HELPDESK_BUILD_COMMIT", "");
+      expect((await check()).hasUpdate).toBeNull();
+      latest.mockResolvedValue(null);
+      vi.stubEnv("HELPDESK_BUILD_COMMIT", sha);
+      expect((await check()).hasUpdate).toBeNull();
+    } finally { latest.mockRestore(); }
+  });
   it("rejects unauthenticated and non-staff users before running any command", async () => {
     mocks.auth.mockResolvedValue(null);
     expect((await POST(new NextRequest("https://helpdesk.test/api/admin/system/update", { method: "POST" }))).status).toBe(401);

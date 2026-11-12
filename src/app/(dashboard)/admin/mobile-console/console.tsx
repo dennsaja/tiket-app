@@ -39,7 +39,8 @@ interface GitUpdateInfo {
   currentBranch: string;
   latestCommit?: string;
   latestCommitFull?: string;
-  hasUpdate: boolean;
+  hasUpdate: boolean | null;
+  note?: string;
   commitMessage?: string;
   commitAuthor?: string;
   commitDate?: string;
@@ -102,18 +103,21 @@ export function MobileConsole({
   async function checkGitUpdate(silent = false) {
     setCheckingGit(true);
     try {
-      const res = await apiFetch("/api/admin/system/update");
+      const res = await apiFetch("/api/admin/system/update", { cache: "no-store" });
       if (!res.ok) throw new Error("Gagal memeriksa git update");
       const data = await res.json();
       setGitInfo(data);
       if (!silent) {
         if (data.hasUpdate) {
           toast.success(`Ada pembaruan kode baru (${data.latestCommit?.slice(0, 7)})!`);
-        } else {
+        } else if (data.hasUpdate === false) {
           toast.success("Kode sistem sudah versi terbaru.");
+        } else {
+          toast.error(data.note || "Status versi belum terverifikasi.");
         }
       }
     } catch (err: any) {
+      setGitInfo(null);
       if (!silent) toast.error("Gagal memeriksa update: " + err.message);
     } finally {
       setCheckingGit(false);
@@ -130,7 +134,7 @@ export function MobileConsole({
 
     try {
       const res = await apiFetch("/api/admin/system/update", { method: "POST" });
-      if (!res.ok && !res.body) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
       const reader = res.body?.getReader();
       if (!reader) throw new Error("Streaming respon tidak didukung browser.");
 
@@ -312,7 +316,7 @@ export function MobileConsole({
                 </span>
               ) : (
                 <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs text-zinc-300">
-                  Kode Terkini
+                  {checkingGit ? "Memeriksa…" : gitInfo?.hasUpdate === false ? "Kode Terkini" : "Belum terverifikasi"}
                 </span>
               )}
             </div>
@@ -323,7 +327,7 @@ export function MobileConsole({
             <p className="mt-1 text-xs text-zinc-400 truncate">
               {gitInfo?.hasUpdate
                 ? `Tersedia: #${gitInfo.latestCommit?.slice(0, 7)} · ${gitInfo.commitMessage || "Perbaikan baru"}`
-                : `Branch: ${gitInfo?.currentBranch || "main"} · Repositori sinkron`}
+                : gitInfo?.hasUpdate === false ? `Branch: ${gitInfo.currentBranch} · Repositori sinkron` : gitInfo?.note || "Menunggu hasil pemeriksaan versi."}
             </p>
           </div>
           <div className="mt-4 pt-3 border-t border-white/10">

@@ -87,9 +87,9 @@ export function Sidebar() {
         {mainItems.filter((item) => (!item.staffOnly || isStaff) && (!item.mapOnly || canCreate)).map((item) =>
           <NavLink key={item.href} item={item} compact={small} onClick={close} />
         )}
-        {management && <>
+        {canCreate && <>
           <div className="rail-divider">{!small && <span>{role === "noc" ? "ADMINISTRASI" : "MANAJEMEN"}</span>}</div>
-          {adminItems.filter((item) => item.href !== "/admin/updates" || role === "noc").map((item) =>
+          {adminItems.filter((item) => management || item.href === "/admin/updates").map((item) =>
             <NavLink key={item.href} item={item} compact={small} onClick={close} />
           )}
         </>}

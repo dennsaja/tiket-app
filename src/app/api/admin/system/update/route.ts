@@ -8,6 +8,7 @@ import { spawn, exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import fs from "fs";
+import { isCommit, latestRelease } from "@/lib/updates/latest";
 import { updateProjectDirectory } from "@/lib/updates/project";
 
 const execAsync = promisify(exec);
@@ -127,92 +128,22 @@ export async function GET(req: NextRequest) {
     return errorResponse("Forbidden: Hanya Administrator / NOC yang dapat mengakses pembaruan sistem", 403);
   }
 
-  const git = getGitCommand();
-  const cwd = updateProjectDirectory();
-  let localCommit = "unknown";
-  let localCommitShort = "unknown";
-  let localBranch = GITHUB_BRANCH;
-
-  // Configure safe directory first
-  try {
-    await runCmd(`${git} config --global --add safe.directory "*"`, cwd, 5000);
-    await runCmd(`${git} config --global --add safe.directory "${cwd.replace(/\\/g, "/")}"`, cwd, 5000);
-  } catch {}
-
-  try {
-    const { stdout: fullSha } = await runCmd(`${git} rev-parse HEAD`, cwd, 5000);
-    localCommit = fullSha.trim();
-    localCommitShort = localCommit.substring(0, 7);
-
-    const { stdout: branch } = await runCmd(`${git} branch --show-current`, cwd, 5000);
-    if (branch.trim()) localBranch = branch.trim();
-  } catch (err: any) {
-    console.warn("[SystemUpdate] Local git info not accessible:", err.message);
-  }
-
-  // Fetch latest commit from GitHub API
-  try {
-    const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/commits/${GITHUB_BRANCH}`;
-    const ghRes = await fetch(apiUrl, {
-      headers: {
-        Accept: "application/vnd.github.v3+json",
-        "User-Agent": "HelpDesk-App-Updater",
-      },
-      next: { revalidate: 0 },
-    });
-
-    if (!ghRes.ok) {
-      return NextResponse.json({
-        currentCommit: localCommitShort,
-        currentCommitFull: localCommit,
-        currentBranch: localBranch,
-        repository: `https://github.com/${GITHUB_REPO}`,
-        hasUpdate: localCommit === "unknown",
-        checkedAt: new Date().toISOString(),
-        note: `GitHub API: ${ghRes.statusText} (${ghRes.status})`,
-      });
-    }
-
-    const commitData = await ghRes.json();
-    const remoteSha = commitData.sha || "";
-    const remoteShaShort = remoteSha.substring(0, 7);
-    const commitMessage = commitData.commit?.message || "No commit message";
-    const commitAuthor = commitData.commit?.author?.name || "Unknown";
-    const commitDate = commitData.commit?.author?.date || new Date().toISOString();
-    const htmlUrl = commitData.html_url || `https://github.com/${GITHUB_REPO}/commit/${remoteSha}`;
-
-    const isUpToDate =
-      localCommit !== "unknown" &&
-      (localCommit === remoteSha ||
-        localCommit.startsWith(remoteShaShort) ||
-        remoteSha.startsWith(localCommitShort));
-
-    return NextResponse.json({
-      currentCommit: localCommitShort,
-      currentCommitFull: localCommit,
-      currentBranch: localBranch,
-      latestCommit: remoteShaShort,
-      latestCommitFull: remoteSha,
-      hasUpdate: !isUpToDate,
-      commitMessage,
-      commitAuthor,
-      commitDate,
-      commitUrl: htmlUrl,
-      repository: `https://github.com/${GITHUB_REPO}`,
-      checkedAt: new Date().toISOString(),
-    });
-  } catch (error: any) {
-    console.error("[SystemUpdate] Failed to check GitHub updates:", error);
-    return NextResponse.json({
-      currentCommit: localCommitShort,
-      currentCommitFull: localCommit,
-      currentBranch: localBranch,
-      repository: `https://github.com/${GITHUB_REPO}`,
-      hasUpdate: localCommit === "unknown",
-      checkedAt: new Date().toISOString(),
-      error: error.message || "Gagal menghubungi GitHub",
-    });
-  }
+  const current = process.env.HELPDESK_BUILD_COMMIT;
+  const release = await latestRelease(GITHUB_REPO, GITHUB_BRANCH, process.cwd(), getExecEnv());
+  const known = isCommit(current);
+  return NextResponse.json({
+    currentCommit: known ? current.slice(0, 7) : "Belum terverifikasi",
+    currentCommitFull: known ? current : undefined,
+    currentBranch: GITHUB_BRANCH,
+    latestCommit: release?.sha.slice(0, 7),
+    latestCommitFull: release?.sha,
+    hasUpdate: known && release ? current !== release.sha : null,
+    ...(release && { commitUrl: release.commitUrl, commitAuthor: release.commitAuthor, commitDate: release.commitDate, commitMessage: release.commitMessage }),
+    note: !release ? "Versi terbaru di GitHub belum dapat diperiksa. Coba lagi atau jalankan pembaruan langsung." :
+      !known ? "Identitas build aktif belum tersedia. Tarik dan terapkan versi GitHub untuk menyinkronkan aplikasi." : undefined,
+    repository: `https://github.com/${GITHUB_REPO}`,
+    checkedAt: new Date().toISOString(),
+  }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 // POST /api/admin/system/update — Real-time Streaming System Update Execution
