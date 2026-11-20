@@ -4,6 +4,7 @@ import { UsbSerialConnection } from "./usb-connection";
 import type { LabelProfile, PaperReading, PrinterIdentity } from "./types";
 import { paperReading } from "./paper";
 import { sendWithReply } from "./reply";
+import { validProfile } from "./profiles";
 
 const GEOMETRY_SOURCE = "@mmote/niimbluelib 0.49.1 printer_models.ts; https://printers.niim.blue/hardware/models/";
 export function identifyPrinter(info: PrinterInfo): PrinterIdentity {
@@ -81,6 +82,7 @@ export class NiimbotAdapter {
   }
   preflight(profile: LabelProfile, reading: PaperReading) {
     if (!this.identity || !this.client.isConnected()) throw new Error("Printer belum siap.");
+    if (!profile.confirmed || !validProfile(profile)) throw new Error("Konfirmasikan ukuran dan bentuk label yang valid sebelum mencetak.");
     if (![1, 5].includes(profile.labelType)) throw new Error("Jenis kertas tidak didukung D110; gunakan label bercelah atau transparan.");
     if (reading.inserted === false) throw new Error("Kertas habis/tidak terpasang.");
     if (reading.lidClosed === false) throw new Error("Penutup printer terbuka.");

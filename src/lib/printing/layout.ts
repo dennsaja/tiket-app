@@ -1,13 +1,16 @@
 import QRCode from "qrcode";
 import type { LabelProfile, LayoutSettings, PrintableTicket, PrinterIdentity } from "./types";
-import { validSize } from "./profiles";
+import { validProfile } from "./profiles";
+import { isPrintTest, printTestLines } from "./test-label";
 
 export const mmToPixels = (mm: number, dpi: number) => Math.round(mm * dpi / 25.4);
 export type MeasureText = (text: string, size: number) => { width: number; ascent: number; descent: number };
 interface Line { text: string; x: number; baseline: number; size: number }
 export interface LayoutPlan {
   width: number; height: number; lines: Line[];
+  bodyX: number; bodyWidth: number; panelWidth: number;
   compact?: boolean;
+  testPattern?: { x: number; y: number; width: number; height: number; rulerStep: number };
   qr?: { x: number; y: number; moduleSize: number; size: number; data: Uint8Array };
   error?: string;
 }
@@ -45,21 +48,29 @@ export function planLabel(ticket: PrintableTicket, profile: LabelProfile, printe
   // Source bitmap is landscape; the library rotates it for D110's left feed.
   // Byte-align downward so encoder padding never exceeds the printhead.
   const height = Math.floor(Math.min(mmToPixels(profile.widthMm, printer.dpi), printer.headPixels) / 8) * 8;
-  const plan: LayoutPlan = { width, height, lines: [] };
+  const tail = mmToPixels(profile.tailLengthMm ?? 0, printer.dpi);
+  const bodyX = profile.tailPosition === "start" ? tail : 0;
+  const bodyWidth = width - tail;
+  const panelWidth = profile.folded ? Math.floor(bodyWidth / 2) : bodyWidth;
+  const test = isPrintTest(ticket.id);
+  const plan: LayoutPlan = { width, height, bodyX, bodyWidth, panelWidth, lines: [] };
   const fail = (error: string) => ({ ...plan, error });
-  if (!validSize(profile) || ![203].includes(printer.dpi) || printer.headPixels !== 96) return fail("Ukuran/geometri printer tidak valid.");
+  if (!validProfile(profile) || ![203].includes(printer.dpi) || printer.headPixels !== 96) return fail("Ukuran/geometri printer tidak valid. Periksa panjang total dan ekor label.");
   if (!Object.values(settings).every(value => typeof value !== "number" || Number.isFinite(value))
     || settings.marginMm < 0.25 || settings.minFontPx < 8 || settings.minFontPx > 24) return fail("Margin minimum 0,25 mm; font minimum 8–24 piksel.");
-  const panelWidth = profile.folded ? Math.floor(width / 2) : width;
   const logicalWidth = settings.orientation === "portrait" ? height : panelWidth;
   const logicalHeight = settings.orientation === "portrait" ? panelWidth : height;
   const margin = Math.ceil(settings.marginMm * printer.dpi / 25.4);
   const ox = mmToPixels(settings.offsetXmm, printer.dpi), oy = mmToPixels(settings.offsetYmm, printer.dpi);
-  const left = margin + Math.abs(ox) + ox, top = margin + Math.abs(oy) + oy;
-  let availableWidth = logicalWidth - margin * 2 - Math.abs(ox) * 2;
-  const availableHeight = logicalHeight - margin * 2 - Math.abs(oy) * 2;
+  const padding = test ? 3 : 0;
+  const left = margin + Math.abs(ox) + ox + padding, top = margin + Math.abs(oy) + oy + padding;
+  let availableWidth = logicalWidth - margin * 2 - Math.abs(ox) * 2 - padding * 2;
+  const availableHeight = logicalHeight - margin * 2 - Math.abs(oy) * 2 - padding * 2;
   if (availableWidth <= 0 || availableHeight <= 0) return fail("Margin/offset menyisakan area cetak terlalu kecil.");
-  if (settings.qr) {
+  if (test) plan.testPattern = { x: left - padding, y: top - padding, width: availableWidth + padding * 2,
+    height: availableHeight + padding * 2, rulerStep: mmToPixels(5, printer.dpi) };
+  const textHeight = availableHeight - (test ? 16 : 0);
+  if (settings.qr && !test) {
     const qr = QRCode.create(ticket.id, { errorCorrectionLevel: "M" });
     const moduleSize = Math.max(3, Math.ceil(printer.dpi * 0.33 / 25.4));
     const extent = (qr.modules.size + 8) * moduleSize; // Four-module quiet zone each side.
@@ -67,8 +78,9 @@ export function planLabel(ticket: PrintableTicket, profile: LabelProfile, printe
     plan.qr = { x: left + availableWidth - extent, y: top, moduleSize, size: qr.modules.size, data: qr.modules.data };
     availableWidth -= extent + margin;
   }
-  const content = ticketLines(ticket, settings.template === "compact");
-  for (let size = 24; size >= Math.ceil(settings.minFontPx); size--) {
+  const variants = test ? [printTestLines(profile, printer), ["UJI CETAK", `${profile.widthMm} x ${profile.lengthMm} mm`], ["UJI"]]
+    : [ticketLines(ticket, settings.template === "compact")];
+  for (const content of variants) for (let size = 24; size >= Math.ceil(settings.minFontPx); size--) {
     const lines: Line[] = [];
     let y = top;
     let fits = true;
@@ -79,15 +91,15 @@ export function planLabel(ticket: PrintableTicket, profile: LabelProfile, printe
         const metrics = measure(line, size);
         const ascent = Math.ceil(metrics.ascent), descent = Math.ceil(metrics.descent);
         const lineHeight = Math.max(Math.ceil(size * 1.2), ascent + descent + 1);
-        if (y + lineHeight > top + availableHeight) { fits = false; break; }
+        if (y + lineHeight > top + textHeight) { fits = false; break; }
         lines.push({ text: line, x: left, baseline: y + ascent, size });
         y += lineHeight;
       }
       if (!fits) break;
     }
-    if (fits) return { ...plan, lines, compact: settings.template === "compact" };
+    if (fits) return { ...plan, lines, compact: !test && settings.template === "compact" };
   }
-  if (settings.template === "auto") return planLabel(ticket, profile, printer, { ...settings, template: "compact" }, measure);
+  if (!test && settings.template === "auto") return planLabel(ticket, profile, printer, { ...settings, template: "compact" }, measure);
   return fail("Isi tiket tidak muat pada batas font minimum. Pilih template ringkas (nomor tiket dan kode transaksi), atau ukuran label lain. Cetak diblokir.");
 }
 export interface RenderedLabel { canvas: HTMLCanvasElement; previewUrl: string; plan: LayoutPlan; signature: string }
@@ -108,6 +120,7 @@ export async function renderLabel(ticket: PrintableTicket, profile: LabelProfile
   canvas.width = plan.width; canvas.height = plan.height;
   context.fillStyle = "white"; context.fillRect(0, 0, canvas.width, canvas.height);
   context.save();
+  context.translate(plan.bodyX, 0);
   if (settings.orientation === "portrait") { context.translate(0, canvas.height); context.rotate(-Math.PI / 2); }
   context.fillStyle = "black"; context.textBaseline = "alphabetic";
   for (const line of plan.lines) {
@@ -121,13 +134,26 @@ export async function renderLabel(ticket: PrintableTicket, profile: LabelProfile
       if (qr.data[y * qr.size + x]) context.fillRect(qr.x + (x + 4) * qr.moduleSize, qr.y + (y + 4) * qr.moduleSize, qr.moduleSize, qr.moduleSize);
     }
   }
+  if (plan.testPattern) {
+    const frame = plan.testPattern;
+    context.strokeStyle = "black"; context.lineWidth = 1;
+    context.strokeRect(frame.x + 0.5, frame.y + 0.5, frame.width - 1, frame.height - 1);
+    const x = frame.x + 4, y = frame.y + frame.height - 5, length = frame.width - 8;
+    context.fillRect(x, y, length, 1);
+    context.font = "8px Arial";
+    for (let offset = 0; offset <= length - 1; offset += frame.rulerStep) {
+      context.fillRect(x + offset, y - 3, 1, 4);
+      const label = String(Math.round(offset / frame.rulerStep) * 5);
+      if (offset + context.measureText(label).width + 2 < length) context.fillText(label, x + offset + 2, y - 4);
+    }
+  }
   context.restore();
   if (profile.folded) {
-    const panelWidth = Math.floor(canvas.width / 2);
+    const panelWidth = plan.panelWidth;
     context.save();
-    context.translate(canvas.width, canvas.height);
+    context.translate(plan.bodyX + plan.bodyWidth, canvas.height);
     context.rotate(Math.PI);
-    context.drawImage(canvas, 0, 0, panelWidth, canvas.height, 0, 0, panelWidth, canvas.height);
+    context.drawImage(canvas, plan.bodyX, 0, panelWidth, canvas.height, 0, 0, panelWidth, canvas.height);
     context.restore();
   }
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);

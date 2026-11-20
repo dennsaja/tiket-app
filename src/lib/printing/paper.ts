@@ -4,6 +4,7 @@ import { validSize } from "./profiles";
 
 /** Consume only read responses. No RFID write operations are exposed. */
 export function paperReading(rfid: RfidInfo | undefined, paper: PaperInfo | undefined, notes: string[] = [], sensor?: HeartbeatData, deviceType?: number): PaperReading {
+  notes = [...notes];
   const mm = (pixels?: number) => pixels ? Math.round(pixels * 25.4 / 203 * 10) / 10 : 0;
   let dimensions;
   if (paper?.valid) {
@@ -14,6 +15,12 @@ export function paperReading(rfid: RfidInfo | undefined, paper: PaperInfo | unde
   }
   if (!dimensions) notes.push("Ukuran tidak tersedia dari printer. Profil roll yang sudah dikonfirmasi akan digunakan jika ada.");
   const hasTag = rfid?.tagPresent;
+  const totalLabels = hasTag && Number.isInteger(rfid.allPaper) && rfid.allPaper > 0 ? rfid.allPaper : undefined;
+  const usedLabels = hasTag && Number.isInteger(rfid.usedPaper) && rfid.usedPaper >= 0 ? rfid.usedPaper : undefined;
+  const remainingLabels = totalLabels !== undefined && usedLabels !== undefined && usedLabels <= totalLabels ? totalLabels - usedLabels : undefined;
+  if (totalLabels !== undefined && usedLabels !== undefined && usedLabels > totalLabels) notes.push("Penghitung RFID tidak konsisten; sisa label tidak dapat dihitung.");
+  const tailLengthMm = paper?.valid ? paper.tailLength ?? (paper.tailLengthPixel ? mm(paper.tailLengthPixel) : undefined) : undefined;
+  if (hasTag && !dimensions) notes.push("Angka total dan terpakai pada RFID adalah jumlah label, bukan ukuran dalam mm.");
   const reportedType = (paper?.valid && paper.paperType) || (hasTag && rfid.consumablesType) || deviceType || undefined;
   return {
     checkedAt: new Date().toISOString(),
@@ -24,6 +31,7 @@ export function paperReading(rfid: RfidInfo | undefined, paper: PaperInfo | unde
     // LabelType.Invalid (0) conveys no usable type; it must not defeat an
     // explicit manual selection. Other unsupported positive types stay visible.
     labelType: reportedType === 0 ? undefined : reportedType,
-    dimensions, notes, raw: { rfid, paper },
+    dimensions, tailLengthMm: Number.isFinite(tailLengthMm) && tailLengthMm! >= 0 ? tailLengthMm : undefined,
+    totalLabels, usedLabels, remainingLabels, notes, raw: { rfid, paper },
   };
 }

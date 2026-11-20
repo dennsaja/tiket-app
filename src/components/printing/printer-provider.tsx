@@ -14,6 +14,8 @@ import type { ConnectionState, LabelProfile, LayoutSettings, PaperReading, Print
 import type { NiimbotAdapter, PrinterDevice } from "@/lib/printing/adapter";
 import type { PrinterTransport } from "@/lib/printing/types";
 import { usePrinterPresence } from "./use-printer-presence";
+import { PrinterTestPanel } from "./printer-test-panel";
+import { isPrintTest } from "@/lib/printing/test-label";
 
 const STATE_LABELS: Record<ConnectionState, string> = { disconnected: "Tidak terhubung", connecting: "Menghubungkan", ready: "Siap", printing: "Mencetak", error: "Bermasalah" };
 const SAMPLE: PrintableTicket = { id: "USB-TEST", ticketNumber: "UJI-001", title: "Uji cetak D110", reporterName: "NIIMBOT", priority: "normal" };
@@ -49,12 +51,12 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = React.useState(false);
   const [jobs, setJobs] = React.useState<PrintJob[]>([]);
   const [reprintOf, setReprintOf] = React.useState<string>();
-  const [manual, setManual] = React.useState({ widthMm: "", lengthMm: "", labelType: "1", folded: false });
+  const [manual, setManual] = React.useState({ widthMm: "", lengthMm: "", labelType: "1",
+    shape: "rectangle" as "rectangle" | "folded" | "cable", tailLengthMm: "0", tailPosition: "end" as "start" | "end" });
   const adapter = React.useRef<NiimbotAdapter | null>(null);
   const queue = React.useRef<PrintQueue | null>(null);
   const releaseLock = React.useRef<(() => void) | null>(null);
   const connecting = React.useRef(false);
-  const testing = React.useRef(false);
   const operation = React.useRef(false);
   const reprintIntent = React.useRef<string>("");
   const config = React.useRef({ state, profile, paper, identity, settings, autoPrint });
@@ -95,7 +97,9 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
     const resolved = resolveProfile(reading, localStorage);
     setPaper(reading); setProfile(resolved);
     setManual({ widthMm: resolved ? String(resolved.widthMm) : "", lengthMm: resolved ? String(resolved.lengthMm) : "",
-      labelType: String(resolved?.labelType || reading.labelType || 1), folded: !!resolved?.folded });
+      labelType: String(resolved?.labelType || reading.labelType || 1),
+      shape: (resolved?.tailLengthMm || reading.tailLengthMm) ? "cable" : resolved?.folded ? "folded" : "rectangle",
+      tailLengthMm: String(resolved?.tailLengthMm ?? reading.tailLengthMm ?? 0), tailPosition: resolved?.tailPosition || "end" });
   }
   async function checkPaper() {
     if (!adapter.current || operation.current || queue.current?.busy) return;
@@ -172,10 +176,13 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
   function confirmManual() {
     if (!paper || paper.inserted === false || checking || queue.current?.busy) return;
     try {
+      if (manual.shape === "cable" && !(Number(manual.tailLengthMm) > 0)) throw new Error("Masukkan panjang ekor label kabel yang lebih dari 0 mm.");
       const next: LabelProfile = {
         widthMm: Number(manual.widthMm), lengthMm: Number(manual.lengthMm), labelType: Number(manual.labelType),
         source: "manual", sourceDetail: "Ukuran dikonfirmasi pengguna", confirmed: true, rollId: paper.rollId,
-        productCode: paper.productCode, folded: manual.folded, measuredAtConfirmation: paper.dimensions,
+        productCode: paper.productCode, folded: manual.shape !== "rectangle", measuredAtConfirmation: paper.dimensions,
+        tailLengthMm: manual.shape === "cable" ? Number(manual.tailLengthMm) : 0, tailPosition: manual.tailPosition,
+        measuredTailAtConfirmation: paper.tailLengthMm,
       };
       saveProfile(next, localStorage); setProfile(next); setError("");
     } catch (err) { report(err); }
@@ -199,7 +206,7 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
     const bitmap = rendered || await renderLabel(nextTicket, selectedProfile, current.identity, current.settings);
     if (bitmap.signature !== JSON.stringify([nextTicket, selectedProfile, current.identity, current.settings])) throw new Error("Preview sedang dihitung ulang. Tunggu sebelum mencetak.");
     if (previousJob) currentQueue.allowReprint(previousJob);
-    currentQueue.enqueue(nextTicket, {
+    return currentQueue.enqueue(nextTicket, {
       prepare: async () => {
         if (!device.client.isConnected()) throw new Error("Printer terputus sebelum pengiriman.");
         const reading = await device.readPaper();
@@ -225,21 +232,10 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
     if (config.current.state !== "ready") { setError("Tiket tersimpan. Cetak otomatis dilewati karena printer belum siap."); open(next); return; }
     void submit(next).catch(err => { report(err); open(next); });
   }
-  async function printTest() {
-    if (testing.current || queue.current?.busy) return;
-    testing.current = true;
-    setError("");
-    try {
-      const sample = { ...SAMPLE, id: `USB-TEST-${crypto.randomUUID()}` };
-      setTicket(sample); setReprintOf(undefined);
-      await submit(sample);
-    } catch (error) { report(error); }
-    finally { testing.current = false; }
-  }
   async function chooseReprint(job: PrintJob) {
     try {
       if (state === "error" && adapter.current?.client.isConnected()) await checkPaper();
-      if (job.ticketId.startsWith("USB-TEST")) {
+      if (isPrintTest(job.ticketId)) {
         setTicket({ ...SAMPLE, id: job.ticketId });
         reprintIntent.current = crypto.randomUUID(); setReprintOf(job.id);
         return;
@@ -276,7 +272,6 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
           <Button size="sm" variant="outline" onClick={() => void connect("Bluetooth")} disabled={state === "connecting" || !!adapter.current}>Hubungkan Bluetooth</Button>
           <Button size="sm" variant="outline" onClick={() => void disconnect()} disabled={!adapter.current}>Putuskan</Button>
           <Button size="sm" variant="outline" onClick={() => void checkPaper()} disabled={busy || !adapter.current}>Periksa Kertas</Button>
-          <Button size="sm" variant="outline" onClick={() => void printTest()} disabled={busy || state !== "ready" || !profile?.confirmed}>Cetak label uji</Button>
         </div>
         {selectedJob && <p role="status" className="rounded-lg border p-3">Tiket #{selectedJob.ticketNumber} · {JOB_LABELS[selectedJob.state]}{selectedJob.message && <span className="block text-xs">{selectedJob.message}</span>}</p>}
         <p className="text-xs text-zinc-500">Gunakan USB jika printer muncul sebagai port serial. Untuk Bluetooth, nyalakan printer dan pilih D110 di pemilih perangkat. Cetak dari komputer yang terhubung.</p>
@@ -286,17 +281,23 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
           <strong>Kertas dan ukuran</strong>
           {paper && <p>{paper.inserted === true ? "Kertas terdeteksi" : paper.inserted === false ? "Sensor printer melaporkan kertas kosong" : "Printer belum melaporkan keberadaan kertas"}</p>}
           {paper && <div className="text-xs space-y-1"><p>Roll: {paper.rollId || "identitas tidak tersedia"} · kode produk: {paper.productCode || "tidak tersedia"}</p><p>Diperiksa: {new Date(paper.checkedAt).toLocaleString("id-ID")}</p>{paper.notes.map(note => <p key={note}>{note}</p>)}</div>}
+          {paper?.totalLabels !== undefined && <p className="rounded border p-2 text-xs">RFID: total {paper.totalLabels} label · terpakai {paper.usedLabels ?? "tidak diketahui"}{paper.remainingLabels !== undefined && ` · perkiraan sisa ${paper.remainingLabels} label`}. Angka ini tidak menunjukkan ukuran kertas.</p>}
           <p className="text-xs">{profile ? `${SIZE_SOURCES[profile.source]}: ${profile.widthMm} × ${profile.lengthMm} mm · ${profile.confirmed ? "dikonfirmasi" : "perlu konfirmasi"}. ${profile.sourceDetail}` : "Ukuran belum diketahui. Masukkan ukuran pada kemasan atau ukur label, lalu konfirmasikan."}</p>
           <div className="grid grid-cols-2 gap-3">
             <label>Lebar melintang (mm)<input className="mt-1 w-full rounded border p-2 bg-transparent" type="number" min="5" max="15" step="0.1" value={manual.widthMm} disabled={busy} onChange={event => editManual({ widthMm: event.target.value })} /></label>
-            <label>Panjang searah feed (mm)<input className="mt-1 w-full rounded border p-2 bg-transparent" type="number" min="10" max="200" step="0.1" value={manual.lengthMm} disabled={busy} onChange={event => editManual({ lengthMm: event.target.value })} /></label>
+            <label>Panjang total termasuk ekor (mm)<input className="mt-1 w-full rounded border p-2 bg-transparent" type="number" min="10" max="200" step="0.1" value={manual.lengthMm} disabled={busy} onChange={event => editManual({ lengthMm: event.target.value })} /></label>
           </div>
           <label className="block">Jenis label <select className="rounded border p-2 bg-transparent" value={manual.labelType} disabled={busy} onChange={event => editManual({ labelType: event.target.value })}><option value="1">Bercelah</option><option value="5">Transparan</option></select></label>
-          <label className="flex items-center gap-2"><input type="checkbox" checked={manual.folded} disabled={busy} onChange={event => editManual({ folded: event.target.checked })} />Label lipat dua panel</label>
-          {manual.folded && <p className="text-xs">Masukkan panjang seluruh strip sebelum dilipat. Kedua panel dibagi rata sepanjang strip. Panel kedua diputar 180°.</p>}
-          <Button size="sm" variant="outline" onClick={confirmManual} disabled={!paper || paper.inserted === false || busy}>Simpan ukuran dan bentuk label</Button>
+          <label className="block">Bentuk label <select className="rounded border p-2 bg-transparent" value={manual.shape} disabled={busy} onChange={event => editManual({ shape: event.target.value as typeof manual.shape, tailLengthMm: event.target.value === "cable" ? (Number(manual.tailLengthMm) > 0 ? manual.tailLengthMm : "35") : "0" })}><option value="rectangle">Persegi panjang biasa</option><option value="folded">Lipat dua panel tanpa ekor</option><option value="cable">Label kabel dengan ekor menyempit</option></select></label>
+          {manual.shape === "cable" && <div className="grid grid-cols-2 gap-3">
+            <label>Panjang ekor kosong (mm)<input className="mt-1 w-full rounded border p-2 bg-transparent" type="number" min="0.1" max="190" step="0.1" value={manual.tailLengthMm} disabled={busy} onChange={event => editManual({ tailLengthMm: event.target.value })} /></label>
+            <label>Posisi ekor pada preview <select className="mt-1 w-full rounded border p-2 bg-transparent" value={manual.tailPosition} disabled={busy} onChange={event => editManual({ tailPosition: event.target.value as "start" | "end" })}><option value="start">Kiri / awal strip</option><option value="end">Kanan / akhir strip</option></select></label>
+          </div>}
+          {manual.shape !== "rectangle" && <p className="text-xs">Dua panel berada pada badan label{manual.shape === "cable" ? `: ${Number(manual.lengthMm) - Number(manual.tailLengthMm)} mm, masing-masing ${(Number(manual.lengthMm) - Number(manual.tailLengthMm)) / 2} mm. Ekor ${manual.tailLengthMm} mm dibiarkan kosong` : ", masing-masing setengah panjang strip"}. Panel kedua diputar 180°. Cocokkan posisi dengan label yang keluar dari printer.</p>}
+          <Button size="sm" variant="outline" onClick={confirmManual} disabled={!paper || paper.inserted === false || busy}>Konfirmasi ukuran dan bentuk label</Button>
           <p className="text-xs text-zinc-500">Ukuran dan bentuk dapat digunakan kembali pada browser ini untuk roll atau kode produk yang sama.</p>
         </section>
+        <PrinterTestPanel identity={identity} profile={profile} settings={settings} state={state} busy={busy} jobs={jobs} onPrint={submit} />
         <section className="space-y-3">
           <div className="flex gap-3 flex-wrap"><label>Template <select className="rounded border p-1 bg-transparent" value={settings.template} onChange={event => changeSettings({ template: event.target.value as LayoutSettings["template"] })}><option value="auto">Otomatis sesuai ukuran</option><option value="full">Lengkap</option><option value="compact">Ringkas: nomor & transaksi</option></select></label><label>Orientasi <select className="rounded border p-1 bg-transparent" value={settings.orientation} onChange={event => changeSettings({ orientation: event.target.value as LayoutSettings["orientation"] })}><option value="landscape">Mendatar</option><option value="portrait">Tegak</option></select></label></div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">{([
@@ -304,13 +305,15 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
             ["offsetXmm", "Offset X (mm)", -5, 5, 0.1], ["offsetYmm", "Offset Y (mm)", -5, 5, 0.1],
           ] as const).map(([key, label, min, max, step]) => <label key={key} className="text-xs">{label}<input className="mt-1 w-full rounded border p-2 bg-transparent" type="number" min={min} max={max} step={step} value={settings[key]} onChange={event => changeSettings({ [key]: Number(event.target.value) })} /></label>)}</div>
           <label className="flex items-center gap-2"><input type="checkbox" checked={settings.qr} onChange={event => changeSettings({ qr: event.target.checked })} />Sertakan QR identitas tiket (jika area cukup)</label>
-          <p className="text-xs">Preview tiket #{ticket.ticketNumber}. Lebar fisik roll dapat melebihi area kepala cetak. Preview menampilkan bitmap area cetak yang sama persis dengan data yang dikirim; tanpa peregangan bitmap.</p>
+          <p className="text-xs">Margin, offset, dan orientasi juga berlaku untuk label uji. Lebar fisik roll dapat melebihi area kepala cetak.</p>
+          {(!isPrintTest(ticket.id) || reprintOf) && <>
+          <p className="text-xs">{isPrintTest(ticket.id) ? "Cetak ulang label uji" : `Preview tiket #${ticket.ticketNumber}`}</p>
           {layoutError && <p role="alert" className="text-amber-700 dark:text-amber-300">{layoutError}</p>}
-          {preview && <div className="overflow-auto rounded-lg bg-zinc-200 p-4"><img src={preview.previewUrl} width={preview.canvas.width} height={preview.canvas.height} style={{ imageRendering: "pixelated", maxWidth: "none" }} alt={`Preview label tiket ${ticket.ticketNumber}`} /><p className="mt-2 text-xs text-zinc-700">{preview.canvas.width} × {preview.canvas.height} piksel · {preview.plan.compact ? "Ringkas: judul, PIC, telepon, jenis, dan prioritas tidak dicantumkan." : "Lengkap"}</p></div>}
-          {(!ticket.id.startsWith("USB-TEST") || reprintOf) && <Button size="sm" disabled={!canPrint} onClick={() => {
+          {preview && <div className="overflow-auto rounded-lg bg-zinc-200 p-4"><img src={preview.previewUrl} width={preview.canvas.width} height={preview.canvas.height} style={{ imageRendering: "pixelated", maxWidth: "none" }} alt={`Preview label ${ticket.ticketNumber}`} /><p className="mt-2 text-xs text-zinc-700">{preview.canvas.width} × {preview.canvas.height} piksel · {preview.plan.compact ? "Ringkas: judul, PIC, telepon, jenis, dan prioritas tidak dicantumkan." : "Lengkap"}</p></div>}
+          <Button size="sm" disabled={!canPrint} onClick={() => {
             if (reprintOf && !window.confirm("Cetak ulang dapat menghasilkan label ganda. Sudah memeriksa kertas dan ingin mencetak ulang?")) return;
             void submit(ticket, preview, reprintOf).then(() => setReprintOf(undefined)).catch(report);
-          }}>{reprintOf ? "Konfirmasi Cetak ulang" : "Cetak Tiket"}</Button>}
+          }}>{reprintOf ? "Konfirmasi Cetak ulang" : "Cetak Tiket"}</Button></>}
           <AutoPrintToggle />
         </section></>}
         <section className="space-y-2"><strong>Antrean dan riwayat browser ini</strong>{jobs.length === 0 && <p className="text-xs">Belum ada pekerjaan pada browser ini.</p>}{displayedJobs.map(job => <div key={job.id} className="rounded border p-2 text-xs space-y-1"><p>#{job.ticketNumber} · {JOB_LABELS[job.state]}{job.confirmation === "user" ? " (ditandai pengguna)" : ""}</p><p className="font-mono break-all">Job {job.id}</p>{job.message && <p>{job.message}</p>}{job.state === "unknown" && <Button size="sm" variant="outline" disabled={busy} onClick={() => { if (window.confirm("Anda sudah memeriksa dan memastikan label ini tercetak?")) void acknowledgeJob(job.id); }}>Tandai sudah tercetak</Button>}{["unknown", "confirmed", "failed"].includes(job.state) && <Button size="sm" variant="outline" disabled={!adapter.current || busy} onClick={() => void chooseReprint(job)}>Cetak ulang</Button>}</div>)}</section>

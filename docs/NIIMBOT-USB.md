@@ -1,10 +1,27 @@
 # Pencetakan tiket NIIMBOT D110 melalui USB dan Bluetooth
 
-Implementasi ada pada alur tiket Next.js yang sudah tersedia. Pengaturan **Printer** tersedia pada dashboard, **Cetak Tiket** pada detail tiket, dan opsi cetak otomatis pada formulir tiket baru. Koneksi tetap hidup selama berpindah halaman dashboard; memuat ulang halaman memerlukan klik **Hubungkan USB** lagi.
+Implementasi ada pada alur tiket Next.js yang sudah tersedia. Pengaturan **Printer** tersedia pada dashboard, **Cetak Tiket** pada detail tiket, dan opsi cetak otomatis pada formulir tiket baru. Koneksi tetap hidup selama berpindah halaman dashboard; memuat ulang halaman memerlukan klik **Hubungkan USB** atau **Hubungkan Bluetooth** lagi.
+
+## Uji cetak dan label kabel
+
+1. Buka **Printer**, hubungkan USB atau Bluetooth, lalu pilih **Periksa Kertas**.
+2. Cocokkan lebar dan panjang total dengan kemasan atau hasil ukur. Untuk label kabel, pilih bentuk **Label kabel dengan ekor menyempit**, masukkan panjang ekor, lalu pilih posisi ekor pada preview. Tekan **Konfirmasi ukuran dan bentuk label**.
+3. Bagian **Uji coba cetak** menampilkan gambar yang akan dikirim. Klik **Cetak 1 label uji** untuk mengirim satu label dengan teks uji, bingkai batas cetak, dan penggaris bertanda setiap 5 mm. Uji ini tidak membuat tiket atau memanggil API tiket. QR tiket tidak disertakan pada pola uji.
+4. Periksa teks, garis, posisi lipatan dan ekor kosong. Koreksi ukuran, posisi ekor, margin, offset atau orientasi bila diperlukan, lalu uji lagi. Riwayat uji memakai antrean dan konfirmasi halaman yang sama dengan cetak tiket. Jika hasil tidak terkonfirmasi, periksa label dan selesaikan status di riwayat sebelum mencoba lagi.
+
+Pada label kabel, panjang total sudah mencakup ekor. Badan label = panjang total dikurangi ekor. Dua panel membagi badan tersebut sama rata, dan panel kedua diputar 180°. Contoh kandidat 12,5 × 109 mm dengan ekor 35 mm menghasilkan badan 74 mm dan dua panel 37 mm. Bagian ekor tetap putih pada bitmap yang dikirim; panjang halaman tetap seluruh strip.
+
+RFID `allPaper: 78` dan `usedPaper: 35` berarti total 78 dan terpakai 35, dengan perkiraan sisa 43 label. Angka itu tidak menyatakan ukuran dalam mm. Ukuran dari `PaperInfo` ditandai sebagai laporan printer; ukuran dari barcode ditandai sebagai pemetaan katalog. Tombol **Periksa Kertas** memperbarui pembacaan, termasuk penghitung RFID.
+
+Barcode `6972842743817` diberi kandidat label kabel 12,5 × (74+35) mm. [Katalog NIIMBOT Australia](https://niimbot.com.au/products/niimbot-d11-d101-d110-h1s-12-5-37mm-65pcs-thermal-cable-labels-red) menyebut 74+35 mm pada judul dan 37 mm pada uraian panel, sedangkan [daftar produk dengan EAN yang sama](https://www.rapidonline.com/niimbot-a2k18638001-labels-roll-72-x-12-5-mm-red-65-pcs-cable-identifiers-19-3601) menyebut 72 × 12,5 mm. Karena sumber tidak seragam dan RFID tidak melaporkan dimensi, kandidat ini **selalu memerlukan konfirmasi fisik** sebelum digunakan. Aplikasi menyimpan koreksi manual untuk roll/kode produk tersebut dan tidak menimpanya kembali dengan kandidat katalog. Profil lama untuk barcode ini yang belum memisahkan ekor diminta dikonfirmasi kembali.
+
+Pada D110 203 DPI dengan kepala 96 titik, lebar area cetak sekitar 12,01 mm. Lebar fisik kertas 12,5 mm dapat lebih besar dari area cetak itu. Preview dan pengiriman menggunakan bitmap yang sama, tanpa meregangkan gambar. Data jumlah label tidak digunakan untuk menebak geometri.
+
+Validasi perubahan ini: 150 pengujian lulus dan build produksi berhasil pada checkout pemeriksaan yang berisi perubahan printer. Pemeriksaan Chrome memakai canvas asli untuk empat kombinasi orientasi/posisi ekor; kedua panel berisi pola dan seluruh ekor tetap putih. UI menolak ukuran yang belum dikonfirmasi, menahan klik ganda, dan memberi identitas berbeda untuk dua uji yang disengaja. Ini belum merupakan uji cetak fisik pada unit pengguna.
 
 Admin, NOC, dan owner melihat status USB bersama. Komputer yang tersambung memperbarui status setiap 15 detik. Komputer lain memeriksanya setiap 8 detik. Mencabut USB atau menutup tab melepas status. Jika browser berhenti mendadak, status kedaluwarsa setelah 90 detik. Antrean dan tombol kirim cetak menggunakan USB lokal.
 
-Untuk **Label lipat dua panel**, gunakan panjang seluruh strip sebelum dilipat, centang pilihan tersebut dan simpan. Kedua panel menggunakan setengah panjang strip dengan margin masing-masing. Panel kedua diputar 180 derajat. Pilih **Otomatis sesuai ukuran** agar aplikasi memakai format ringkas jika detail lengkap tidak muat. Periksa preview sebelum mengirim.
+Untuk **Lipat dua panel tanpa ekor**, gunakan panjang seluruh strip sebelum dilipat, pilih bentuk tersebut dan konfirmasikan. Kedua panel menggunakan setengah panjang strip dengan margin masing-masing. Panel kedua diputar 180 derajat. Pilih **Otomatis sesuai ukuran** agar aplikasi memakai format ringkas jika detail lengkap tidak muat. Periksa preview sebelum mengirim.
 
 ## Pilihan koneksi
 

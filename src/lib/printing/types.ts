@@ -26,6 +26,10 @@ export interface PaperReading {
   productCode?: string;
   labelType?: number;
   dimensions?: LabelSize;
+  tailLengthMm?: number;
+  totalLabels?: number;
+  usedLabels?: number;
+  remainingLabels?: number;
   notes: string[];
   raw?: unknown;
 }
@@ -33,7 +37,11 @@ export interface LabelProfile extends LabelSize {
   source: SizeSource;
   productCode?: string;
   folded?: boolean;
+  /** Blank narrow section of a cable label, included in lengthMm. */
+  tailLengthMm?: number;
+  tailPosition?: "start" | "end";
   measuredAtConfirmation?: LabelSize;
+  measuredTailAtConfirmation?: number;
   rollId?: string;
   labelType: number;
   confirmed: boolean;
