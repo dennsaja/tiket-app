@@ -25,8 +25,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - name: Test application boundaries and GitHub updater
-        run: npx vitest run src/__tests__/monolith-network.test.ts src/__tests__/system-update.test.ts src/__tests__/startup-env.test.ts --maxWorkers=1
+      - name: Test application boundaries, updater and installation customer labels
+        run: npx vitest run src/__tests__/monolith-network.test.ts src/__tests__/system-update.test.ts src/__tests__/startup-env.test.ts src/__tests__/installation-customer-label.test.ts src/__tests__/installation-ticket-create.test.ts --maxWorkers=1
       - run: npm run build
       - name: Check web, login, API and assets in one process
         run: bash .github/scripts/monolith-check.sh

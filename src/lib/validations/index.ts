@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CUSTOMER_NAME_REQUIRED, isInstallationTicketType } from "@/lib/tickets/customer-name";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -65,7 +66,7 @@ export const ticketStatuses = [
   "cancelled",
 ] as const;
 
-export const createTicketSchema = z.object({
+export const createTicketFieldsSchema = z.object({
   ticketType: z.enum(ticketTypes).default("psb"),
   title: z
     .string()
@@ -83,7 +84,7 @@ export const createTicketSchema = z.object({
   assigneeIds: z.array(z.string()).optional(),
   leadAssigneeId: z.string().optional(),
   specData: z.record(z.any()).optional().nullable(),
-  reporterName: z.string().max(255, "Nama pelapor terlalu panjang (maks. 255 karakter)").optional().nullable(),
+  reporterName: z.string().trim().max(255, "Nama pelanggan terlalu panjang (maks. 255 karakter)").optional().nullable(),
   reporterPhone: z.string().max(50, "Nomor telepon terlalu panjang (maks. 50 karakter)").optional().nullable(),
   reporterAddress: z.string().max(2000, "Alamat terlalu panjang (maks. 2000 karakter)").optional().nullable(),
   reporterMapUrl: z
@@ -103,6 +104,12 @@ export const createTicketSchema = z.object({
       },
       { message: "Link Google Maps harus berupa URL yang valid (diawali http:// atau https://)" }
     ),
+});
+
+export const createTicketSchema = createTicketFieldsSchema.superRefine((ticket, context) => {
+  if (isInstallationTicketType(ticket.ticketType) && !ticket.reporterName?.trim()) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["reporterName"], message: CUSTOMER_NAME_REQUIRED });
+  }
 });
 
 export const updateTicketSchema = z.object({

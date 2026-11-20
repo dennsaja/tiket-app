@@ -2,6 +2,7 @@ import QRCode from "qrcode";
 import type { LabelProfile, LayoutSettings, PrintableTicket, PrinterIdentity } from "./types";
 import { validProfile } from "./profiles";
 import { isPrintTest, printTestLines } from "./test-label";
+import { customerLabelName, isInstallationTicketType } from "@/lib/tickets/customer-name";
 
 export const mmToPixels = (mm: number, dpi: number) => Math.round(mm * dpi / 25.4);
 export type MeasureText = (text: string, size: number) => { width: number; ascent: number; descent: number };
@@ -10,11 +11,16 @@ export interface LayoutPlan {
   width: number; height: number; lines: Line[];
   bodyX: number; bodyWidth: number; panelWidth: number;
   compact?: boolean;
+  customerLabel?: boolean;
   testPattern?: { x: number; y: number; width: number; height: number; rulerStep: number };
   qr?: { x: number; y: number; moduleSize: number; size: number; data: Uint8Array };
   error?: string;
 }
 export function ticketLines(ticket: PrintableTicket, compact: boolean): string[] {
+  if (isInstallationTicketType(ticket.ticketType)) {
+    const name = customerLabelName(ticket.reporterName);
+    return name ? [name] : [];
+  }
   const lines = [`TIKET #${ticket.ticketNumber}`];
   if (ticket.transactionCode) lines.push(`Transaksi: ${ticket.transactionCode}`);
   // Number and transaction code are mandatory even in compact mode.
@@ -53,11 +59,14 @@ export function planLabel(ticket: PrintableTicket, profile: LabelProfile, printe
   const bodyWidth = width - tail;
   const panelWidth = profile.folded ? Math.floor(bodyWidth / 2) : bodyWidth;
   const test = isPrintTest(ticket.id);
-  const plan: LayoutPlan = { width, height, bodyX, bodyWidth, panelWidth, lines: [] };
+  const customerLabel = !test && isInstallationTicketType(ticket.ticketType);
+  const plan: LayoutPlan = { width, height, bodyX, bodyWidth, panelWidth, customerLabel, lines: [] };
   const fail = (error: string) => ({ ...plan, error });
+  if (customerLabel && !customerLabelName(ticket.reporterName)) return fail("Nama pelanggan pada tiket pemasangan belum diisi. Lengkapi nama pelanggan sebelum mencetak.");
   if (!validProfile(profile) || ![203].includes(printer.dpi) || printer.headPixels !== 96) return fail("Ukuran/geometri printer tidak valid. Periksa panjang total dan ekor label.");
+  const minimumFont = customerLabel ? settings.customerMinFontPx ?? 8 : settings.minFontPx;
   if (!Object.values(settings).every(value => typeof value !== "number" || Number.isFinite(value))
-    || settings.marginMm < 0.25 || settings.minFontPx < 8 || settings.minFontPx > 24) return fail("Margin minimum 0,25 mm; font minimum 8–24 piksel.");
+    || settings.marginMm < 0.25 || minimumFont < 8 || minimumFont > 24) return fail("Margin minimum 0,25 mm; font minimum 8–24 piksel.");
   const logicalWidth = settings.orientation === "portrait" ? height : panelWidth;
   const logicalHeight = settings.orientation === "portrait" ? panelWidth : height;
   const margin = Math.ceil(settings.marginMm * printer.dpi / 25.4);
@@ -70,7 +79,7 @@ export function planLabel(ticket: PrintableTicket, profile: LabelProfile, printe
   if (test) plan.testPattern = { x: left - padding, y: top - padding, width: availableWidth + padding * 2,
     height: availableHeight + padding * 2, rulerStep: mmToPixels(5, printer.dpi) };
   const textHeight = availableHeight - (test ? 16 : 0);
-  if (settings.qr && !test) {
+  if (settings.qr && !test && !customerLabel) {
     const qr = QRCode.create(ticket.id, { errorCorrectionLevel: "M" });
     const moduleSize = Math.max(3, Math.ceil(printer.dpi * 0.33 / 25.4));
     const extent = (qr.modules.size + 8) * moduleSize; // Four-module quiet zone each side.
@@ -80,7 +89,7 @@ export function planLabel(ticket: PrintableTicket, profile: LabelProfile, printe
   }
   const variants = test ? [printTestLines(profile, printer), ["UJI CETAK", `${profile.widthMm} x ${profile.lengthMm} mm`], ["UJI"]]
     : [ticketLines(ticket, settings.template === "compact")];
-  for (const content of variants) for (let size = 24; size >= Math.ceil(settings.minFontPx); size--) {
+  for (const content of variants) for (let size = customerLabel ? 64 : 24; size >= Math.ceil(minimumFont); size--) {
     const lines: Line[] = [];
     let y = top;
     let fits = true;
@@ -97,8 +106,20 @@ export function planLabel(ticket: PrintableTicket, profile: LabelProfile, printe
       }
       if (!fits) break;
     }
-    if (fits) return { ...plan, lines, compact: !test && settings.template === "compact" };
+    if (fits) {
+      if (customerLabel) {
+        const inkTop = Math.min(...lines.map(line => line.baseline - measure(line.text, line.size).ascent));
+        const inkBottom = Math.max(...lines.map(line => line.baseline + measure(line.text, line.size).descent));
+        const shiftY = Math.floor(top + (textHeight - (inkBottom - inkTop)) / 2 - inkTop);
+        for (const line of lines) {
+          line.x += Math.floor((availableWidth - measure(line.text, line.size).width) / 2);
+          line.baseline += shiftY;
+        }
+      }
+      return { ...plan, lines, compact: !test && !customerLabel && settings.template === "compact" };
+    }
   }
+  if (customerLabel) return fail("Nama pelanggan tidak muat pada ukuran kertas dan batas font minimum. Gunakan area label lebih besar, kurangi margin/offset, atau turunkan font minimum nama. Nama tidak dipotong dan cetak diblokir.");
   if (!test && settings.template === "auto") return planLabel(ticket, profile, printer, { ...settings, template: "compact" }, measure);
   return fail("Isi tiket tidak muat pada batas font minimum. Pilih template ringkas (nomor tiket dan kode transaksi), atau ukuran label lain. Cetak diblokir.");
 }
@@ -113,7 +134,8 @@ export async function renderLabel(ticket: PrintableTicket, profile: LabelProfile
     context.font = `${size}px Arial`;
     const metrics = context.measureText(text);
     return { width: Math.max(metrics.width, metrics.actualBoundingBoxRight) + Math.max(0, metrics.actualBoundingBoxLeft),
-      ascent: metrics.actualBoundingBoxAscent || size * 0.8, descent: metrics.actualBoundingBoxDescent || size * 0.2 };
+      ascent: metrics.actualBoundingBoxAscent || size * 0.8,
+      descent: Number.isFinite(metrics.actualBoundingBoxDescent) ? Math.max(0, metrics.actualBoundingBoxDescent) : size * 0.2 };
   };
   const plan = planLabel(ticket, profile, printer, settings, measure);
   if (plan.error) throw new Error(plan.error);

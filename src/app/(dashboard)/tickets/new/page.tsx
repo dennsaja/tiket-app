@@ -39,6 +39,7 @@ import {
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { AutoPrintToggle, usePrinter } from "@/components/printing/printer-provider";
+import { isInstallationTicketType } from "@/lib/tickets/customer-name";
 
 type TicketType = "psb" | "perbaikan_infrastruktur" | "pemasangan_cctv" | "perbaikan_cctv" | "maintenance";
 
@@ -92,6 +93,7 @@ export default function NewTicketPage() {
   const userRole = (session?.user as any)?.role;
 
   const [selectedType, setSelectedType] = React.useState<TicketType>("psb");
+  const customerNameRequired = isInstallationTicketType(selectedType);
   const [categories, setCategories] = React.useState<any[]>([]);
   const [technicians, setTechnicians] = React.useState<any[]>([]);
   const [selectedTechIds, setSelectedTechIds] = React.useState<string[]>([]);
@@ -151,6 +153,7 @@ export default function NewTicketPage() {
     control,
     watch,
     setValue,
+    clearErrors,
     formState: { errors },
   } = useForm<any>({
     resolver: zodResolver(createTicketSchema) as any,
@@ -169,6 +172,8 @@ export default function NewTicketPage() {
   const selectedCategoryId = watch("categoryId");
   const currentPriority = watch("priority") || "medium";
   const reporterNameVal = watch("reporterName");
+
+  React.useEffect(() => { clearErrors("reporterName"); }, [selectedType, clearErrors]);
 
   // Load departments, categories, and active technicians
   React.useEffect(() => {
@@ -215,6 +220,7 @@ export default function NewTicketPage() {
       const first = categories[0];
       setValue("categoryId", first.id);
       setSelectedType((first.ticketType || "maintenance") as TicketType);
+      setValue("ticketType", first.ticketType || "maintenance");
       setValue("subcategoryId", "");
     }
   }, [categories, selectedCategoryId, setValue]);
@@ -425,7 +431,7 @@ export default function NewTicketPage() {
                 <button
                   type="button"
                   key={category.id}
-                  onClick={() => { setValue("categoryId", category.id); setValue("subcategoryId", ""); setSelectedType((category.ticketType || "maintenance") as TicketType); }}
+                  onClick={() => { setValue("categoryId", category.id); setValue("subcategoryId", ""); setValue("ticketType", category.ticketType || "maintenance"); setSelectedType((category.ticketType || "maintenance") as TicketType); }}
                   className={`flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer relative ${
                     isSelected
                       ? "border-black bg-zinc-50/90 ring-2 ring-black/5 dark:border-white dark:bg-zinc-900 dark:ring-white/10 shadow-xs"
@@ -884,8 +890,11 @@ export default function NewTicketPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label="Nama PIC / Pelanggan"
+              label={customerNameRequired ? "Nama Pelanggan" : "Nama PIC / Pelanggan"}
               placeholder="Contoh: Bapak Hendra / Toko Sumber Makmur"
+              required={customerNameRequired}
+              maxLength={255}
+              helperText={customerNameRequired ? "Wajib diisi. Hanya nama ini yang dicetak pada label pemasangan; ukuran huruf menyesuaikan kertas secara otomatis." : undefined}
               leftElement={<User className="h-3.5 w-3.5" />}
               {...register("reporterName")}
               error={errors.reporterName?.message as string | undefined}

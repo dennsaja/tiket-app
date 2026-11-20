@@ -16,6 +16,7 @@ import type { PrinterTransport } from "@/lib/printing/types";
 import { usePrinterPresence } from "./use-printer-presence";
 import { PrinterTestPanel } from "./printer-test-panel";
 import { isPrintTest } from "@/lib/printing/test-label";
+import { isInstallationTicketType } from "@/lib/tickets/customer-name";
 
 const STATE_LABELS: Record<ConnectionState, string> = { disconnected: "Tidak terhubung", connecting: "Menghubungkan", ready: "Siap", printing: "Mencetak", error: "Bermasalah" };
 const SAMPLE: PrintableTicket = { id: "USB-TEST", ticketNumber: "UJI-001", title: "Uji cetak D110", reporterName: "NIIMBOT", priority: "normal" };
@@ -261,6 +262,7 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
   const canPrint = (state === "ready" || state === "printing") && !!profile?.confirmed && !!preview && !checking;
   const displayedJobs = [...jobs].reverse().filter((job, index) => index < 30 || ["unknown", "queued", "sending", "awaiting_confirmation"].includes(job.state));
   const selectedJob = displayedJobs.find(job => job.ticketId === ticket.id);
+  const customerLabel = isInstallationTicketType(ticket.ticketType) && !isPrintTest(ticket.id);
   return <PrinterContext.Provider value={{ state, statusLabel, autoPrint, setAutoPrint, open, afterSaved }}>
     {children}
     <Modal open={visible} onOpenChange={setVisible} title="Printer label · NIIMBOT D110" description="Koneksi dan antrean cetak pada browser ini" size="xl">
@@ -299,17 +301,17 @@ export function PrinterProvider({ children }: { children: React.ReactNode }) {
         </section>
         <PrinterTestPanel identity={identity} profile={profile} settings={settings} state={state} busy={busy} jobs={jobs} onPrint={submit} />
         <section className="space-y-3">
-          <div className="flex gap-3 flex-wrap"><label>Template <select className="rounded border p-1 bg-transparent" value={settings.template} onChange={event => changeSettings({ template: event.target.value as LayoutSettings["template"] })}><option value="auto">Otomatis sesuai ukuran</option><option value="full">Lengkap</option><option value="compact">Ringkas: nomor & transaksi</option></select></label><label>Orientasi <select className="rounded border p-1 bg-transparent" value={settings.orientation} onChange={event => changeSettings({ orientation: event.target.value as LayoutSettings["orientation"] })}><option value="landscape">Mendatar</option><option value="portrait">Tegak</option></select></label></div>
+          <div className="flex gap-3 flex-wrap">{customerLabel ? <p>Format: <strong>Nama pelanggan</strong> · ukuran huruf otomatis</p> : <label>Template <select className="rounded border p-1 bg-transparent" value={settings.template} onChange={event => changeSettings({ template: event.target.value as LayoutSettings["template"] })}><option value="auto">Otomatis sesuai ukuran</option><option value="full">Lengkap</option><option value="compact">Ringkas: nomor & transaksi</option></select></label>}<label>Orientasi <select className="rounded border p-1 bg-transparent" value={settings.orientation} onChange={event => changeSettings({ orientation: event.target.value as LayoutSettings["orientation"] })}><option value="landscape">Mendatar</option><option value="portrait">Tegak</option></select></label></div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">{([
-            ["marginMm", "Margin (mm)", 0.25, 5, 0.25], ["minFontPx", "Font minimum (px)", 8, 24, 1],
+            ["marginMm", "Margin (mm)", 0.25, 5, 0.25], [customerLabel ? "customerMinFontPx" : "minFontPx", customerLabel ? "Font minimum nama (px)" : "Font minimum (px)", 8, 24, 1],
             ["offsetXmm", "Offset X (mm)", -5, 5, 0.1], ["offsetYmm", "Offset Y (mm)", -5, 5, 0.1],
-          ] as const).map(([key, label, min, max, step]) => <label key={key} className="text-xs">{label}<input className="mt-1 w-full rounded border p-2 bg-transparent" type="number" min={min} max={max} step={step} value={settings[key]} onChange={event => changeSettings({ [key]: Number(event.target.value) })} /></label>)}</div>
-          <label className="flex items-center gap-2"><input type="checkbox" checked={settings.qr} onChange={event => changeSettings({ qr: event.target.checked })} />Sertakan QR identitas tiket (jika area cukup)</label>
+          ] as const).map(([key, label, min, max, step]) => <label key={key} className="text-xs">{label}<input className="mt-1 w-full rounded border p-2 bg-transparent" type="number" min={min} max={max} step={step} value={settings[key] ?? 8} onChange={event => changeSettings({ [key]: Number(event.target.value) })} /></label>)}</div>
+          {!customerLabel && <label className="flex items-center gap-2"><input type="checkbox" checked={settings.qr} onChange={event => changeSettings({ qr: event.target.checked })} />Sertakan QR identitas tiket (jika area cukup)</label>}
           <p className="text-xs">Margin, offset, dan orientasi juga berlaku untuk label uji. Lebar fisik roll dapat melebihi area kepala cetak.</p>
           {(!isPrintTest(ticket.id) || reprintOf) && <>
           <p className="text-xs">{isPrintTest(ticket.id) ? "Cetak ulang label uji" : `Preview tiket #${ticket.ticketNumber}`}</p>
           {layoutError && <p role="alert" className="text-amber-700 dark:text-amber-300">{layoutError}</p>}
-          {preview && <div className="overflow-auto rounded-lg bg-zinc-200 p-4"><img src={preview.previewUrl} width={preview.canvas.width} height={preview.canvas.height} style={{ imageRendering: "pixelated", maxWidth: "none" }} alt={`Preview label ${ticket.ticketNumber}`} /><p className="mt-2 text-xs text-zinc-700">{preview.canvas.width} × {preview.canvas.height} piksel · {preview.plan.compact ? "Ringkas: judul, PIC, telepon, jenis, dan prioritas tidak dicantumkan." : "Lengkap"}</p></div>}
+          {preview && <div className="overflow-auto rounded-lg bg-zinc-200 p-4"><img src={preview.previewUrl} width={preview.canvas.width} height={preview.canvas.height} style={{ imageRendering: "pixelated", maxWidth: "none" }} alt={`Preview label ${ticket.ticketNumber}`} /><p className="mt-2 text-xs text-zinc-700">{preview.canvas.width} × {preview.canvas.height} piksel · {preview.plan.customerLabel ? `Hanya nama pelanggan · font ${preview.plan.lines[0]?.size ?? 0} px` : preview.plan.compact ? "Ringkas: judul, PIC, telepon, jenis, dan prioritas tidak dicantumkan." : "Lengkap"}</p></div>}
           <Button size="sm" disabled={!canPrint} onClick={() => {
             if (reprintOf && !window.confirm("Cetak ulang dapat menghasilkan label ganda. Sudah memeriksa kertas dan ingin mencetak ulang?")) return;
             void submit(ticket, preview, reprintOf).then(() => setReprintOf(undefined)).catch(report);

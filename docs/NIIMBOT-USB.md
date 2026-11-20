@@ -2,6 +2,16 @@
 
 Implementasi ada pada alur tiket Next.js yang sudah tersedia. Pengaturan **Printer** tersedia pada dashboard, **Cetak Tiket** pada detail tiket, dan opsi cetak otomatis pada formulir tiket baru. Koneksi tetap hidup selama berpindah halaman dashboard; memuat ulang halaman memerlukan klik **Hubungkan USB** atau **Hubungkan Bluetooth** lagi.
 
+## Label nama pelanggan untuk pemasangan
+
+Pada kategori PSB/pemasangan internet dan pemasangan CCTV, **Nama Pelanggan** wajib diisi saat membuat tiket. Formulir menandainya sebagai wajib dan menampilkan kesalahan untuk nama kosong atau spasi saja. Server juga memeriksa nama berdasarkan jenis kategori yang tersimpan, sehingga jenis tiket yang dikirim oleh klien tidak dapat melewati aturan ini. Hak pembuatan tetap mengikuti peran NOC, Owner, dan Admin.
+
+Label pemasangan hanya berisi nama pelanggan yang disimpan pada tiket. Nomor tiket, judul, kode transaksi, nomor telepon, prioritas dan QR tidak ikut dicetak pada format ini. Cetak dari detail tiket, cetak ulang, dan cetak otomatis setelah penyimpanan menggunakan sumber nama yang sama. Aktifkan **Cetak otomatis setelah tiket tersimpan** bila ingin langsung mencetak saat printer siap.
+
+Ukuran huruf nama menyesuaikan area cetak dari besar ke kecil, dapat dibagi menjadi beberapa baris, dan diletakkan di tengah panel. Margin, offset, orientasi, lebar kepala cetak dan ekor kosong tetap diperhitungkan. Nama panjang dipertahankan utuh. Pada label kabel, kedua panel berisi nama yang sama dengan panel kedua diputar 180°; ekor tidak dicetak.
+
+Pengaturan **Font minimum nama** terpisah dari batas font template tiket biasa, dengan nilai awal 8 px. Jika nama tetap tidak muat pada batas yang dipilih, aplikasi menampilkan pesan dan menahan pengiriman. Gunakan area label lebih besar, kurangi margin/offset, atau sesuaikan batas font; teks tidak dipotong otomatis. Tiket pemasangan lama yang belum memiliki nama pelanggan juga ditahan saat dicetak sampai namanya dilengkapi. Kolom database yang digunakan tetap reporter_name; tidak ada migrasi database untuk perubahan ini.
+
 ## Uji cetak dan label kabel
 
 1. Buka **Printer**, hubungkan USB atau Bluetooth, lalu pilih **Periksa Kertas**.
@@ -17,7 +27,7 @@ Barcode `6972842743817` diberi kandidat label kabel 12,5 × (74+35) mm. [Katalog
 
 Pada D110 203 DPI dengan kepala 96 titik, lebar area cetak sekitar 12,01 mm. Lebar fisik kertas 12,5 mm dapat lebih besar dari area cetak itu. Preview dan pengiriman menggunakan bitmap yang sama, tanpa meregangkan gambar. Data jumlah label tidak digunakan untuk menebak geometri.
 
-Validasi perubahan ini: 150 pengujian lulus dan build produksi berhasil pada checkout pemeriksaan yang berisi perubahan printer. Pemeriksaan Chrome memakai canvas asli untuk empat kombinasi orientasi/posisi ekor; kedua panel berisi pola dan seluruh ekor tetap putih. UI menolak ukuran yang belum dikonfirmasi, menahan klik ganda, dan memberi identitas berbeda untuk dua uji yang disengaja. Ini belum merupakan uji cetak fisik pada unit pengguna.
+Validasi perangkat lunak terbaru: 180 pengujian, pemeriksaan TypeScript, dan build produksi lulus pada checkout pemeriksaan. Pemeriksaan Chrome memakai canvas asli untuk empat kombinasi orientasi/posisi ekor; kedua panel berisi pola dan seluruh ekor tetap putih. Uji formulir juga memastikan nama pelanggan wajib untuk pemasangan, menolak spasi saja, mengikuti perubahan kategori, dan mengirim nama tersimpan ke alur cetak. Contoh nama 12, 80, dan 255 karakter menghasilkan huruf yang mengecil tanpa kehilangan teks atau mencetak ekor. UI uji cetak menolak ukuran yang belum dikonfirmasi, menahan klik ganda, dan memberi identitas berbeda untuk dua uji yang disengaja. Pemeriksaan ini belum merupakan uji cetak fisik format nama pelanggan yang baru pada unit pengguna.
 
 Admin, NOC, dan owner melihat status USB bersama. Komputer yang tersambung memperbarui status setiap 15 detik. Komputer lain memeriksanya setiap 8 detik. Mencabut USB atau menutup tab melepas status. Jika browser berhenti mendadak, status kedaluwarsa setelah 90 detik. Antrean dan tombol kirim cetak menggunakan USB lokal.
 

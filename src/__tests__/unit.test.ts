@@ -84,6 +84,7 @@ describe("Authentication", () => {
 describe("Ticket Validation", () => {
   it("should reject ticket with short title", () => {
     const result = createTicketSchema.safeParse({
+      ticketType: "maintenance",
       title: "Hi",
       description: "This is a valid description that is long enough.",
     });
@@ -92,6 +93,7 @@ describe("Ticket Validation", () => {
 
   it("should reject ticket with short description", () => {
     const result = createTicketSchema.safeParse({
+      ticketType: "maintenance",
       title: "This is a valid title",
       description: "Tiny",
     });
@@ -100,6 +102,7 @@ describe("Ticket Validation", () => {
 
   it("should accept valid ticket", () => {
     const result = createTicketSchema.safeParse({
+      ticketType: "perbaikan_infrastruktur",
       title: "Cannot connect to VPN after update",
       description:
         "Since the recent Windows update, I cannot connect to the company VPN anymore. Error code 619 is shown.",
@@ -127,6 +130,7 @@ describe("Ticket Validation", () => {
 
   it("should reject invalid Google Maps URL", () => {
     const result = createTicketSchema.safeParse({
+      ticketType: "perbaikan_infrastruktur",
       title: "Kendala koneksi internet di kantor cabang",
       description: "Internet mati sejak pagi, lampu indikator merah di router utama.",
       reporterMapUrl: "bukan-url-valid",
@@ -136,6 +140,7 @@ describe("Ticket Validation", () => {
 
   it("should accept empty or null reporter fields (backward compatibility)", () => {
     const result = createTicketSchema.safeParse({
+      ticketType: "maintenance",
       title: "Ticket without reporter info",
       description: "Description long enough for testing backward compatibility.",
       reporterName: null,
@@ -147,6 +152,7 @@ describe("Ticket Validation", () => {
 
   it("should default priority to medium", () => {
     const result = createTicketSchema.safeParse({
+      reporterName: "Pelanggan Pengujian",
       title: "This is a valid title for the ticket",
       description: "This is a long enough description for the ticket content.",
     });

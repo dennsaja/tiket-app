@@ -15,7 +15,7 @@ import {
   auditLogs,
 } from "@/lib/db/schema";
 import { eq, desc, asc, and, or, ilike, inArray, count, sql, isNull } from "drizzle-orm";
-import { createTicketSchema, ticketFiltersSchema } from "@/lib/validations";
+import { createTicketFieldsSchema, createTicketSchema, ticketFiltersSchema } from "@/lib/validations";
 import { errorResponse, successResponse, paginatedResponse } from "@/lib/api/helpers";
 import { createAuditLog, getClientIp } from "@/lib/audit";
 import { applySlaPolicyToTicket } from "@/lib/sla";
@@ -225,7 +225,7 @@ export async function POST(req: NextRequest) {
     return errorResponse("Invalid JSON body", 400);
   }
 
-  const parsed = createTicketSchema.safeParse(body);
+  const parsed = createTicketFieldsSchema.safeParse(body);
   if (!parsed.success) {
     const errorMessage = parsed.error.issues
       .map((i) => `${i.path.join(".")}: ${i.message}`)
@@ -233,12 +233,16 @@ export async function POST(req: NextRequest) {
     return errorResponse(`Validation error: ${errorMessage}`, 422);
   }
 
-  const data = parsed.data;
+  const initialData = parsed.data;
 
-  if (!data.categoryId) return errorResponse("Pilih kategori pekerjaan", 422);
-  const category = await db.query.categories.findFirst({ where: eq(categories.id, data.categoryId) });
+  if (!initialData.categoryId) return errorResponse("Pilih kategori pekerjaan", 422);
+  const category = await db.query.categories.findFirst({ where: eq(categories.id, initialData.categoryId) });
   if (!category?.isActive) return errorResponse("Kategori tidak tersedia", 422);
-  data.ticketType = (categoryTicketType(category) || "maintenance") as typeof data.ticketType;
+  // Validate the customer requirement against the actual category, never a
+  // caller-provided type that can disagree with it or an omitted default.
+  const classified = createTicketSchema.safeParse({ ...initialData, ticketType: categoryTicketType(category) || "maintenance" });
+  if (!classified.success) return errorResponse(classified.error.issues.map(issue => issue.message).join(", "), 422);
+  const data = classified.data;
 
   const classificationError = await validateClassification(data.ticketType, data.categoryId, data.subcategoryId);
   if (classificationError) return errorResponse(classificationError, 422);

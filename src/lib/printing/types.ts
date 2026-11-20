@@ -52,12 +52,13 @@ export interface LayoutSettings {
   offsetXmm: number;
   offsetYmm: number;
   minFontPx: number;
+  customerMinFontPx?: number;
   orientation: "landscape" | "portrait";
   template: "auto" | "full" | "compact";
   qr: boolean;
 }
 export const DEFAULT_LAYOUT: LayoutSettings = {
-  marginMm: 0.75, offsetXmm: 0, offsetYmm: 0, minFontPx: 11,
+  marginMm: 0.75, offsetXmm: 0, offsetYmm: 0, minFontPx: 11, customerMinFontPx: 8,
   orientation: "landscape", template: "auto", qr: false,
 };
 export interface PrintableTicket {
